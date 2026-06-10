@@ -103,6 +103,26 @@
           <span class="field-value">{{ project.parent_record }}</span>
         </div>
       </div>
+
+      <!-- 效果图 -->
+      <div v-if="imageUrls.length" class="image-section" style="margin-top:16px;">
+        <div class="section-label">
+          <el-icon><PictureFilled /></el-icon>
+          <span>效果图</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+          <el-image
+            v-for="(img, i) in imageUrls"
+            :key="i"
+            :src="img"
+            fit="cover"
+            :preview-src-list="imageUrls"
+            :initial-index="i"
+            preview-teleported
+            style="width:100px;height:100px;border-radius:8px;border:1px solid #ebeef5;cursor:pointer;"
+          />
+        </div>
+      </div>
     </div>
 
     <template #footer>
@@ -112,14 +132,21 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { PictureFilled } from '@element-plus/icons-vue'
 
-defineProps({
+const props = defineProps({
   modelValue: Boolean,
   project: { type: Object, default: null }
 })
 
 defineEmits(['update:modelValue'])
+
+const imageUrls = computed(() => {
+  if (!props.project?.effect_images) return []
+  return String(props.project.effect_images).split(',').map(f => f.trim()).filter(Boolean)
+    .map(f => f.startsWith('http') ? f : `/uploads/${f}`)
+})
 
 function formatDate(date) {
   if (!date) return '-'

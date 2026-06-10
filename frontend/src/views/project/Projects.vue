@@ -166,6 +166,22 @@
         <el-table-column prop="parent_record" label="父记录" width="90" show-overflow-tooltip>
           <template #default="{ row }"><span>{{ row.parent_record || '-' }}</span></template>
         </el-table-column>
+        <!-- 19. 效果图 -->
+        <el-table-column label="效果图" width="80" align="center">
+          <template #default="{ row }">
+            <el-image
+              v-if="getFirstImageUrl(row.effect_images)"
+              :src="getFirstImageUrl(row.effect_images)"
+              :preview-src-list="getImageUrls(row.effect_images)"
+              preview-teleported
+              fit="cover"
+              style="width:48px;height:48px;border-radius:6px;cursor:pointer;"
+            >
+              <template #error><span style="font-size:11px;color:#ccc;">无图</span></template>
+            </el-image>
+            <span v-else style="color:#ccc;font-size:12px;">-</span>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="160" fixed="right" align="center">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="handleView(row)">
@@ -367,6 +383,15 @@ function getStatusText(status) {
 function formatDate(date) {
   if (!date) return '-'
   return date.split('T')[0]
+}
+
+function getImageUrls(effectImages) {
+  if (!effectImages) return []
+  return String(effectImages).split(',').map(f => f.trim()).filter(Boolean)
+    .map(f => f.startsWith('http') ? f : `/uploads/${f}`)
+}
+function getFirstImageUrl(effectImages) {
+  return getImageUrls(effectImages)[0] || null
 }
 
 // 筛选操作
