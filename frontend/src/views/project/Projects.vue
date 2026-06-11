@@ -146,9 +146,9 @@
         <el-table-column label="报价单" width="80" align="center">
           <template #default="{ row }">
             <el-image
-              v-if="row.quotation_file && row.quotation_file !== 'image.png'"
-              :src="`/uploads/${row.quotation_file}`"
-              :preview-src-list="[`/uploads/${row.quotation_file}`]"
+              v-if="getFirstImageUrl(row.quotation_file)"
+              :src="getFirstImageUrl(row.quotation_file)"
+              :preview-src-list="getImageUrls(row.quotation_file)"
               preview-teleported
               fit="cover"
               style="width:48px;height:48px;border-radius:6px;cursor:pointer;"
@@ -175,22 +175,6 @@
         <!-- 18. 父记录 -->
         <el-table-column prop="parent_record" label="父记录" width="90" show-overflow-tooltip>
           <template #default="{ row }"><span>{{ row.parent_record || '-' }}</span></template>
-        </el-table-column>
-        <!-- 19. 效果图 -->
-        <el-table-column label="效果图" width="80" align="center">
-          <template #default="{ row }">
-            <el-image
-              v-if="getFirstImageUrl(row.effect_images)"
-              :src="getFirstImageUrl(row.effect_images)"
-              :preview-src-list="getImageUrls(row.effect_images)"
-              preview-teleported
-              fit="cover"
-              style="width:48px;height:48px;border-radius:6px;cursor:pointer;"
-            >
-              <template #error><span style="font-size:11px;color:#ccc;">无图</span></template>
-            </el-image>
-            <span v-else style="color:#ccc;font-size:12px;">-</span>
-          </template>
         </el-table-column>
         <el-table-column label="操作" width="160" fixed="right" align="center">
           <template #default="{ row }">

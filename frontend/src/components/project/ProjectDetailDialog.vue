@@ -8,19 +8,25 @@
     @update:model-value="$emit('update:modelValue', $event)"
   >
     <div v-if="project" class="detail-container">
-      <!-- 物料图片（报价单） -->
-      <div class="image-section" v-if="project.quotation_file && project.quotation_file !== 'image.png'">
+      <!-- 物料图片（报价单，支持多图） -->
+      <div class="image-section" v-if="quotationUrls.length">
         <div class="section-label">
           <el-icon><PictureFilled /></el-icon>
           <span>报价单/图片</span>
+          <span style="font-size:12px;color:#94A3B8;font-weight:400;margin-left:6px;">共 {{ quotationUrls.length }} 张</span>
         </div>
-        <el-image
-          :src="`/uploads/${project.quotation_file}`"
-          fit="contain"
-          :preview-src-list="[`/uploads/${project.quotation_file}`]"
-          preview-teleported
-          class="detail-image"
-        />
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+          <el-image
+            v-for="(url, i) in quotationUrls"
+            :key="i"
+            :src="url"
+            fit="cover"
+            :preview-src-list="quotationUrls"
+            :initial-index="i"
+            preview-teleported
+            style="width:120px;height:120px;border-radius:8px;border:1px solid #EDE9FE;cursor:pointer;"
+          />
+        </div>
       </div>
 
       <!-- 核心信息卡片 -->
@@ -103,26 +109,6 @@
           <span class="field-value">{{ project.parent_record }}</span>
         </div>
       </div>
-
-      <!-- 效果图 -->
-      <div v-if="imageUrls.length" class="image-section" style="margin-top:16px;">
-        <div class="section-label">
-          <el-icon><PictureFilled /></el-icon>
-          <span>效果图</span>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:10px;">
-          <el-image
-            v-for="(img, i) in imageUrls"
-            :key="i"
-            :src="img"
-            fit="cover"
-            :preview-src-list="imageUrls"
-            :initial-index="i"
-            preview-teleported
-            style="width:100px;height:100px;border-radius:8px;border:1px solid #ebeef5;cursor:pointer;"
-          />
-        </div>
-      </div>
     </div>
 
     <template #footer>
@@ -142,9 +128,10 @@ const props = defineProps({
 
 defineEmits(['update:modelValue'])
 
-const imageUrls = computed(() => {
-  if (!props.project?.effect_images) return []
-  return String(props.project.effect_images).split(',').map(f => f.trim()).filter(Boolean)
+const quotationUrls = computed(() => {
+  const q = props.project?.quotation_file
+  if (!q || q === 'image.png') return []
+  return String(q).split(',').map(f => f.trim()).filter(Boolean)
     .map(f => f.startsWith('http') ? f : `/uploads/${f}`)
 })
 
