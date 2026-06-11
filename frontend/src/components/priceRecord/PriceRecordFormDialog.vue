@@ -37,7 +37,34 @@
         </el-col>
         <el-col :span="24">
           <el-form-item label="图片">
-            <el-input v-model="formData.image" placeholder="图片URL或上传路径" />
+            <div class="image-upload">
+              <div class="thumb-list">
+                <div v-for="(file, idx) in imageFiles" :key="idx" class="thumb-item">
+                  <el-image
+                    :src="`/uploads/${file}`"
+                    fit="cover"
+                    :preview-src-list="imageFiles.map(f => `/uploads/${f}`)"
+                    :initial-index="idx"
+                    preview-teleported
+                    class="thumb-img"
+                  />
+                  <span class="thumb-delete" @click.stop="removeFile(idx)">×</span>
+                </div>
+                <span v-if="imageFiles.length > 1" class="thumb-count">×{{ imageFiles.length }}</span>
+              </div>
+              <el-upload
+                :show-file-list="false"
+                :auto-upload="false"
+                accept="image/*"
+                multiple
+                :on-change="handleFileChange"
+              >
+                <el-button size="small" :loading="uploading" :icon="Plus">
+                  {{ imageFiles.length ? '继续添加' : '添加图片' }}
+                </el-button>
+              </el-upload>
+              <span class="upload-tip">支持 jpg / png，可多张</span>
+            </div>
           </el-form-item>
         </el-col>
       </el-row>
@@ -129,8 +156,10 @@
 
 <script setup>
 import { ref, reactive, watch, computed } from 'vue'
+import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { createPriceRecord, updatePriceRecord } from '@/api/priceRecords'
+import request from '@/api/request'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -141,10 +170,14 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'success'])
 const formRef = ref(null)
 const submitting = ref(false)
+const uploading = ref(false)
 const dialogTitle = computed(() => props.mode === 'add' ? '新增价格记录' : '编辑价格记录')
 
+// 图片文件列表（filename 数组）
+const imageFiles = ref([])
+
 const formData = reactive({
-  product_name: '', category: '', supplier_name: '', ip: '', image: '',
+  product_name: '', category: '', supplier_name: '', ip: '',
   project_name: '', sample_days: null, mass_production_days: null,
   style_count: null, single_quantity: null, design_fee: null,
   sample_fee: null, unit_price: null, total_quantity: null,
@@ -161,6 +194,9 @@ watch(() => props.recordData, (newData) => {
     Object.keys(formData).forEach(key => {
       if (newData[key] !== undefined) formData[key] = newData[key]
     })
+    imageFiles.value = newData.image
+      ? String(newData.image).split(',').map(f => f.trim()).filter(Boolean)
+      : []
   } else { resetForm() }
 }, { immediate: true })
 
@@ -170,13 +206,38 @@ watch(() => props.modelValue, (visible) => {
 
 function resetForm() {
   Object.keys(formData).forEach(key => {
-    if (['product_name', 'category', 'supplier_name', 'ip', 'image', 'project_name', 'production_info', 'remark1', 'remark2'].includes(key)) {
+    if (['product_name', 'category', 'supplier_name', 'ip', 'project_name', 'production_info', 'remark1', 'remark2'].includes(key)) {
       formData[key] = ''
     } else {
       formData[key] = null
     }
   })
+  imageFiles.value = []
   formRef.value?.clearValidate()
+}
+
+async function handleFileChange(file, fileList) {
+  const rawFiles = fileList.filter(f => f.status === 'ready').map(f => f.raw)
+  if (!rawFiles.length) return
+  uploading.value = true
+  try {
+    const fd = new FormData()
+    rawFiles.forEach(f => fd.append('files', f))
+    const res = await request.post('/upload/images', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    const newFiles = (Array.isArray(res.data) ? res.data : [res.data]).map(r => r.filename)
+    imageFiles.value.push(...newFiles)
+    ElMessage.success(`已上传 ${newFiles.length} 张`)
+  } catch (e) {
+    ElMessage.error('上传失败，请重试')
+  } finally {
+    uploading.value = false
+  }
+}
+
+function removeFile(idx) {
+  imageFiles.value.splice(idx, 1)
 }
 
 async function handleSubmit() {
@@ -185,10 +246,14 @@ async function handleSubmit() {
 
   submitting.value = true
   try {
+    const payload = {
+      ...formData,
+      image: imageFiles.value.join(',') || null
+    }
     if (props.mode === 'add') {
-      await createPriceRecord({ ...formData })
+      await createPriceRecord(payload)
     } else {
-      await updatePriceRecord(props.recordData.id, { ...formData })
+      await updatePriceRecord(props.recordData.id, payload)
     }
     ElMessage.success(props.mode === 'add' ? '新增成功' : '修改成功')
     emit('success')
@@ -210,4 +275,24 @@ function handleClose() {
 .record-form { padding-right: 20px; }
 :deep(.el-divider--horizontal) { margin: 16px 0; }
 :deep(.el-divider__text) { font-size: 13px; font-weight: 500; color: #606266; }
+
+.image-upload { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.thumb-list { position: relative; display: flex; flex-wrap: wrap; gap: 8px; }
+.thumb-item { position: relative; width: 64px; height: 64px; border-radius: 8px; overflow: visible; }
+.thumb-img { width: 64px; height: 64px; border-radius: 8px; border: 1px solid #EDE9FE; display: block; }
+.thumb-delete {
+  position: absolute; top: -6px; right: -6px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #EF4444; color: #fff; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; line-height: 1; z-index: 1;
+}
+.thumb-delete:hover { background: #DC2626; }
+.thumb-count {
+  position: absolute; top: -6px; right: -6px;
+  background: #8B5CF6; color: #fff; font-size: 11px;
+  font-weight: 700; border-radius: 10px;
+  padding: 1px 5px; line-height: 16px; pointer-events: none;
+}
+.upload-tip { font-size: 12px; color: #94A3B8; }
 </style>
