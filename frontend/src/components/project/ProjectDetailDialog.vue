@@ -9,15 +9,15 @@
   >
     <div v-if="project" class="detail-container">
       <!-- 物料图片（报价单） -->
-      <div class="image-section" v-if="project.quotation_file">
+      <div class="image-section" v-if="project.quotation_file && project.quotation_file !== 'image.png'">
         <div class="section-label">
           <el-icon><PictureFilled /></el-icon>
           <span>报价单/图片</span>
         </div>
         <el-image
-          :src="project.quotation_file"
+          :src="`/uploads/${project.quotation_file}`"
           fit="contain"
-          :preview-src-list="[project.quotation_file]"
+          :preview-src-list="[`/uploads/${project.quotation_file}`]"
           preview-teleported
           class="detail-image"
         />

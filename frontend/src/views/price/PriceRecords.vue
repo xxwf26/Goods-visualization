@@ -106,8 +106,17 @@
         <!-- 5. 图片 -->
         <el-table-column label="图片" width="80" align="center">
           <template #default="{ row }">
-            <el-icon v-if="row.image" color="#67c23a"><PictureFilled /></el-icon>
-            <span v-else style="color:#c0c4cc">-</span>
+            <el-image
+              v-if="row.image && row.image !== 'image.png'"
+              :src="`/uploads/${row.image}`"
+              :preview-src-list="[`/uploads/${row.image}`]"
+              preview-teleported
+              fit="cover"
+              style="width:48px;height:48px;border-radius:6px;cursor:pointer;"
+            >
+              <template #error><span style="font-size:11px;color:#ccc;">无图</span></template>
+            </el-image>
+            <span v-else style="color:#ccc;font-size:12px;">-</span>
           </template>
         </el-table-column>
         <!-- 6. 项目 -->

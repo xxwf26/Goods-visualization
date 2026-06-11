@@ -13,11 +13,11 @@
           <el-icon><PictureFilled /></el-icon>
           <span>物料图片</span>
         </div>
-        <div v-if="record.image" class="image-display">
+        <div v-if="record.image && record.image !== 'image.png'" class="image-display">
           <el-image
-            :src="record.image"
+            :src="`/uploads/${record.image}`"
             fit="contain"
-            :preview-src-list="[record.image]"
+            :preview-src-list="[`/uploads/${record.image}`]"
             preview-teleported
             class="detail-image"
           />

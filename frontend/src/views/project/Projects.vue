@@ -145,7 +145,17 @@
         <!-- 14. 报价单 -->
         <el-table-column label="报价单" width="80" align="center">
           <template #default="{ row }">
-            <span v-if="row.quotation_file">📎</span><span v-else style="color:#c0c4cc">-</span>
+            <el-image
+              v-if="row.quotation_file && row.quotation_file !== 'image.png'"
+              :src="`/uploads/${row.quotation_file}`"
+              :preview-src-list="[`/uploads/${row.quotation_file}`]"
+              preview-teleported
+              fit="cover"
+              style="width:48px;height:48px;border-radius:6px;cursor:pointer;"
+            >
+              <template #error><span style="font-size:11px;color:#ccc;">无图</span></template>
+            </el-image>
+            <span v-else style="color:#c0c4cc">-</span>
           </template>
         </el-table-column>
         <!-- 15. 需求种类 -->
