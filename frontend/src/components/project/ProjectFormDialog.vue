@@ -88,9 +88,43 @@
           </el-form-item>
         </el-col>
         <!-- 14. 报价单 -->
-        <el-col :span="12">
+        <el-col :span="24">
           <el-form-item label="报价单">
-            <el-input v-model="formData.quotation_file" placeholder="报价单文件路径" />
+            <!-- 已上传的缩略图列表 -->
+            <div class="quotation-upload">
+              <div class="thumb-list">
+                <div
+                  v-for="(file, idx) in quotationFiles"
+                  :key="idx"
+                  class="thumb-item"
+                >
+                  <el-image
+                    :src="`/uploads/${file}`"
+                    fit="cover"
+                    :preview-src-list="quotationFiles.map(f => `/uploads/${f}`)"
+                    :initial-index="idx"
+                    preview-teleported
+                    class="thumb-img"
+                  />
+                  <span class="thumb-delete" @click.stop="removeFile(idx)">×</span>
+                </div>
+                <!-- 角标 -->
+                <span v-if="quotationFiles.length > 1" class="thumb-count">×{{ quotationFiles.length }}</span>
+              </div>
+              <!-- 上传按钮 -->
+              <el-upload
+                :show-file-list="false"
+                :auto-upload="false"
+                accept="image/*"
+                multiple
+                :on-change="handleFileChange"
+              >
+                <el-button size="small" :loading="uploading" :icon="Plus">
+                  {{ quotationFiles.length ? '继续添加' : '添加报价单图片' }}
+                </el-button>
+              </el-upload>
+              <span class="upload-tip">支持 jpg / png，可多张</span>
+            </div>
           </el-form-item>
         </el-col>
         <!-- 15. 需求种类 -->
@@ -129,8 +163,10 @@
 
 <script setup>
 import { ref, reactive, watch, computed } from 'vue'
+import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { createProject, updateProject } from '@/api/projects'
+import request from '@/api/request'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -141,14 +177,18 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'success'])
 const formRef = ref(null)
 const submitting = ref(false)
+const uploading = ref(false)
 const dialogTitle = computed(() => props.mode === 'add' ? '新增项目' : '编辑项目')
+
+// 报价单文件列表（filename 数组）
+const quotationFiles = ref([])
 
 const formData = reactive({
   product_name: '', ip_tag_ids: '', project_year: '',
   project_name: '', purchase_order_no: '', total_amount: null,
   person_days: null, requester: '', region: '',
   supplier_name: '', project_start_date: '', project_end_date: '',
-  project_leader: '', quotation_file: '', requirement_type: '',
+  project_leader: '', requirement_type: '',
   remark: '', file_storage: '', parent_record: ''
 })
 
@@ -162,6 +202,10 @@ watch(() => props.projectData, (newData) => {
     Object.keys(formData).forEach(k => {
       if (newData[k] !== undefined) formData[k] = newData[k]
     })
+    // 解析已有报价单
+    quotationFiles.value = newData.quotation_file
+      ? String(newData.quotation_file).split(',').map(f => f.trim()).filter(Boolean)
+      : []
   } else { resetForm() }
 }, { immediate: true })
 
@@ -172,9 +216,37 @@ function resetForm() {
   formData.project_name = ''; formData.purchase_order_no = ''; formData.total_amount = null
   formData.person_days = null; formData.requester = ''; formData.region = ''
   formData.supplier_name = ''; formData.project_start_date = ''; formData.project_end_date = ''
-  formData.project_leader = ''; formData.quotation_file = ''; formData.requirement_type = ''
+  formData.project_leader = ''; formData.requirement_type = ''
   formData.remark = ''; formData.file_storage = ''; formData.parent_record = ''
+  quotationFiles.value = []
   formRef.value?.clearValidate()
+}
+
+// el-upload on-change：选文件后立即上传
+async function handleFileChange(file, fileList) {
+  // 只处理新增的这一批
+  const rawFiles = fileList.filter(f => f.status === 'ready').map(f => f.raw)
+  if (!rawFiles.length) return
+
+  uploading.value = true
+  try {
+    const fd = new FormData()
+    rawFiles.forEach(f => fd.append('files', f))
+    const res = await request.post('/upload/images', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    const newFiles = (Array.isArray(res.data) ? res.data : [res.data]).map(r => r.filename)
+    quotationFiles.value.push(...newFiles)
+    ElMessage.success(`已上传 ${newFiles.length} 张`)
+  } catch (e) {
+    ElMessage.error('上传失败，请重试')
+  } finally {
+    uploading.value = false
+  }
+}
+
+function removeFile(idx) {
+  quotationFiles.value.splice(idx, 1)
 }
 
 async function handleSubmit() {
@@ -182,10 +254,14 @@ async function handleSubmit() {
   try { await formRef.value.validate() } catch { return }
   submitting.value = true
   try {
+    const payload = {
+      ...formData,
+      quotation_file: quotationFiles.value.join(',') || null
+    }
     if (props.mode === 'add') {
-      await createProject({ ...formData })
+      await createProject(payload)
     } else {
-      await updateProject(props.projectData.id, { ...formData })
+      await updateProject(props.projectData.id, payload)
     }
     ElMessage.success(props.mode === 'add' ? '新增成功' : '修改成功')
     emit('success'); handleClose()
@@ -198,4 +274,36 @@ function handleClose() { emit('update:modelValue', false) }
 
 <style scoped>
 .project-form { padding-right: 20px; }
+
+.quotation-upload { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+.thumb-list { position: relative; display: flex; flex-wrap: wrap; gap: 8px; }
+
+.thumb-item {
+  position: relative; width: 64px; height: 64px;
+  border-radius: 8px; overflow: visible;
+}
+
+.thumb-img {
+  width: 64px; height: 64px; border-radius: 8px;
+  border: 1px solid #EDE9FE; display: block;
+}
+
+.thumb-delete {
+  position: absolute; top: -6px; right: -6px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #EF4444; color: #fff; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; line-height: 1; z-index: 1;
+}
+.thumb-delete:hover { background: #DC2626; }
+
+.thumb-count {
+  position: absolute; top: -6px; right: -6px;
+  background: #8B5CF6; color: #fff; font-size: 11px;
+  font-weight: 700; border-radius: 10px;
+  padding: 1px 5px; line-height: 16px; pointer-events: none;
+}
+
+.upload-tip { font-size: 12px; color: #94A3B8; }
 </style>
