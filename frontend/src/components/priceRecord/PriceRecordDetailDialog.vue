@@ -14,16 +14,16 @@
           <span>物料图片</span>
           <span v-if="imageUrls.length > 1" style="font-size:12px;color:#94A3B8;font-weight:400;margin-left:6px;">共 {{ imageUrls.length }} 张</span>
         </div>
-        <div v-if="imageUrls.length" style="display:flex;flex-wrap:wrap;gap:10px;">
+        <div v-if="imageUrls.length" class="img-grid" :class="{ 'img-single': imageUrls.length === 1 }">
           <el-image
             v-for="(url, i) in imageUrls"
             :key="i"
             :src="url"
-            fit="cover"
+            fit="contain"
             :preview-src-list="imageUrls"
             :initial-index="i"
             preview-teleported
-            style="width:120px;height:120px;border-radius:8px;border:1px solid #EDE9FE;cursor:pointer;"
+            class="img-cell"
           />
         </div>
         <div v-else class="image-empty">
@@ -216,5 +216,27 @@ const imageUrls = computed(() => {
 
 @media (max-width: 640px) {
   .info-cards { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* 图片网格 */
+.img-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+.img-grid.img-single {
+  grid-template-columns: 1fr;
+}
+.img-cell {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 10px;
+  border: 1px solid #EDE9FE;
+  cursor: pointer;
+  background: #fafafa;
+}
+:deep(.img-cell .el-image__inner) {
+  border-radius: 10px;
 }
 </style>
