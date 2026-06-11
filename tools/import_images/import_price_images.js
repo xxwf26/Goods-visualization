@@ -1,6 +1,6 @@
 /**
- * 价格记录表效果图批量导入
- * 逻辑与 import.js 相同，目标表换为 price_record
+ * 价格记录表图片批量导入 v2（支持多图）
+ * 与 import_project_images.js 逻辑相同，目标表为 price_record.image
  * 用法: node import_price_images.js <zip路径>
  */
 
@@ -25,11 +25,11 @@ function parseFilename(filename) {
   const m = base.match(/^(.*)\((\d+)\)$/)
   let index = 0
   if (m) { base = m[1]; index = parseInt(m[2]) }
-  return { rawName: base, index, ext }
+  return { rawName: base, index, ext, original: filename }
 }
 
-function normalizeForMatch(name) {
-  return [name, name.replace(/_/g, '*')]
+function normalizeName(name) {
+  return [name, name.replace(/_/g, '*'), name.replace(/_/g, '.')]
 }
 
 async function main() {
@@ -41,18 +41,20 @@ async function main() {
 
   if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true })
 
-  const tmpDir = path.join(os.tmpdir(), `price_img_${Date.now()}`)
+  const tmpDir = path.join(os.tmpdir(), `price_img2_${Date.now()}`)
   fs.mkdirSync(tmpDir, { recursive: true })
 
   console.log(`\n📦 解压: ${zipPath}`)
   execSync(`unzip -o "${zipPath}" -d "${tmpDir}"`, { stdio: 'pipe' })
 
-  const files = fs.readdirSync(tmpDir).filter(f => SUPPORTED_EXTS.includes(path.extname(f).toLowerCase()))
-  console.log(`📂 共 ${files.length} 张图片，匹配 price_record...\n`)
+  const allFiles = fs.readdirSync(tmpDir)
+    .map(f => parseFilename(f))
+    .filter(Boolean)
+
+  console.log(`📂 共 ${allFiles.length} 张图片，开始分析匹配...\n`)
 
   const db = await mysql.createConnection(DB_CONFIG)
 
-  // 按 product_name 分组，id 升序
   const [allRecords] = await db.execute(
     'SELECT id, product_name FROM price_record ORDER BY id ASC'
   )
@@ -63,56 +65,88 @@ async function main() {
     nameToIds[key].push(row)
   }
 
-  let success = 0, skipped = 0, failed = 0
-  const results = []
+  // 按 rawName 分组
+  const filesByRawName = {}
+  for (const f of allFiles) {
+    if (!filesByRawName[f.rawName]) filesByRawName[f.rawName] = []
+    filesByRawName[f.rawName].push(f)
+  }
 
-  for (const file of files) {
-    const parsed = parseFilename(file)
-    if (!parsed) { skipped++; continue }
+  // 分配每张图到对应记录
+  const recordImages = {}
+  let unmatched = 0
 
-    const { rawName, index, ext } = parsed
-    let matched = null
-    for (const candidate of normalizeForMatch(rawName)) {
-      if (nameToIds[candidate]) { matched = nameToIds[candidate]; break }
+  for (const [rawName, files] of Object.entries(filesByRawName)) {
+    let records = null
+    for (const candidate of normalizeName(rawName)) {
+      if (nameToIds[candidate]) { records = nameToIds[candidate]; break }
     }
 
-    if (!matched) {
-      results.push({ status: '⚠️ 未匹配', file, reason: `price_record 中无 product_name="${rawName}"` })
-      skipped++; continue
-    }
-    if (index >= matched.length) {
-      results.push({ status: '⚠️ 编号越界', file, reason: `"${rawName}" 只有 ${matched.length} 条，编号 (${index})` })
-      skipped++; continue
+    if (!records) {
+      console.log(`⚠️  未匹配: "${rawName}" (${files.length} 张)`)
+      unmatched += files.length
+      continue
     }
 
-    const record = matched[index]
-    const newFilename = `price_${record.id}_${Date.now()}${ext}`
-    const destPath = path.join(UPLOADS_DIR, newFilename)
+    // 按 index 分组
+    const byIndex = {}
+    for (const f of files) {
+      if (!byIndex[f.index]) byIndex[f.index] = []
+      byIndex[f.index].push(f)
+    }
 
-    try {
-      fs.copyFileSync(path.join(tmpDir, file), destPath)
-      await db.execute('UPDATE price_record SET image = ? WHERE id = ?', [newFilename, record.id])
-      results.push({ status: '✅', file, id: record.id, name: record.product_name, saved: newFilename })
+    for (const [idxStr, imgs] of Object.entries(byIndex)) {
+      const idx = parseInt(idxStr)
+      let targetRecord
+      if (idx < records.length) {
+        targetRecord = records[idx]
+      } else if (records.length === 1) {
+        targetRecord = records[0]
+      } else {
+        console.log(`⚠️  编号越界: "${rawName}(${idx})" (共 ${records.length} 条记录)`)
+        unmatched += imgs.length
+        continue
+      }
+
+      if (!recordImages[targetRecord.id]) recordImages[targetRecord.id] = []
+      recordImages[targetRecord.id].push(...imgs)
+    }
+  }
+
+  // 清空并重新写入
+  await db.execute("UPDATE price_record SET image = NULL WHERE 1=1")
+  console.log('🗑️  已清空旧 image，开始写入...\n')
+
+  let success = 0, failed = 0
+
+  for (const [recordId, imgs] of Object.entries(recordImages)) {
+    const savedFiles = []
+    for (const img of imgs) {
+      const newFilename = `price_${recordId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}${img.ext}`
+      try {
+        fs.copyFileSync(path.join(tmpDir, img.original), path.join(UPLOADS_DIR, newFilename))
+        savedFiles.push(newFilename)
+      } catch (e) {
+        console.error(`  ❌ 复制失败: ${img.original} → ${e.message}`)
+        failed++
+      }
+    }
+
+    if (savedFiles.length > 0) {
+      const record = allRecords.find(r => r.id === parseInt(recordId))
+      await db.execute('UPDATE price_record SET image = ? WHERE id = ?', [savedFiles.join(','), recordId])
+      const tag = savedFiles.length > 1 ? ` (×${savedFiles.length})` : ''
+      console.log(`✅  [id=${recordId}] ${record?.product_name}${tag}`)
       success++
-    } catch (e) {
-      results.push({ status: '❌', file, reason: e.message })
-      failed++
     }
   }
 
   await db.end()
   fs.rmSync(tmpDir, { recursive: true, force: true })
 
-  console.log('─'.repeat(65))
-  for (const r of results) {
-    if (r.id) {
-      console.log(`${r.status}  [id=${r.id}] ${r.name}`)
-    } else {
-      console.log(`${r.status}  ${r.file}  ${r.reason || ''}`)
-    }
-  }
-  console.log('─'.repeat(65))
-  console.log(`\n✅ 成功: ${success}  ⚠️ 跳过: ${skipped}  ❌ 失败: ${failed}\n`)
+  console.log('\n' + '─'.repeat(65))
+  console.log(`✅ 成功更新: ${success} 条记录  ❌ 失败: ${failed}  ⚠️ 未匹配: ${unmatched} 张`)
+  console.log('─'.repeat(65) + '\n')
 }
 
 main().catch(e => { console.error('❌', e.message); process.exit(1) })

@@ -12,14 +12,18 @@
         <div class="section-label">
           <el-icon><PictureFilled /></el-icon>
           <span>物料图片</span>
+          <span v-if="imageUrls.length > 1" style="font-size:12px;color:#94A3B8;font-weight:400;margin-left:6px;">共 {{ imageUrls.length }} 张</span>
         </div>
-        <div v-if="record.image && record.image !== 'image.png'" class="image-display">
+        <div v-if="imageUrls.length" style="display:flex;flex-wrap:wrap;gap:10px;">
           <el-image
-            :src="`/uploads/${record.image}`"
-            fit="contain"
-            :preview-src-list="[`/uploads/${record.image}`]"
+            v-for="(url, i) in imageUrls"
+            :key="i"
+            :src="url"
+            fit="cover"
+            :preview-src-list="imageUrls"
+            :initial-index="i"
             preview-teleported
-            class="detail-image"
+            style="width:120px;height:120px;border-radius:8px;border:1px solid #EDE9FE;cursor:pointer;"
           />
         </div>
         <div v-else class="image-empty">
@@ -132,14 +136,22 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { PictureFilled, Picture, Money, Document } from '@element-plus/icons-vue'
 
-defineProps({
+const props = defineProps({
   modelValue: Boolean,
   record: { type: Object, default: null }
 })
 
 defineEmits(['update:modelValue'])
+
+const imageUrls = computed(() => {
+  const img = props.record?.image
+  if (!img || img === 'image.png') return []
+  return String(img).split(',').map(f => f.trim()).filter(Boolean)
+    .map(f => f.startsWith('http') ? f : `/uploads/${f}`)
+})
 </script>
 
 <style scoped>

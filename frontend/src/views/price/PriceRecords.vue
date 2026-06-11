@@ -106,16 +106,21 @@
         <!-- 5. 图片 -->
         <el-table-column label="图片" width="80" align="center">
           <template #default="{ row }">
-            <el-image
-              v-if="row.image && row.image !== 'image.png'"
-              :src="`/uploads/${row.image}`"
-              :preview-src-list="[`/uploads/${row.image}`]"
-              preview-teleported
-              fit="cover"
-              style="width:48px;height:48px;border-radius:6px;cursor:pointer;"
-            >
-              <template #error><span style="font-size:11px;color:#ccc;">无图</span></template>
-            </el-image>
+            <div v-if="getFirstImageUrl(row.image)" style="position:relative;display:inline-block;">
+              <el-image
+                :src="getFirstImageUrl(row.image)"
+                :preview-src-list="getImageUrls(row.image)"
+                preview-teleported
+                fit="cover"
+                style="width:48px;height:48px;border-radius:6px;cursor:pointer;display:block;"
+              >
+                <template #error><span style="font-size:11px;color:#ccc;">无图</span></template>
+              </el-image>
+              <span
+                v-if="getImageUrls(row.image).length > 1"
+                style="position:absolute;top:-6px;right:-6px;background:#8B5CF6;color:#fff;font-size:11px;font-weight:700;border-radius:10px;padding:1px 5px;line-height:16px;pointer-events:none;"
+              >×{{ getImageUrls(row.image).length }}</span>
+            </div>
             <span v-else style="color:#ccc;font-size:12px;">-</span>
           </template>
         </el-table-column>
@@ -307,6 +312,16 @@ async function loadData() {
   } finally {
     loading.value = false
   }
+}
+
+// 图片工具
+function getImageUrls(image) {
+  if (!image || image === 'image.png') return []
+  return String(image).split(',').map(f => f.trim()).filter(Boolean)
+    .map(f => f.startsWith('http') ? f : `/uploads/${f}`)
+}
+function getFirstImageUrl(image) {
+  return getImageUrls(image)[0] || null
 }
 
 // 筛选
