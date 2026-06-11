@@ -192,11 +192,11 @@ onMounted(() => { loadOptions(); loadData() })
 </script>
 
 <style scoped>
-.inspiration-container { padding:20px; background:#FFF0F3; min-height:calc(100vh - 60px); }
+.inspiration-container { padding:20px; background:var(--bg-primary); min-height:calc(100vh - 60px); }
 .page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
 .page-title { display:flex; align-items:baseline; gap:12px; }
-.page-title h2 { margin:0; font-size:22px; font-weight:700; color:#4A3340; }
-.data-count { color:#A0808C; font-size:14px; }
+.page-title h2 { margin:0; font-size:22px; font-weight:700; color:var(--text-primary); }
+.data-count { color:#A8A29E; font-size:14px; }
 .page-actions { display:flex; gap:12px; }
 
 .inspiration-tabs { margin-bottom:12px; }
@@ -207,22 +207,22 @@ onMounted(() => { loadOptions(); loadData() })
 .filter-item { width:100%; }
 
 .inspiration-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:18px; min-height:300px; }
-.inspiration-card { background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 4px 16px rgba(255,107,157,0.06); transition:all 0.3s; cursor:pointer; display:flex; flex-direction:column; }
-.inspiration-card:hover { transform:translateY(-5px); box-shadow:0 10px 30px rgba(255,107,157,0.15); }
-.card-image { position:relative; width:100%; height:170px; background:#FFF5F8; overflow:hidden; }
+.inspiration-card { background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 4px 16px rgba(167,139,250,0.06); transition:all 0.3s; cursor:pointer; display:flex; flex-direction:column; }
+.inspiration-card:hover { transform:translateY(-5px); box-shadow:0 10px 30px rgba(167,139,250,0.15); }
+.card-image { position:relative; width:100%; height:170px; background:var(--card-bg); overflow:hidden; }
 .card-image :deep(.el-image) { width:100%; height:100%; }
-.no-image { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#FFD4E0; gap:8px; }
+.no-image { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--border-color); gap:8px; }
 .type-badge { position:absolute; top:10px; right:10px; }
 .source-badge { position:absolute; top:10px; left:10px; }
 .card-content { padding:14px; flex:1; display:flex; flex-direction:column; }
-.card-title { font-size:15px; font-weight:700; color:#4A3340; margin-bottom:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.card-title { font-size:15px; font-weight:700; color:var(--text-primary); margin-bottom:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .card-tags { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px; }
-.more-tags { font-size:12px; color:#A0808C; line-height:24px; }
-.card-value { font-size:13px; color:#A0808C; line-height:1.5; flex:1; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-bottom:8px; }
-.card-stats { display:flex; gap:12px; font-size:12px; color:#A0808C; margin-bottom:4px; }
+.more-tags { font-size:12px; color:#A8A29E; line-height:24px; }
+.card-value { font-size:13px; color:#A8A29E; line-height:1.5; flex:1; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; margin-bottom:8px; }
+.card-stats { display:flex; gap:12px; font-size:12px; color:#A8A29E; margin-bottom:4px; }
 .card-stats span { display:flex; align-items:center; gap:2px; }
-.card-time { display:flex; align-items:center; gap:4px; font-size:12px; color:#A0808C; }
-.card-actions { display:flex; justify-content:center; gap:16px; padding:10px 14px; border-top:1px solid #FFF0F3; background:#FFF5F8; }
+.card-time { display:flex; align-items:center; gap:4px; font-size:12px; color:#A8A29E; }
+.card-actions { display:flex; justify-content:center; gap:16px; padding:10px 14px; border-top:1px solid var(--bg-primary); background:var(--card-bg); }
 .pagination-wrapper { display:flex; justify-content:flex-end; margin-top:20px; }
 @media (max-width:768px) { .inspiration-grid { grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); } }
 </style>

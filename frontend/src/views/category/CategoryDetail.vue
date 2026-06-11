@@ -280,46 +280,46 @@ onMounted(() => {
 <style scoped>
 .category-detail-container {
   padding: 20px;
-  background: #FFF0F3;
+  background: var(--bg-primary);
   min-height: calc(100vh - 60px);
 }
 
 .page-header { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; }
 .category-title { display: flex; align-items: center; gap: 12px; }
-.category-title h1 { margin: 0; font-size: 26px; font-weight: 700; color: #4A3340; }
+.category-title h1 { margin: 0; font-size: 26px; font-weight: 700; color: var(--text-primary); }
 .content-wrapper { min-height: 400px; }
 
 .stats-row { margin-bottom: 16px; }
 .stat-card {
   background: #fff; border-radius: 14px; padding: 20px;
-  text-align: center; box-shadow: 0 2px 12px rgba(255, 107, 157, 0.06);
+  text-align: center; box-shadow: 0 2px 12px rgba(167,139,250, 0.06);
 }
-.stat-value { font-size: 28px; font-weight: 800; color: #4A3340; margin-bottom: 8px; }
-.stat-label { font-size: 14px; color: #A0808C; }
+.stat-value { font-size: 28px; font-weight: 800; color: var(--text-primary); margin-bottom: 8px; }
+.stat-label { font-size: 14px; color: #A8A29E; }
 
 .section-card { margin-bottom: 16px; border-radius: 16px !important; }
 .card-header { display: flex; justify-content: space-between; align-items: center; }
-.card-header span { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #4A3340; }
+.card-header span { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-primary); }
 
-.price-text { color: #FF6B9D; font-weight: 600; }
-.total-text { color: #E84878; font-weight: 600; }
-.highlight-price { color: #FF6B9D; font-weight: 700; font-size: 15px; }
-.price-range { font-size: 12px; color: #A0808C; }
+.price-text { color: var(--accent); font-weight: 600; }
+.total-text { color: #7C3AED; font-weight: 600; }
+.highlight-price { color: var(--accent); font-weight: 700; font-size: 15px; }
+.price-range { font-size: 12px; color: #A8A29E; }
 
 .inspiration-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
 .inspiration-card {
   background: #fff; border-radius: 14px; overflow: hidden;
-  cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 10px rgba(255, 107, 157, 0.05);
+  cursor: pointer; transition: all 0.3s; box-shadow: 0 2px 10px rgba(167,139,250, 0.05);
 }
-.inspiration-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(255, 107, 157, 0.12); }
-.inspiration-card .card-image { position: relative; width: 100%; height: 120px; background: #FFF5F8; }
+.inspiration-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(167,139,250, 0.12); }
+.inspiration-card .card-image { position: relative; width: 100%; height: 120px; background: var(--card-bg); }
 .inspiration-card .card-image :deep(.el-image) { width: 100%; height: 100%; }
-.inspiration-card .no-image { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #FFD4E0; }
+.inspiration-card .no-image { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--border-color); }
 .inspiration-card .source-badge { position: absolute; top: 8px; left: 8px; }
 .inspiration-card .card-content { padding: 12px; }
-.inspiration-card .card-title { font-size: 14px; font-weight: 600; color: #4A3340; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inspiration-card .card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inspiration-card .card-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
-.inspiration-card .card-stats { display: flex; gap: 12px; font-size: 12px; color: #A0808C; }
+.inspiration-card .card-stats { display: flex; gap: 12px; font-size: 12px; color: #A8A29E; }
 .inspiration-card .card-stats span { display: flex; align-items: center; gap: 2px; }
 
 @media (max-width: 768px) {

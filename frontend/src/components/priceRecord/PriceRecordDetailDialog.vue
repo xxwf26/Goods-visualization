@@ -172,7 +172,7 @@ defineEmits(['update:modelValue'])
 }
 .info-label { font-size: 12px; color: #909399; margin-bottom: 8px; font-weight: 500; }
 .info-value { font-size: 14px; font-weight: 600; color: #303133; word-break: break-all; }
-.unit-price { color: #FF6B9D; font-size: 20px; font-weight: 700; }
+.unit-price { color: var(--accent); font-size: 20px; font-weight: 700; }
 .no-data { color: #c0c4cc; font-weight: 400; font-size: 14px; }
 
 .detail-fields {
@@ -185,7 +185,7 @@ defineEmits(['update:modelValue'])
 .field-row:last-child { border-bottom: none; }
 .field-label { width: 80px; flex-shrink: 0; font-size: 13px; color: #909399; }
 .field-value { flex: 1; font-size: 14px; color: #303133; word-break: break-all; }
-.total-amount { color: #E84878; font-weight: 600; }
+.total-amount { color: #7C3AED; font-weight: 600; }
 
 .fee-section { margin-bottom: 16px; }
 .fee-items { display: flex; gap: 12px; flex-wrap: wrap; }

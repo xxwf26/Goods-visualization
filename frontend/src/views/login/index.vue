@@ -167,7 +167,7 @@ const handleLogin = async () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #FFB8D0 0%, #FF8DB5 25%, #FF6B9D 50%, #FF8DB5 75%, #FFB8D0 100%);
+  background: linear-gradient(135deg, var(--border-color) 0%, var(--accent) 25%, var(--accent) 50%, var(--accent) 75%, var(--border-color) 100%);
   background-size: 400% 400%;
   animation: gradientShift 8s ease infinite;
   position: relative;
@@ -209,7 +209,7 @@ const handleLogin = async () => {
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(20px);
   border-radius: 24px;
-  box-shadow: 0 16px 48px rgba(255, 107, 157, 0.2), 0 4px 12px rgba(255, 107, 157, 0.1);
+  box-shadow: 0 16px 48px rgba(167,139,250, 0.2), 0 4px 12px rgba(167,139,250, 0.1);
   position: relative;
   z-index: 10;
 }
@@ -221,7 +221,7 @@ const handleLogin = async () => {
 
 .login-header h1 {
   font-size: 26px;
-  color: #4A3340;
+  color: var(--text-primary);
   margin-bottom: 10px;
   font-weight: 700;
   letter-spacing: 2px;
@@ -229,7 +229,7 @@ const handleLogin = async () => {
 
 .login-header p {
   font-size: 14px;
-  color: #A0808C;
+  color: #A8A29E;
 }
 
 .login-form {
@@ -243,14 +243,14 @@ const handleLogin = async () => {
   font-size: 16px !important;
   font-weight: 600 !important;
   letter-spacing: 2px;
-  background: linear-gradient(135deg, #FF6B9D, #FF8DB5) !important;
+  background: linear-gradient(135deg, var(--accent), var(--accent)) !important;
   border: none !important;
 }
 
 .login-btn:hover {
-  background: linear-gradient(135deg, #FF4278, #FF6B9D) !important;
+  background: linear-gradient(135deg, var(--accent), var(--accent)) !important;
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(255, 107, 157, 0.3);
+  box-shadow: 0 6px 20px rgba(167,139,250, 0.3);
 }
 
 .role-tip {
@@ -266,7 +266,7 @@ const handleLogin = async () => {
 
 .role-info h4 {
   margin: 12px 0 8px;
-  color: #4A3340;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
@@ -305,12 +305,12 @@ const handleLogin = async () => {
 /* 登录框 input 美化 */
 :deep(.el-input__wrapper) {
   border-radius: 12px !important;
-  box-shadow: 0 0 0 1px #FFD4E0 inset !important;
+  box-shadow: 0 0 0 1px var(--border-color) inset !important;
 }
 :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px #FF6B9D inset !important;
+  box-shadow: 0 0 0 1px var(--accent) inset !important;
 }
 :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 2px rgba(255, 107, 157, 0.3) inset !important;
+  box-shadow: 0 0 0 2px rgba(167,139,250, 0.3) inset !important;
 }
 </style>

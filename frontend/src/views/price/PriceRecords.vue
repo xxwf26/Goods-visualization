@@ -88,6 +88,7 @@
         stripe
         border
         style="width: 100%"
+        max-height="calc(100vh - 340px)"
       >
         <el-table-column label="#" width="55" align="center">
           <template #default="{ $index }">
@@ -378,7 +379,7 @@ onMounted(() => {
 <style scoped>
 .price-records-container {
   padding: 20px;
-  background: #FFF0F3;
+  background: var(--bg-primary);
   min-height: calc(100vh - 60px);
 }
 
@@ -399,11 +400,11 @@ onMounted(() => {
   margin: 0;
   font-size: 22px;
   font-weight: 700;
-  color: #4A3340;
+  color: var(--text-primary);
 }
 
 .data-count {
-  color: #A0808C;
+  color: #A8A29E;
   font-size: 14px;
 }
 
@@ -430,7 +431,7 @@ onMounted(() => {
 .range-separator {
   width: 10%;
   text-align: center;
-  color: #A0808C;
+  color: #A8A29E;
 }
 
 .table-card {
@@ -444,8 +445,8 @@ onMounted(() => {
   margin-top: 16px;
 }
 
-.price-text { color: #FF6B9D; font-weight: 600; }
-.total-text { color: #E84878; font-weight: 600; }
+.price-text { color: var(--accent); font-weight: 600; }
+.total-text { color: #7C3AED; font-weight: 600; }
 
 @media (max-width: 768px) {
   .page-header {

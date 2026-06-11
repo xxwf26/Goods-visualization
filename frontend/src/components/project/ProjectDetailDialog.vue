@@ -160,7 +160,7 @@ function formatDate(date) {
 .field-row:last-child { border-bottom: none; }
 .field-label { width: 100px; flex-shrink: 0; font-size: 13px; color: #909399; }
 .field-value { flex: 1; font-size: 14px; color: #303133; word-break: break-all; }
-.total-amount { color: #E84878; font-weight: 600; }
+.total-amount { color: #7C3AED; font-weight: 600; }
 
 @media (max-width: 640px) {
   .info-cards { grid-template-columns: repeat(2, 1fr); }

@@ -191,7 +191,7 @@ onMounted(() => {
   align-items: center;
   font-size: 15px;
   font-weight: 600;
-  color: #4A3340;
+  color: var(--text-primary);
 }
 
 .card-header span {
@@ -214,7 +214,7 @@ onMounted(() => {
 }
 
 .recent-item:hover {
-  background: #FFF5F8;
+  background: var(--card-bg);
 }
 
 .recent-icon {
@@ -231,7 +231,7 @@ onMounted(() => {
 }
 
 .recent-icon.inspiration {
-  background: #FF8DB5;
+  background: var(--accent);
 }
 
 .inspiration-image {
@@ -246,7 +246,7 @@ onMounted(() => {
 
 .recent-title {
   font-size: 14px;
-  color: #4A3340;
+  color: var(--text-primary);
   font-weight: 600;
   margin-bottom: 6px;
   white-space: nowrap;
@@ -262,15 +262,15 @@ onMounted(() => {
 
 .recent-date {
   font-size: 12px;
-  color: #A0808C;
+  color: #A8A29E;
 }
 
 .recent-action {
-  color: #FFD4E0;
+  color: var(--border-color);
   margin-left: 10px;
 }
 
 .recent-item:hover .recent-action {
-  color: #FF6B9D;
+  color: var(--accent);
 }
 </style>

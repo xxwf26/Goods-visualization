@@ -200,7 +200,7 @@ function handleShortcutClick(item) {
 
 .tips-title {
   font-size: 12px;
-  color: #A0808C;
+  color: #A8A29E;
   margin-bottom: 8px;
   font-weight: 500;
 }
@@ -218,7 +218,7 @@ function handleShortcutClick(item) {
 
 .tips-tag:hover {
   opacity: 0.8;
-  background: #FFF0F3;
+  background: var(--bg-primary);
 }
 
 .shortcuts-section {
@@ -231,7 +231,7 @@ function handleShortcutClick(item) {
   gap: 8px;
   font-size: 16px;
   font-weight: 600;
-  color: #4A3340;
+  color: var(--text-primary);
 }
 
 .shortcuts-grid {
@@ -250,13 +250,13 @@ function handleShortcutClick(item) {
   border-radius: 14px;
   cursor: pointer;
   transition: all 0.3s;
-  box-shadow: 0 2px 10px rgba(255, 107, 157, 0.05);
+  box-shadow: 0 2px 10px rgba(167,139,250, 0.05);
 }
 
 .shortcut-item:hover {
-  background: #FFF5F8;
+  background: var(--card-bg);
   transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(255, 107, 157, 0.12);
+  box-shadow: 0 6px 20px rgba(167,139,250, 0.12);
 }
 
 .shortcut-icon {
@@ -273,7 +273,7 @@ function handleShortcutClick(item) {
 
 .shortcut-label {
   font-size: 13px;
-  color: #4A3340;
+  color: var(--text-primary);
   text-align: center;
   font-weight: 500;
 }

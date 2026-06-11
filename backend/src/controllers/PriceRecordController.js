@@ -57,6 +57,16 @@ class PriceRecordController {
         params.push(req.query.max_price)
       }
 
+      // 数量区间
+      if (req.query.min_quantity) {
+        whereClause += ' AND total_quantity >= ?'
+        params.push(req.query.min_quantity)
+      }
+      if (req.query.max_quantity) {
+        whereClause += ' AND total_quantity <= ?'
+        params.push(req.query.max_quantity)
+      }
+
       const validSortFields = ['create_time', 'update_time', 'unit_price', 'total_price', 'total_quantity']
       const sortField = validSortFields.includes(sort_field) ? sort_field : 'create_time'
       const sortOrder = sort_order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'

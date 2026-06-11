@@ -40,6 +40,6 @@ const toggleSidebar = () => {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
-  background: #FFF0F3;
+  background: var(--bg-primary);
 }
 </style>

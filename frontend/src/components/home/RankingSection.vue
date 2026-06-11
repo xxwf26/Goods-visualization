@@ -146,7 +146,7 @@ function getProgress(count) {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #4A3340;
+  color: var(--text-primary);
 }
 
 .ranking-list {
@@ -157,7 +157,7 @@ function getProgress(count) {
   display: flex;
   align-items: center;
   padding: 14px 0;
-  border-bottom: 1px solid #FFF0F3;
+  border-bottom: 1px solid var(--bg-primary);
 }
 
 .ranking-item:last-child {
@@ -168,8 +168,8 @@ function getProgress(count) {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #FFF0F3;
-  color: #A0808C;
+  background: var(--bg-primary);
+  color: #A8A29E;
   font-size: 13px;
   font-weight: 700;
   display: flex;
@@ -179,18 +179,18 @@ function getProgress(count) {
 }
 
 .rank-badge.gold {
-  background: linear-gradient(135deg, #FFB8D0, #FF8DB5);
+  background: linear-gradient(135deg, var(--border-color), var(--accent));
   color: #fff;
 }
 
 .rank-badge.silver {
-  background: linear-gradient(135deg, #FFD4E0, #FFB8D0);
+  background: linear-gradient(135deg, var(--border-color), var(--border-color));
   color: #fff;
 }
 
 .rank-badge.bronze {
-  background: linear-gradient(135deg, #FFE0E8, #FFD4E0);
-  color: #FF6B9D;
+  background: linear-gradient(135deg, #FFE0E8, var(--border-color));
+  color: var(--accent);
 }
 
 .rank-info {
@@ -200,14 +200,14 @@ function getProgress(count) {
 
 .rank-name {
   font-size: 14px;
-  color: #4A3340;
+  color: var(--text-primary);
   font-weight: 600;
   margin-bottom: 4px;
 }
 
 .rank-desc {
   font-size: 12px;
-  color: #A0808C;
+  color: #A8A29E;
 }
 
 .rank-progress {
@@ -223,11 +223,11 @@ function getProgress(count) {
 .rank-value {
   font-size: 18px;
   font-weight: 800;
-  color: #FF6B9D;
+  color: var(--accent);
 }
 
 .rank-label {
   font-size: 11px;
-  color: #A0808C;
+  color: #A8A29E;
 }
 </style>

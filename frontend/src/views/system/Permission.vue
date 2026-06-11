@@ -280,15 +280,15 @@ onMounted(() => {
 <style scoped>
 .permission-container {
   padding: 20px;
-  background: #FFF0F3;
+  background: var(--bg-primary);
   min-height: calc(100vh - 60px);
 }
 
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-title h2 { margin: 0; font-size: 22px; font-weight: 700; color: #4A3340; }
-.page-desc { display: block; margin-top: 4px; font-size: 13px; color: #A0808C; }
+.page-title h2 { margin: 0; font-size: 22px; font-weight: 700; color: var(--text-primary); }
+.page-desc { display: block; margin-top: 4px; font-size: 13px; color: #A8A29E; }
 .table-card { margin-bottom: 16px; border-radius: 16px !important; }
 .permissions-list { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.more-count { font-size: 12px; color: #A0808C; }
-.username-text { font-weight: 600; color: #4A3340; }
+.more-count { font-size: 12px; color: #A8A29E; }
+.username-text { font-weight: 600; color: var(--text-primary); }
 </style>

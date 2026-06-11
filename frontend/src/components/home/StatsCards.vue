@@ -91,7 +91,7 @@ const displayData = computed(() => [
   padding: 22px 20px;
   background: #fff;
   border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.06);
+  box-shadow: 0 4px 16px rgba(167,139,250, 0.06);
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
@@ -110,7 +110,7 @@ const displayData = computed(() => [
 
 .stat-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(255, 107, 157, 0.12);
+  box-shadow: 0 8px 24px rgba(167,139,250, 0.12);
 }
 
 .stat-icon {
@@ -120,7 +120,7 @@ const displayData = computed(() => [
   width: 56px;
   height: 56px;
   border-radius: 14px;
-  background: #FFF5F8;
+  background: var(--card-bg);
   color: var(--accent-color);
   margin-right: 16px;
 }
@@ -132,13 +132,13 @@ const displayData = computed(() => [
 .stat-value {
   font-size: 28px;
   font-weight: 800;
-  color: #4A3340;
+  color: var(--text-primary);
   line-height: 1.2;
 }
 
 .stat-label {
   font-size: 13px;
-  color: #A0808C;
+  color: #A8A29E;
   margin-top: 4px;
   font-weight: 500;
 }
@@ -158,7 +158,7 @@ const displayData = computed(() => [
 }
 
 .stat-trend .down {
-  color: #EF476F;
+  color: var(--accent);
   background: rgba(239, 71, 111, 0.1);
 }
 

@@ -1,0 +1,51 @@
+/* ====== 周边可视化系统 - 主题变量 ====== */
+
+/* 默认：淡紫主题 */
+:root {
+  --bg-primary: #FDFBFF;
+  --sidebar-from: #7C3AED;
+  --sidebar-mid: #8B5CF6;
+  --sidebar-to: #A78BFA;
+  --welcome-from: #EDE9FE;
+  --welcome-mid: #DDD6FE;
+  --welcome-to: #C4B5FD;
+  --welcome-text: #4C1D95;
+  --card-bg: #F8F5FF;
+  --card-shadow: rgba(167,139,250,0.06);
+  --card-shadow-hover: rgba(167,139,250,0.12);
+  --border-color: #EDE9FE;
+  --accent: #A78BFA;
+  --accent-dark: #8B5CF6;
+  --accent-light: #C4B5FD;
+  --price-color: #A78BFA;
+  --total-color: #8B5CF6;
+  --text-primary: #1E293B;
+  --text-secondary: #94A3B8;
+  --filter-border: #EDE9FE;
+  --card-image-bg: #F8F5FF;
+}
+
+/* 暖金主题 */
+.theme-warm {
+  --bg-primary: #FFFDF5;
+  --sidebar-from: #D97706;
+  --sidebar-mid: #F59E0B;
+  --sidebar-to: #FBBF24;
+  --welcome-from: #FEF3C7;
+  --welcome-mid: #FDE68A;
+  --welcome-to: #FBBF24;
+  --welcome-text: #92400E;
+  --card-bg: #FFFBEB;
+  --card-shadow: rgba(245,158,11,0.06);
+  --card-shadow-hover: rgba(245,158,11,0.12);
+  --border-color: #FDE68A;
+  --accent: #F59E0B;
+  --accent-dark: #D97706;
+  --accent-light: #FCD34D;
+  --price-color: #D97706;
+  --total-color: #F59E0B;
+  --text-primary: #1E293B;
+  --text-secondary: #78716C;
+  --filter-border: #FDE68A;
+  --card-image-bg: #FFFBEB;
+}

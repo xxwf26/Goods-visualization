@@ -128,11 +128,11 @@ onMounted(() => loadData())
 </script>
 
 <style scoped>
-.design-note-container { padding:20px; background:#FFF0F3; min-height:calc(100vh - 60px); }
+.design-note-container { padding:20px; background:var(--bg-primary); min-height:calc(100vh - 60px); }
 .page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
 .page-title { display:flex; align-items:baseline; gap:12px; }
-.page-title h2 { margin:0; font-size:22px; font-weight:700; color:#4A3340; }
-.data-count { color:#A0808C; font-size:14px; }
+.page-title h2 { margin:0; font-size:22px; font-weight:700; color:var(--text-primary); }
+.data-count { color:#A8A29E; font-size:14px; }
 .page-actions { display:flex; gap:12px; }
 .note-tabs { margin-bottom:12px; }
 .note-tabs :deep(.el-tabs__item) { font-size:15px; font-weight:600; }

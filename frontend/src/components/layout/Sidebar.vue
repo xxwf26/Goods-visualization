@@ -1,9 +1,9 @@
 <template>
   <el-aside :width="isCollapsed ? '64px' : '200px'" class="sidebar">
     <div class="logo-container">
-      <img v-if="!isCollapsed" src="/logo.svg" alt="logo" class="logo" />
+      <img v-if="!isCollapsed" src="/logo.png" alt="logo" class="logo" />
       <span v-if="!isCollapsed" class="logo-text">周边可视化</span>
-      <img v-else src="/logo.svg" alt="logo" class="logo-small" />
+      <img v-else src="/logo.png" alt="logo" class="logo-small" />
     </div>
     <el-menu
       :default-active="activeMenu"
@@ -62,6 +62,18 @@
       </el-sub-menu>
     </el-menu>
 
+    <!-- 主题切换 -->
+    <div v-if="!isCollapsed" class="theme-toggle">
+      <span class="theme-label">主题</span>
+      <el-switch
+        v-model="isWarm"
+        size="small"
+        active-text="暖金"
+        inactive-text="淡紫"
+        @change="toggleTheme"
+      />
+    </div>
+
     <!-- 用户权限信息 -->
     <div v-if="!isCollapsed && isLoggedIn" class="user-role-info">
       <el-tag :type="roleTagType" size="small">
@@ -72,7 +84,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { HomeFilled, Monitor, FolderOpened, Money, Coin, Sunny, WarningFilled, Shop, Setting, Upload, Collection, Lock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
@@ -90,18 +102,34 @@ const userStore = useUserStore()
 const activeMenu = computed(() => route.path)
 const isLoggedIn = computed(() => userStore.isLoggedIn)
 const isAdmin = computed(() => userStore.role === 'admin' || userStore.role === 'super_admin')
-const isEditorOrAbove = computed(() => userStore.role === 'editor' || userStore.role === 'admin' || userStore.role === 'super_admin')
 const roleDisplayName = computed(() => userStore.roleDisplayName)
 const roleTagType = computed(() => {
   const types = { viewer: 'info', editor: 'warning', admin: 'danger' }
   return types[userStore.role] || 'info'
 })
+
+// 主题切换
+const currentTheme = ref(localStorage.getItem('app-theme') || 'purple')
+const isWarm = computed(() => currentTheme.value === 'warm')
+if (currentTheme.value === 'warm') {
+  document.documentElement.classList.add('theme-warm')
+}
+
+function toggleTheme(val) {
+  currentTheme.value = val ? 'warm' : 'purple'
+  localStorage.setItem('app-theme', currentTheme.value)
+  if (val) {
+    document.documentElement.classList.add('theme-warm')
+  } else {
+    document.documentElement.classList.remove('theme-warm')
+  }
+}
 </script>
 
 <style scoped>
 .sidebar {
   height: 100vh;
-  background: linear-gradient(180deg, #FF6B9D 0%, #FF4278 50%, #E84878 100%);
+  background: linear-gradient(180deg, var(--sidebar-from) 0%, var(--sidebar-mid) 50%, var(--sidebar-to) 100%);
   transition: width 0.3s;
   overflow: hidden;
 }
@@ -120,6 +148,11 @@ const roleTagType = computed(() => {
   width: 32px;
   height: 32px;
   margin-right: 8px;
+}
+
+.logo-small {
+  width: 28px;
+  height: 28px;
 }
 
 .logo-text {
@@ -172,6 +205,32 @@ const roleTagType = computed(() => {
 
 :deep(.el-sub-menu .el-menu-item) {
   padding-left: 56px !important;
+}
+
+.theme-toggle {
+  position: absolute;
+  bottom: 55px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.theme-label {
+  color: rgba(255,255,255,0.7);
+  font-size: 12px;
+}
+
+.theme-toggle :deep(.el-switch__label) {
+  color: rgba(255,255,255,0.7) !important;
+  font-size: 11px;
+}
+
+.theme-toggle :deep(.el-switch__label.is-active) {
+  color: #fff !important;
 }
 
 .user-role-info {

@@ -86,6 +86,7 @@
         stripe
         border
         style="width: 100%"
+        max-height="calc(100vh - 340px)"
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="40" fixed />
@@ -469,7 +470,7 @@ onMounted(() => {
 <style scoped>
 .projects-container {
   padding: 20px;
-  background: #FFF0F3;
+  background: var(--bg-primary);
   min-height: calc(100vh - 60px);
 }
 
@@ -490,11 +491,11 @@ onMounted(() => {
   margin: 0;
   font-size: 22px;
   font-weight: 700;
-  color: #4A3340;
+  color: var(--text-primary);
 }
 
 .data-count {
-  color: #A0808C;
+  color: #A8A29E;
   font-size: 14px;
 }
 
@@ -521,7 +522,7 @@ onMounted(() => {
 .range-separator {
   width: 10%;
   text-align: center;
-  color: #A0808C;
+  color: #A8A29E;
 }
 
 .table-card {
@@ -544,7 +545,7 @@ onMounted(() => {
 }
 
 .no-image {
-  color: #FFD4E0;
+  color: var(--border-color);
   font-size: 12px;
 }
 
@@ -554,10 +555,10 @@ onMounted(() => {
   margin-top: 16px;
 }
 
-.price-text { color: #FF6B9D; font-weight: 600; }
-.total-text { color: #E84878; font-weight: 600; }
-.style-hint { font-size: 11px; color: #A0808C; }
-.fee-detail { font-size: 11px; color: #A0808C; line-height: 1.4; }
+.price-text { color: var(--accent); font-weight: 600; }
+.total-text { color: #7C3AED; font-weight: 600; }
+.style-hint { font-size: 11px; color: #A8A29E; }
+.fee-detail { font-size: 11px; color: #A8A29E; line-height: 1.4; }
 .fee-detail span { white-space: nowrap; }
 
 @media (max-width: 768px) {

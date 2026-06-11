@@ -277,84 +277,32 @@ class StatisticsController {
    */
   async dashboard(req, res, next) {
     try {
-      const today = new Date()
-      const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]
-
-      // 项目统计
-      const projectStatsSql = `
-        SELECT
-          COUNT(*) as total,
-          SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
-          SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-          SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft,
-          COALESCE(SUM(quantity), 0) as total_goods,
-          COALESCE(SUM(total_amount), 0) as total_amount
-        FROM project
-        WHERE is_delete = 0
-      `
-      const [projectStats] = await db.query(projectStatsSql)
-
-      // 灵感统计
-      const inspirationStatsSql = `
-        SELECT 
-          COUNT(*) as total,
-          SUM(CASE WHEN collection_status = 'collected' THEN 1 ELSE 0 END) as collected,
-          SUM(CASE WHEN collection_status = 'applied' THEN 1 ELSE 0 END) as applied
-        FROM inspiration
-        WHERE is_delete = 0
-      `
-      const [inspirationStats] = await db.query(inspirationStatsSql)
-
+      // 项目统计（从 project 表）
+      const [pc] = await db.query('SELECT COUNT(*) as total, COALESCE(SUM(total_amount),0) as total_amount FROM project WHERE is_delete=0')
+      // 价格记录统计（从 price_record 表）
+      const [prc] = await db.query('SELECT COUNT(*) as total, COUNT(DISTINCT supplier_name) as supplier_count FROM price_record WHERE is_delete=0')
       // 供应商统计
-      const supplierStatsSql = `
-        SELECT 
-          COUNT(*) as total,
-          SUM(CASE WHEN cooperation_status = 'active' THEN 1 ELSE 0 END) as active
-        FROM supplier
-        WHERE is_delete = 0
-      `
-      const [supplierStats] = await db.query(supplierStatsSql)
+      const [sc] = await db.query('SELECT COUNT(*) as total, SUM(CASE WHEN cooperation_status=\'active\' THEN 1 ELSE 0 END) as active FROM supplier WHERE is_delete=0')
+      // 灵感统计
+      const [ic] = await db.query('SELECT COUNT(*) as total FROM inspiration WHERE is_delete=0')
 
-      // 本月新增项目
-      const monthProjectSql = `
-        SELECT COUNT(*) as count
-        FROM project
-        WHERE is_delete = 0 AND create_time >= ?
-      `
-      const [monthProject] = await db.query(monthProjectSql, [firstDayOfMonth])
+      // IP 分布 (从 project 表)
+      const ipDist = await db.query("SELECT ip_tag_ids as name, COUNT(*) as value FROM project WHERE is_delete=0 AND ip_tag_ids IS NOT NULL AND ip_tag_ids!='' GROUP BY ip_tag_ids ORDER BY value DESC")
 
-      // 标签统计
-      const tagStatsSql = `
-        SELECT tag_type, COUNT(*) as count
-        FROM tag
-        WHERE is_delete = 0
-        GROUP BY tag_type
-      `
-      const tagStats = await db.query(tagStatsSql)
+      // 品类分布 (从 price_record 表)
+      const catDist = await db.query("SELECT category as name, COUNT(*) as count FROM price_record WHERE is_delete=0 AND category IS NOT NULL AND category!='' GROUP BY category ORDER BY count DESC")
+
+      // 供应商排行 (从 supplier 表)
+      const supRank = await db.query('SELECT supplier_name as name, cooperation_project_count as goodsCount, cooperation_total_amount as totalAmount FROM supplier WHERE is_delete=0 AND cooperation_project_count>0 ORDER BY cooperation_project_count DESC LIMIT 10')
 
       res.json(Response.success({
-        projects: {
-          total: projectStats.total || 0,
-          in_progress: projectStats.in_progress || 0,
-          completed: projectStats.completed || 0,
-          draft: projectStats.draft || 0,
-          month_new: monthProject.count || 0,
-          total_goods: projectStats.total_goods || 0,
-          total_amount: projectStats.total_amount || 0
-        },
-        inspirations: {
-          total: inspirationStats.total || 0,
-          collected: inspirationStats.collected || 0,
-          applied: inspirationStats.applied || 0
-        },
-        suppliers: {
-          total: supplierStats.total || 0,
-          active: supplierStats.active || 0
-        },
-        tags: tagStats.reduce((acc, item) => {
-          acc[item.tag_type] = item.count
-          return acc
-        }, {})
+        projects: { total: pc.total||0, total_amount: pc.total_amount||0 },
+        price_records: { total: prc.total||0, supplier_count: prc.supplier_count||0 },
+        suppliers: { total: sc.total||0, active: sc.active||0 },
+        inspirations: { total: ic.total||0 },
+        ip_distribution: ipDist,
+        category_distribution: catDist,
+        supplier_ranking: supRank
       }))
     } catch (error) {
       next(error)

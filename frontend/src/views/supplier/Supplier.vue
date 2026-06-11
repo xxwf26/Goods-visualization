@@ -378,23 +378,23 @@ onMounted(() => {
 <style scoped>
 .supplier-container {
   padding: 20px;
-  background: #FFF0F3;
+  background: var(--bg-primary);
   min-height: calc(100vh - 60px);
 }
 
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-title { display: flex; align-items: baseline; gap: 12px; }
-.page-title h2 { margin: 0; font-size: 22px; font-weight: 700; color: #4A3340; }
-.data-count { color: #A0808C; font-size: 14px; }
+.page-title h2 { margin: 0; font-size: 22px; font-weight: 700; color: var(--text-primary); }
+.data-count { color: #A8A29E; font-size: 14px; }
 .page-actions { display: flex; gap: 12px; }
 .filter-card { margin-bottom: 16px; border-radius: 16px !important; }
 .filter-item { width: 100%; }
 .table-card { margin-bottom: 16px; border-radius: 16px !important; }
 .score-wrapper { display: flex; align-items: center; gap: 8px; }
-.score-text { font-weight: 700; color: #FF6B9D; }
-.count-text { color: #FF6B9D; font-weight: 600; }
-.amount-text { color: #E84878; font-weight: 600; }
+.score-text { font-weight: 700; color: var(--accent); }
+.count-text { color: var(--accent); font-weight: 600; }
+.amount-text { color: #7C3AED; font-weight: 600; }
 .category-tags { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.more-count { font-size: 12px; color: #A0808C; }
+.more-count { font-size: 12px; color: #A8A29E; }
 .pagination-wrapper { display: flex; justify-content: flex-end; margin-top: 16px; }
 </style>

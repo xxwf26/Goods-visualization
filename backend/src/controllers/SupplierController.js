@@ -93,25 +93,12 @@ class SupplierController {
       const [countResult] = await db.query(countSql, params)
       const total = countResult.total
 
-      // 查询列表（含项目统计）
+      // 查询列表（直接使用供应商表中存储的统计数据）
       const listSql = `
         SELECT s.*,
-               u.nickname as creator_name,
-               COALESCE(ps.project_count, 0) as cooperation_project_count,
-               COALESCE(ps.total_amount, 0) as cooperation_total_amount,
-               ps.category_names
+               u.nickname as creator_name
         FROM supplier s
         LEFT JOIN sys_user u ON s.create_user_id = u.id
-        LEFT JOIN (
-          SELECT p.supplier_id,
-                 COUNT(*) as project_count,
-                 SUM(p.total_amount) as total_amount,
-                 GROUP_CONCAT(DISTINCT t.tag_name) as category_names
-          FROM project p
-          LEFT JOIN tag t ON FIND_IN_SET(t.id, p.category_tag_ids) > 0 AND t.tag_type = 'category'
-          WHERE p.is_delete = 0 AND p.supplier_id IS NOT NULL
-          GROUP BY p.supplier_id
-        ) ps ON s.id = ps.supplier_id
         ${whereClause}
         ORDER BY s.${sortField} ${sortOrder}
         LIMIT ? OFFSET ?

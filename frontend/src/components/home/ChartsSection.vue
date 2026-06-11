@@ -90,7 +90,7 @@ function initIpChart() {
         color: '#606266'
       }
     },
-    color: ['#FF6B9D', '#FF8DB5', '#FFB8D0', '#FFD4E0', '#FF9EC1', '#FF7DAF', '#FFB0C8', '#FFC8D8'],
+    color: ['#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE', '#EDE9FE', '#F5F3FF', '#E9D5FF', '#D8B4FE'],
     series: [
       {
         name: 'IP分布',
@@ -182,16 +182,16 @@ function initCategoryChart() {
         data: values,
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#FF8DB5' },
-            { offset: 1, color: '#FF6B9D' }
+            { offset: 0, color: '#8B5CF6' },
+            { offset: 1, color: '#A78BFA' }
           ]),
           borderRadius: [6, 6, 0, 0]
         },
         emphasis: {
           itemStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: '#FFB8D0' },
-              { offset: 1, color: '#FF8DB5' }
+              { offset: 0, color: '#C4B5FD' },
+              { offset: 1, color: '#A78BFA' }
             ])
           }
         }
@@ -240,7 +240,7 @@ watch(() => props.categoryData, initCategoryChart, { deep: true })
   justify-content: space-between;
   align-items: center;
   font-weight: 600;
-  color: #4A3340;
+  color: var(--text-primary);
 }
 
 .chart-wrapper {

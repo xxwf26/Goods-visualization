@@ -100,7 +100,7 @@ const handleCommand = (command) => {
 .header {
   height: 60px;
   background: #fff;
-  box-shadow: 0 2px 16px rgba(255, 107, 157, 0.08);
+  box-shadow: 0 2px 16px rgba(167,139,250, 0.08);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -118,12 +118,12 @@ const handleCommand = (command) => {
 .collapse-btn {
   font-size: 22px;
   cursor: pointer;
-  color: #A0808C;
+  color: #A8A29E;
   transition: color 0.3s;
 }
 
 .collapse-btn:hover {
-  color: #FF6B9D;
+  color: var(--accent);
 }
 
 .header-right {
@@ -142,11 +142,11 @@ const handleCommand = (command) => {
 }
 
 .user-info:hover {
-  background: #FFF5F8;
+  background: var(--card-bg);
 }
 
 .username {
-  color: #4A3340;
+  color: var(--text-primary);
   font-weight: 500;
   font-size: 14px;
 }
