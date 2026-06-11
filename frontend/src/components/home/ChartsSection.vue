@@ -220,9 +220,20 @@ onBeforeUnmount(() => {
   categoryChart?.dispose()
 })
 
-// 监听数据变化
-watch(() => props.ipData, initIpChart, { deep: true })
-watch(() => props.categoryData, initCategoryChart, { deep: true })
+// 监听数据变化，先销毁再重建避免重复实例
+watch(() => props.ipData, (val) => {
+  if (!val?.length) return
+  ipChart?.dispose()
+  ipChart = null
+  initIpChart()
+}, { deep: true })
+
+watch(() => props.categoryData, (val) => {
+  if (!val?.length) return
+  categoryChart?.dispose()
+  categoryChart = null
+  initCategoryChart()
+}, { deep: true })
 </script>
 
 <style scoped>
