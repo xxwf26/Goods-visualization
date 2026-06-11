@@ -145,16 +145,21 @@
         <!-- 14. 报价单 -->
         <el-table-column label="报价单" width="80" align="center">
           <template #default="{ row }">
-            <el-image
-              v-if="getFirstImageUrl(row.quotation_file)"
-              :src="getFirstImageUrl(row.quotation_file)"
-              :preview-src-list="getImageUrls(row.quotation_file)"
-              preview-teleported
-              fit="cover"
-              style="width:48px;height:48px;border-radius:6px;cursor:pointer;"
-            >
-              <template #error><span style="font-size:11px;color:#ccc;">无图</span></template>
-            </el-image>
+            <div v-if="getFirstImageUrl(row.quotation_file)" style="position:relative;display:inline-block;">
+              <el-image
+                :src="getFirstImageUrl(row.quotation_file)"
+                :preview-src-list="getImageUrls(row.quotation_file)"
+                preview-teleported
+                fit="cover"
+                style="width:48px;height:48px;border-radius:6px;cursor:pointer;display:block;"
+              >
+                <template #error><span style="font-size:11px;color:#ccc;">无图</span></template>
+              </el-image>
+              <span
+                v-if="getImageUrls(row.quotation_file).length > 1"
+                style="position:absolute;top:-6px;right:-6px;background:#8B5CF6;color:#fff;font-size:11px;font-weight:700;border-radius:10px;padding:1px 5px;line-height:16px;pointer-events:none;"
+              >×{{ getImageUrls(row.quotation_file).length }}</span>
+            </div>
             <span v-else style="color:#c0c4cc">-</span>
           </template>
         </el-table-column>
