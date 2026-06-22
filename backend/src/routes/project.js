@@ -11,7 +11,8 @@ router.use(authMiddleware)
 
 // 查看: viewer+
 router.get('/', projectController.list)
-router.get('/export', projectController.export)
+router.get('/options', projectController.options)
+ router.get('/export', projectController.export)
 router.get('/:id', projectController.detail)
 
 // 新增/编辑: editor+

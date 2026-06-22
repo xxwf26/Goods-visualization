@@ -17,8 +17,27 @@ app.use(cors(config.cors))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-// 静态文件托管
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
+// 分页参数边界保护：page >= 1，pageSize 1~100，非法值回退默认，防止全表拉取/负偏移
+app.use((req, res, next) => {
+  if (req.query) {
+    if (req.query.page !== undefined) {
+      const p = parseInt(req.query.page, 10)
+      req.query.page = (!Number.isFinite(p) || p < 1) ? 1 : p
+    }
+    if (req.query.pageSize !== undefined) {
+      const ps = parseInt(req.query.pageSize, 10)
+      req.query.pageSize = (!Number.isFinite(ps) || ps < 1) ? 20 : Math.min(ps, 100)
+    }
+  }
+  next()
+})
+
+// 静态文件托管（加 nosniff，防止浏览器把上传文件 MIME 嗅探成可执行类型，缓解存储型 XSS）
+app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
+  setHeaders: (res) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+  }
+}))
 
 // API 路由
 const authRoutes = require('./routes/auth')

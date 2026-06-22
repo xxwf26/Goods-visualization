@@ -15,7 +15,8 @@ class InspirationController {
       const {
         page = 1, pageSize = 10, keyword, inspiration_type, source_type,
         collection_status, folder_id, is_featured, is_pinned,
-        tag_type, tag_ids, start_date, end_date,
+        tag_type, tag_ids, category_tag_ids, craft_tag_ids, ip_tag_ids, scene_tag_ids,
+        start_date, end_date,
         sort_field = 'create_time', sort_order = 'DESC'
       } = req.query
 
@@ -65,10 +66,31 @@ class InspirationController {
         params.push(is_pinned)
       }
 
-      // 标签筛选
+      // 标签筛选（tag_type 拼入列名，必须用白名单校验，防止 SQL 注入）
       if (tag_type && tag_ids) {
-        whereClause += ` AND i.${tag_type}_tag_ids LIKE ?`
-        params.push(`%${tag_ids}%`)
+        const allowedTagTypes = ['ip', 'category', 'craft', 'scene']
+        if (allowedTagTypes.includes(tag_type)) {
+          whereClause += ` AND i.${tag_type}_tag_ids LIKE ?`
+          params.push(`%${tag_ids}%`)
+        }
+      }
+
+      // 直接按各类标签 ID 筛选（前端品类/工艺等下拉），列名为固定常量，安全
+      if (category_tag_ids) {
+        whereClause += ' AND i.category_tag_ids LIKE ?'
+        params.push(`%${category_tag_ids}%`)
+      }
+      if (craft_tag_ids) {
+        whereClause += ' AND i.craft_tag_ids LIKE ?'
+        params.push(`%${craft_tag_ids}%`)
+      }
+      if (ip_tag_ids) {
+        whereClause += ' AND i.ip_tag_ids LIKE ?'
+        params.push(`%${ip_tag_ids}%`)
+      }
+      if (scene_tag_ids) {
+        whereClause += ' AND i.scene_tag_ids LIKE ?'
+        params.push(`%${scene_tag_ids}%`)
       }
 
       // 日期范围
@@ -174,6 +196,7 @@ class InspirationController {
 
       const {
         title,
+        inspiration_type = 'product',
         source_type,
         source_name,
         source_url,
@@ -184,6 +207,7 @@ class InspirationController {
         craft_tag_ids,
         scene_tag_ids,
         description,
+        reference_value,
         content_summary,
         notes,
         application_scenario,
@@ -191,6 +215,8 @@ class InspirationController {
         images,
         video_url,
         thumbnail,
+        collect_time,
+        is_adopted = 0,
         collection_status = 'uncollected',
         folder_id,
         is_featured = 0,
@@ -200,21 +226,21 @@ class InspirationController {
 
       const sql = `
         INSERT INTO inspiration (
-          title, source_type, source_platform, source_name, source_url, link, author, author_url,
+          title, inspiration_type, source_type, source_platform, source_name, source_url, link, author, author_url,
           ip_tag_ids, category_tag_ids, craft_tag_ids, scene_tag_ids,
-          description, content_summary, notes, application_scenario,
+          description, reference_value, content_summary, notes, application_scenario,
           cover_image, images, video_url, thumbnail,
-          collection_status, folder_id, is_featured, is_pinned,
+          collect_time, is_adopted, collection_status, folder_id, is_featured, is_pinned,
           related_project_ids, create_user_id, create_time, update_time, is_delete
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), 0)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), 0)
       `
 
       const result = await db.query(sql, [
-        title, source_type, source_type, source_name, source_url, source_url, author, author_url,
+        title, inspiration_type, source_type, source_type, source_name, source_url, source_url, author, author_url,
         ip_tag_ids, category_tag_ids, craft_tag_ids, scene_tag_ids,
-        description, content_summary, notes, application_scenario,
+        description, reference_value, content_summary, notes, application_scenario,
         cover_image, images, video_url, thumbnail,
-        collection_status, folder_id, is_featured, is_pinned,
+        collect_time || null, is_adopted, collection_status, folder_id, is_featured, is_pinned,
         related_project_ids, req.user?.id
       ])
 

@@ -14,8 +14,7 @@ const routePermissionConfig = {
   // 需要管理员权限的路由
   adminRoutes: [
     '/system/permission',
-    '/import',
-    '/suppliers'
+    '/import'
   ],
   // 需要编辑或管理员权限的路由
   editorRoutes: [

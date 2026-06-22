@@ -416,20 +416,21 @@ router.get('/category/:id', async (req, res, next) => {
     `
     const projects = await db.query(projectsSql, [id, parseInt(top)])
 
-    // 价格统计
+    // 价格统计（以 price_record 为权威源，按品类名称匹配）
     const statsSql = `
-      SELECT 
+      SELECT
         COUNT(*) as project_count,
-        AVG(p.unit_price) as avg_price,
-        MIN(p.unit_price) as min_price,
-        MAX(p.unit_price) as max_price,
-        AVG(p.quantity) as avg_quantity,
-        SUM(p.total_amount) as total_amount
-      FROM project p
-      WHERE FIND_IN_SET(?, p.category_tag_ids) > 0
-        AND p.is_delete = 0
+        AVG(pr.unit_price) as avg_price,
+        MIN(pr.unit_price) as min_price,
+        MAX(pr.unit_price) as max_price,
+        AVG(pr.total_quantity) as avg_quantity,
+        SUM(pr.total_price) as total_amount
+      FROM price_record pr
+      WHERE pr.category LIKE ?
+        AND pr.is_delete = 0
+        AND pr.unit_price > 0
     `
-    const [stats] = await db.query(statsSql, [id])
+    const [stats] = await db.query(statsSql, [`%${category.tag_name}%`])
 
     // 关联的外部灵感
     const inspirationsSql = `

@@ -8,7 +8,7 @@
       </div>
       <div class="page-actions">
         <PermissionButton
-          permission="goods:create"
+          permission="price:create"
           type="primary"
           @click="handleAdd"
         >
@@ -197,8 +197,8 @@
         <el-table-column label="操作" width="150" fixed="right" align="center">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="handleView(row)">查看</el-button>
-            <el-button v-permission="'goods:edit'" link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button v-permission="'goods:delete'" link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <el-button v-permission="'price:edit'" link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'price:delete'" link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -237,7 +237,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { Search, Refresh, PictureFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getPriceRecords, deletePriceRecord } from '@/api/priceRecords'
+import { getPriceRecords, getPriceRecordOptions, deletePriceRecord } from '@/api/priceRecords'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import PriceRecordFormDialog from '@/components/priceRecord/PriceRecordFormDialog.vue'
 import PriceRecordDetailDialog from '@/components/priceRecord/PriceRecordDetailDialog.vue'
@@ -277,12 +277,12 @@ const currentRecord = ref(null)
 // 加载选项数据
 async function loadOptions() {
   try {
-    const res = await getPriceRecords({ page: 1, pageSize: 2000 })
-    const list = res.data?.list || []
-    categoryOptions.value = [...new Set(list.map(r => r.category).filter(Boolean))]
-    ipOptions.value = [...new Set(list.map(r => r.ip).filter(Boolean))]
-    supplierOptions.value = [...new Set(list.map(r => r.supplier_name).filter(Boolean))]
-    projectOptions.value = [...new Set(list.map(r => r.project_name).filter(Boolean))]
+    const res = await getPriceRecordOptions()
+    const d = res.data || {}
+    categoryOptions.value = d.categories || []
+    ipOptions.value = d.ips || []
+    supplierOptions.value = d.suppliers || []
+    projectOptions.value = d.projects || []
   } catch (error) {
     console.error('加载选项失败:', error)
   }

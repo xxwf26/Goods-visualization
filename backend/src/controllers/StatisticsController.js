@@ -106,7 +106,7 @@ class StatisticsController {
           ORDER BY ABS(p.quantity - ?) ASC
           LIMIT 10
         `
-        const [quantityPrices] = await db.query(quantityPriceSql, [...params, minQty, maxQty, qty])
+        const quantityPrices = await db.query(quantityPriceSql, [...params, minQty, maxQty, qty])
         result.by_quantity = quantityPrices
       }
 
@@ -225,10 +225,12 @@ class StatisticsController {
         whereClause += ' AND p.quantity >= ? AND p.quantity <= ?'
         params.push(qty - tolerance, qty + tolerance)
         orderBy = 'ABS(p.quantity - ?) ASC'
+        // ORDER BY 占位符的参数必须排在所有 WHERE 参数之后
+        params.push(qty)
       }
 
       const sql = `
-        SELECT 
+        SELECT
           p.id,
           p.project_name,
           p.product_name,
@@ -242,7 +244,7 @@ class StatisticsController {
         FROM project p
         LEFT JOIN supplier s ON p.supplier_id = s.id
         ${whereClause}
-        ORDER BY ${orderBy.replace('?', quantity || 0)}
+        ORDER BY ${orderBy}
         ${limitClause}
       `
 

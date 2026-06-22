@@ -8,14 +8,14 @@
       </div>
       <div class="page-actions">
         <PermissionButton
-          permission="goods:export"
+          permission="project:export"
           type="success"
           @click="handleExport"
         >
           导出
         </PermissionButton>
         <PermissionButton
-          permission="goods:create"
+          permission="project:create"
           type="primary"
           @click="handleAdd"
         >
@@ -187,7 +187,7 @@
               查看
             </el-button>
             <el-button
-              v-permission="'goods:edit'"
+              v-permission="'project:edit'"
               link
               type="primary"
               size="small"
@@ -196,7 +196,7 @@
               编辑
             </el-button>
             <el-button
-              v-permission="'goods:delete'"
+              v-permission="'project:delete'"
               link
               type="danger"
               size="small"
@@ -247,9 +247,10 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { Plus, Download, Search, Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getProjects, deleteProject, exportProjects } from '@/api/projects'
+import { getProjects, getProjectOptions, deleteProject, exportProjects } from '@/api/projects'
 import { getTagsByType, getSuppliers } from '@/api'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import ProjectFormDialog from '@/components/project/ProjectFormDialog.vue'
@@ -292,15 +293,15 @@ const previewVisible = ref(false)
 const previewImages = ref([])
 const previewIndex = ref(0)
 
-// 加载选项数据（从表格数据中提取去重）
+// 加载选项数据（去重下拉，服务端提供，避免拉取整表）
 async function loadOptions() {
   try {
-    const res = await getProjects({ page: 1, pageSize: 1000 })
-    const list = res.data?.list || []
-    ipOptions.value = [...new Set(list.map(r => r.ip_tag_ids).filter(Boolean))]
-    yearOptions.value = [...new Set(list.map(r => r.project_year).filter(Boolean))]
-    supplierOptions.value = [...new Set(list.map(r => r.supplier_name).filter(Boolean))]
-    reqTypeOptions.value = [...new Set(list.map(r => r.requirement_type).filter(Boolean))]
+    const res = await getProjectOptions()
+    const d = res.data || {}
+    ipOptions.value = d.ipTagIds || []
+    yearOptions.value = d.years || []
+    supplierOptions.value = d.suppliers || []
+    reqTypeOptions.value = d.reqTypes || []
   } catch (error) {
     console.error('加载选项失败:', error)
   }
@@ -486,6 +487,11 @@ function handleFormSuccess() {
 }
 
 onMounted(() => {
+  const route = useRoute()
+  // 从品类详情页跳转携带的关键词
+  if (route.query.keyword) {
+    filterForm.keyword = String(route.query.keyword)
+  }
   loadOptions()
   loadData()
 })

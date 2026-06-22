@@ -32,11 +32,11 @@
         <el-icon><Sunny /></el-icon>
         <template #title>灵感库</template>
       </el-menu-item>
-      <el-menu-item index="/design-notes" v-if="isAdmin">
+      <el-menu-item index="/design-notes">
         <el-icon><WarningFilled /></el-icon>
         <template #title>设计/生产注意</template>
       </el-menu-item>
-      <el-menu-item index="/suppliers" v-if="isAdmin">
+      <el-menu-item index="/suppliers">
         <el-icon><Shop /></el-icon>
         <template #title>供应商库</template>
       </el-menu-item>

@@ -21,19 +21,19 @@
         </el-col>
         <el-col :xs="12" :sm="6">
           <div class="stat-card">
-            <div class="stat-value">¥{{ stats.avg_price?.toFixed(2) || '--' }}</div>
+            <div class="stat-value">¥{{ money(stats.avg_price) }}</div>
             <div class="stat-label">平均单价</div>
           </div>
         </el-col>
         <el-col :xs="12" :sm="6">
           <div class="stat-card">
-            <div class="stat-value">¥{{ stats.min_price?.toFixed(2) || '--' }}</div>
+            <div class="stat-value">¥{{ money(stats.min_price) }}</div>
             <div class="stat-label">最低单价</div>
           </div>
         </el-col>
         <el-col :xs="12" :sm="6">
           <div class="stat-card">
-            <div class="stat-value">¥{{ stats.max_price?.toFixed(2) || '--' }}</div>
+            <div class="stat-value">¥{{ money(stats.max_price) }}</div>
             <div class="stat-label">最高单价</div>
           </div>
         </el-col>
@@ -60,12 +60,12 @@
           <el-table-column prop="quantity" label="数量" width="80" align="right" />
           <el-table-column prop="unit_price" label="单价" width="90" align="right">
             <template #default="{ row }">
-              <span class="price-text">¥{{ row.unit_price?.toFixed(2) }}</span>
+              <span class="price-text">¥{{ money(row.unit_price) }}</span>
             </template>
           </el-table-column>
           <el-table-column prop="total_amount" label="总金额" width="110" align="right">
             <template #default="{ row }">
-              <span class="total-text">¥{{ row.total_amount?.toFixed(2) }}</span>
+              <span class="total-text">¥{{ money(row.total_amount) }}</span>
             </template>
           </el-table-column>
           <el-table-column prop="craft_names" label="工艺" width="120" show-overflow-tooltip />
@@ -164,13 +164,13 @@
           <el-table-column label="单价区间" width="180" align="center">
             <template #default="{ row }">
               <span class="price-range">
-                ¥{{ row.min_price?.toFixed(2) }} - ¥{{ row.max_price?.toFixed(2) }}
+                ¥{{ money(row.min_price) }} - ¥{{ money(row.max_price) }}
               </span>
             </template>
           </el-table-column>
           <el-table-column label="平均单价" width="110" align="right">
             <template #default="{ row }">
-              <span class="highlight-price">¥{{ row.avg_price?.toFixed(2) }}</span>
+              <span class="highlight-price">¥{{ money(row.avg_price) }}</span>
             </template>
           </el-table-column>
           <el-table-column prop="latest_time" label="最近合作" width="120">
@@ -194,6 +194,13 @@ import { getCategoryDetail } from '@/api/price'
 
 const router = useRouter()
 const route = useRoute()
+
+// 金额格式化（兼容后端返回的字符串型 DECIMAL，避免 String.toFixed 报错）
+function money(v) {
+  if (v === null || v === undefined || v === '') return '--'
+  const n = Number(v)
+  return Number.isNaN(n) ? '--' : n.toFixed(2)
+}
 
 const loading = ref(false)
 const category = ref(null)
@@ -229,16 +236,18 @@ function goBack() {
 }
 
 function goToProjects() {
+  // 项目库无品类筛选字段，用品类名称做关键词搜索
   router.push({
     path: '/projects',
-    query: { category: route.params.id }
+    query: { keyword: category.value?.tag_name || '' }
   })
 }
 
 function goToInspiration() {
+  // 灵感库按品类标签 ID 筛选（route.params.id 即品类标签 ID）
   router.push({
     path: '/inspiration',
-    query: { category: route.params.id }
+    query: { category_tag_ids: route.params.id }
   })
 }
 

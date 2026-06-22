@@ -6,7 +6,7 @@
         <span class="data-count">共 {{ total }} 条记录</span>
       </div>
       <div class="page-actions">
-        <PermissionButton permission="goods:create" type="primary" @click="handleAdd">新增注意事项</PermissionButton>
+        <PermissionButton permission="project:create" type="primary" @click="handleAdd">新增注意事项</PermissionButton>
       </div>
     </div>
 
@@ -70,8 +70,8 @@
         <el-table-column label="操作" width="150" fixed="right" align="center">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="handleView(row)">查看</el-button>
-            <el-button v-permission="'goods:edit'" link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button v-permission="'goods:delete'" link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <el-button v-permission="'project:edit'" link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'project:delete'" link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

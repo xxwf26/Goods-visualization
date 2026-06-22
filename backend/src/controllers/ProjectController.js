@@ -447,6 +447,28 @@ class ProjectController {
       next(error)
     }
   }
+
+  /**
+   * 项目筛选选项（去重，供前端下拉使用，避免拉取整表）
+   * GET /api/projects/options
+   */
+  async options(req, res, next) {
+    try {
+      const pick = async (col) => {
+        const rows = await db.query(
+          `SELECT DISTINCT ${col} as v FROM project WHERE is_delete = 0 AND ${col} IS NOT NULL AND ${col} <> '' ORDER BY v`
+        )
+        return rows.map(r => r.v)
+      }
+      // 列名为固定常量，无注入风险
+      const [ipTagIds, years, suppliers, reqTypes] = await Promise.all([
+        pick('ip_tag_ids'), pick('project_year'), pick('supplier_name'), pick('requirement_type')
+      ])
+      res.json(Response.success({ ipTagIds, years, suppliers, reqTypes }))
+    } catch (error) {
+      next(error)
+    }
+  }
 }
 
 module.exports = new ProjectController()

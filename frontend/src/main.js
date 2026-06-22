@@ -8,7 +8,7 @@ import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 
 import App from './App.vue'
 import router from './router'
-import request from './utils/request'
+import request from './api/request'
 import { registerPermissionDirective } from '@/directives/permission'
 import { registerAllDirectives } from '@/directives/permission-extra'
 

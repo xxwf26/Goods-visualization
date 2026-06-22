@@ -8,7 +8,7 @@
       </div>
       <div class="page-actions">
         <PermissionButton
-          permission="tags:create"
+          permission="tag:create"
           type="primary"
           :icon="Plus"
           @click="handleAdd"
@@ -49,14 +49,14 @@
                 :class="{ 'is-disabled': !tag.enabled }"
               >
                 <el-tag
-                  :type="tag.enabled ? 'light' : 'info'"
+                  :type="tag.enabled ? 'primary' : 'info'"
                   :disable-transitions="false"
-                  :closable="hasPermission('tags:edit')"
+                  :closable="hasPermission('tag:edit')"
                   @close="handleDelete(tag)"
                 >
                   {{ tag.name }}
                 </el-tag>
-                <div class="tag-actions" v-if="hasPermission('tags:edit')">
+                <div class="tag-actions" v-if="hasPermission('tag:edit')">
                   <el-switch
                     v-model="tag.enabled"
                     size="small"

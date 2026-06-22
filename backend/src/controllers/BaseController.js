@@ -144,8 +144,9 @@ class BaseController {
   async delete(req, res, next) {
     try {
       const { id } = req.params
-      
-      if (!req.user?.role_code || req.user.role_code !== 'super_admin') {
+
+      const userRoles = req.user?.role_codes || []
+      if (!userRoles.includes('admin') && !userRoles.includes('super_admin')) {
         return res.status(403).json(Response.forbidden('仅管理员可删除'))
       }
 

@@ -11,6 +11,20 @@ export function getPriceRecords(params) {
 }
 
 /**
+ * 价格查询聚合（服务端全量统计 + 跨供应商对比 + 明细）
+ */
+export function queryPriceRecords(params) {
+  return request.get('/price-records/query', { params })
+}
+
+/**
+ * 价格记录筛选选项（去重下拉）
+ */
+export function getPriceRecordOptions() {
+  return request.get('/price-records/options')
+}
+
+/**
  * 获取价格记录详情
  */
 export function getPriceRecordDetail(id) {
@@ -40,6 +54,7 @@ export function deletePriceRecord(id) {
 
 export default {
   getPriceRecords,
+  queryPriceRecords,
   getPriceRecordDetail,
   createPriceRecord,
   updatePriceRecord,

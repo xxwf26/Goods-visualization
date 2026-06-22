@@ -127,7 +127,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { Search, Refresh, Top, Bottom, TrendCharts, Document, DataLine, List } from '@element-plus/icons-vue'
-import { getPriceRecords } from '@/api/priceRecords'
+import { queryPriceRecords, getPriceRecordOptions } from '@/api/priceRecords'
 
 const queryForm = reactive({ category: null, supplier_name: null, ip: null, project_name: null, min_price: null, max_price: null, min_qty: null, max_qty: null })
 const categoryOptions = ref([]), supplierOptions = ref([]), ipOptions = ref([]), projectOptions = ref([])
@@ -138,12 +138,12 @@ const records = ref([])
 
 async function loadOptions() {
   try {
-    const res = await getPriceRecords({ page: 1, pageSize: 2000 })
-    const list = res.data?.list || []
-    categoryOptions.value = [...new Set(list.map(r => r.category).filter(Boolean))]
-    supplierOptions.value = [...new Set(list.map(r => r.supplier_name).filter(Boolean))]
-    ipOptions.value = [...new Set(list.map(r => r.ip).filter(Boolean))]
-    projectOptions.value = [...new Set(list.map(r => r.project_name).filter(Boolean))]
+    const res = await getPriceRecordOptions()
+    const d = res.data || {}
+    categoryOptions.value = d.categories || []
+    supplierOptions.value = d.suppliers || []
+    ipOptions.value = d.ips || []
+    projectOptions.value = d.projects || []
   } catch(e) { console.error(e) }
 }
 
@@ -151,7 +151,6 @@ async function handleQuery() {
   loading.value = true; hasSearched.value = true
   try {
     const params = {
-      page: 1, pageSize: 200,
       category: queryForm.category || undefined,
       supplier_name: queryForm.supplier_name || undefined,
       ip: queryForm.ip || undefined,
@@ -161,37 +160,12 @@ async function handleQuery() {
       min_quantity: queryForm.min_qty || undefined,
       max_quantity: queryForm.max_qty || undefined
     }
-    const res = await getPriceRecords(params)
-    const list = res.data?.list || []
-    records.value = list
-
-    // Compute stats
-    if (list.length) {
-      const prices = list.map(r => Number(r.unit_price)).filter(p => p > 0)
-      stats.value = {
-        max_price: Math.max(...prices),
-        min_price: Math.min(...prices),
-        avg_price: prices.reduce((a,b)=>a+b,0) / prices.length,
-        total_count: list.length
-      }
-      // Supplier comparison
-      const supMap = {}
-      list.forEach(r => {
-        const sn = r.supplier_name || '未知'
-        if (!supMap[sn]) supMap[sn] = { prices: [] }
-        supMap[sn].prices.push(Number(r.unit_price))
-      })
-      supplierCompare.value = Object.entries(supMap).map(([name, data]) => ({
-        supplier_name: name,
-        avg_price: data.prices.reduce((a,b)=>a+b,0)/data.prices.length,
-        min_price: Math.min(...data.prices),
-        max_price: Math.max(...data.prices),
-        record_count: data.prices.length
-      })).sort((a,b) => a.avg_price - b.avg_price)
-    } else {
-      stats.value = { max_price: 0, min_price: 0, avg_price: 0, total_count: 0 }
-      supplierCompare.value = []
-    }
+    // 服务端全量聚合，统计准确（不再受分页条数限制）
+    const res = await queryPriceRecords(params)
+    const data = res.data || {}
+    records.value = data.records || []
+    stats.value = data.stats || { max_price: 0, min_price: 0, avg_price: 0, total_count: 0 }
+    supplierCompare.value = data.supplier_comparison || []
   } catch(e) { console.error(e) }
   finally { loading.value = false }
 }

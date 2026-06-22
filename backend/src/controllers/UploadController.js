@@ -230,7 +230,15 @@ class UploadController {
   async delete(req, res, next) {
     try {
       const { filename } = req.params
-      const filePath = path.join(config.upload.path, filename)
+      // 仅取文件名部分，防止路径穿越（../、绝对路径、URL 编码的分隔符）
+      const safeName = path.basename(filename)
+      const uploadDir = path.resolve(config.upload.path)
+      const filePath = path.resolve(uploadDir, safeName)
+
+      // 二次校验：解析后的路径必须仍在上传目录内
+      if (filePath !== path.join(uploadDir, safeName) || !filePath.startsWith(uploadDir + path.sep)) {
+        return res.status(400).json(Response.badRequest('非法的文件名'))
+      }
 
       if (!fs.existsSync(filePath)) {
         return res.status(404).json(Response.notFound('文件不存在'))

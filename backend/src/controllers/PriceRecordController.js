@@ -6,6 +6,69 @@ const { Response } = require('../utils/response')
 const db = require('../config/database')
 const { validate } = require('../utils/validator')
 
+/**
+ * 数量/金额一致性校验
+ * 规则（需求文档场景一/五）:
+ *   款式数量 × 单款数量 = 总数量
+ *   单价 × 总数量 = 总价
+ * 仅当相关字段都提供了有效数字时才校验，缺字段时跳过（兼容部分编辑）。
+ * @returns {string|null} 错误信息，校验通过返回 null
+ */
+function checkQuantityConsistency(body) {
+  const num = (v) => (v === undefined || v === null || v === '' ? null : Number(v))
+  const styleCount = num(body.style_count)
+  const singleQty = num(body.single_quantity)
+  const totalQty = num(body.total_quantity)
+  const unitPrice = num(body.unit_price)
+  const totalPrice = num(body.total_price)
+
+  // 款式数 × 单款数 = 总数量
+  if (styleCount !== null && singleQty !== null && totalQty !== null) {
+    if (styleCount * singleQty !== totalQty) {
+      return `数量不一致：款式数量(${styleCount}) × 单款数量(${singleQty}) 应等于总数量(${totalQty})`
+    }
+  }
+
+  // 单价 × 总数量 = 总价（浮点容差 0.01）
+  if (unitPrice !== null && totalQty !== null && totalPrice !== null) {
+    if (Math.abs(unitPrice * totalQty - totalPrice) > 0.01) {
+      return `金额不一致：单价(${unitPrice}) × 总数量(${totalQty}) 应等于总价(${totalPrice})`
+    }
+  }
+
+  return null
+}
+
+// 安全数字转换（mysql2 返回 DECIMAL 为字符串）
+function toNum(val, decimals = 2) {
+  const n = Number(val)
+  return Number.isFinite(n) ? Math.round(n * Math.pow(10, decimals)) / Math.pow(10, decimals) : 0
+}
+
+/**
+ * 构建 price_record 的筛选条件（list 与 query 聚合共用，口径一致）
+ */
+function buildPriceWhere(query) {
+  const { keyword, category, ip, supplier_name, project_name } = query
+  let whereClause = 'WHERE is_delete = 0'
+  const params = []
+
+  if (keyword) {
+    whereClause += ' AND (product_name LIKE ? OR category LIKE ? OR ip LIKE ? OR supplier_name LIKE ? OR project_name LIKE ? OR remark1 LIKE ?)'
+    params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`, `%${keyword}%`, `%${keyword}%`, `%${keyword}%`)
+  }
+  if (category) { whereClause += ' AND category LIKE ?'; params.push(`%${category}%`) }
+  if (ip) { whereClause += ' AND ip LIKE ?'; params.push(`%${ip}%`) }
+  if (supplier_name) { whereClause += ' AND supplier_name LIKE ?'; params.push(`%${supplier_name}%`) }
+  if (project_name) { whereClause += ' AND project_name LIKE ?'; params.push(`%${project_name}%`) }
+  if (query.min_price) { whereClause += ' AND unit_price >= ?'; params.push(query.min_price) }
+  if (query.max_price) { whereClause += ' AND unit_price <= ?'; params.push(query.max_price) }
+  if (query.min_quantity) { whereClause += ' AND total_quantity >= ?'; params.push(query.min_quantity) }
+  if (query.max_quantity) { whereClause += ' AND total_quantity <= ?'; params.push(query.max_quantity) }
+
+  return { whereClause, params }
+}
+
 class PriceRecordController {
   /**
    * 价格记录列表
@@ -98,6 +161,95 @@ class PriceRecordController {
   }
 
   /**
+   * 价格查询聚合（以 price_record 为权威数据源，服务端全量统计）
+   * GET /api/price-records/query
+   * 返回：stats(全量最高/最低/均价/匹配数)、supplier_comparison(按供应商对比)、records(明细)
+   */
+  async priceQuery(req, res, next) {
+    try {
+      const { whereClause, params } = buildPriceWhere(req.query)
+      // 统计仅针对有效单价
+      const statsWhere = whereClause + ' AND unit_price > 0'
+
+      // 1. 全量基础统计
+      const [basic] = await db.query(
+        `SELECT COUNT(*) as total_count,
+                MAX(unit_price) as max_price,
+                MIN(unit_price) as min_price,
+                AVG(unit_price) as avg_price,
+                SUM(total_price) as sum_total
+         FROM price_record ${statsWhere}`,
+        params
+      )
+
+      // 2. 跨供应商价格对比（全量分组）
+      const supplierRows = await db.query(
+        `SELECT supplier_name,
+                COUNT(*) as record_count,
+                AVG(unit_price) as avg_price,
+                MIN(unit_price) as min_price,
+                MAX(unit_price) as max_price
+         FROM price_record ${statsWhere} AND supplier_name IS NOT NULL AND supplier_name <> ''
+         GROUP BY supplier_name
+         ORDER BY avg_price ASC`,
+        params
+      )
+      const avgAll = toNum(basic.avg_price)
+      const supplier_comparison = supplierRows.map(s => ({
+        supplier_name: s.supplier_name,
+        record_count: s.record_count,
+        avg_price: toNum(s.avg_price),
+        min_price: toNum(s.min_price),
+        max_price: toNum(s.max_price),
+        // 价格优势：低于整体均价为正，越高越有优势
+        advantage: avgAll > 0 ? Math.round(((avgAll - Number(s.avg_price)) / avgAll) * 100) : 0
+      }))
+
+      // 3. 明细（限制返回条数，仅用于展示）
+      const records = await db.query(
+        `SELECT * FROM price_record ${whereClause} ORDER BY create_time DESC LIMIT 200`,
+        params
+      )
+
+      res.json(Response.success({
+        stats: {
+          total_count: basic.total_count || 0,
+          max_price: toNum(basic.max_price),
+          min_price: toNum(basic.min_price),
+          avg_price: avgAll,
+          sum_total: toNum(basic.sum_total)
+        },
+        supplier_comparison,
+        records
+      }))
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * 价格记录筛选选项（去重，供前端下拉使用）
+   * GET /api/price-records/options
+   */
+  async options(req, res, next) {
+    try {
+      const pick = async (col) => {
+        const rows = await db.query(
+          `SELECT DISTINCT ${col} as v FROM price_record WHERE is_delete = 0 AND ${col} IS NOT NULL AND ${col} <> '' ORDER BY v`
+        )
+        return rows.map(r => r.v)
+      }
+      // 列名为固定常量，无注入风险
+      const [categories, suppliers, ips, projects] = await Promise.all([
+        pick('category'), pick('supplier_name'), pick('ip'), pick('project_name')
+      ])
+      res.json(Response.success({ categories, suppliers, ips, projects }))
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
    * 价格记录详情
    * GET /api/price-records/:id
    */
@@ -129,6 +281,11 @@ class PriceRecordController {
 
       if (!v.validate()) {
         return res.status(400).json(Response.badRequest(v.getFirstError()))
+      }
+
+      const consistencyError = checkQuantityConsistency(req.body)
+      if (consistencyError) {
+        return res.status(400).json(Response.badRequest(consistencyError))
       }
 
       const {
@@ -169,6 +326,12 @@ class PriceRecordController {
   async update(req, res, next) {
     try {
       const { id } = req.params
+
+      const consistencyError = checkQuantityConsistency(req.body)
+      if (consistencyError) {
+        return res.status(400).json(Response.badRequest(consistencyError))
+      }
+
       const {
         product_name, category, supplier_name, ip, image, project_name,
         sample_days, mass_production_days, style_count, single_quantity,

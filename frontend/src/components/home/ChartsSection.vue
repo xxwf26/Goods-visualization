@@ -66,14 +66,15 @@ const defaultCategoryData = [
   { name: '挂件', count: 67 },
   { name: '海报', count: 45 },
   { name: '抱枕', count: 38 },
-  { name: '徽章', value: 32 }
+  { name: '徽章', count: 32 }
 ]
 
 // 初始化IP分布饼图
 function initIpChart() {
   if (!ipChartRef.value) return
 
-  ipChart = echarts.init(ipChartRef.value)
+  // 复用已存在的实例，避免在同一 DOM 上重复 init 造成内存泄漏
+  ipChart = echarts.getInstanceByDom(ipChartRef.value) || echarts.init(ipChartRef.value)
 
   const chartData = props.ipData.length > 0 ? props.ipData : defaultIpData
 
@@ -128,7 +129,8 @@ function initIpChart() {
 function initCategoryChart() {
   if (!categoryChartRef.value) return
 
-  categoryChart = echarts.init(categoryChartRef.value)
+  // 复用已存在的实例，避免在同一 DOM 上重复 init 造成内存泄漏
+  categoryChart = echarts.getInstanceByDom(categoryChartRef.value) || echarts.init(categoryChartRef.value)
 
   const chartData = props.categoryData.length > 0 ? props.categoryData : defaultCategoryData
   const categories = chartData.map(item => item.name)

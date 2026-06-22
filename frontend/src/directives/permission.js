@@ -16,7 +16,7 @@ export const permissionDirective = {
     const userStore = useUserStore()
 
     // 管理员拥有所有权限
-    if (userStore.role === PERMISSION_ROLES.ADMIN) {
+    if (userStore.role === PERMISSION_ROLES.ADMIN || userStore.role === 'super_admin') {
       return
     }
 
@@ -61,7 +61,7 @@ export const ifPermissionDirective = {
     const userStore = useUserStore()
 
     // 管理员拥有所有权限
-    if (userStore.role === PERMISSION_ROLES.ADMIN) {
+    if (userStore.role === PERMISSION_ROLES.ADMIN || userStore.role === 'super_admin') {
       return
     }
 

@@ -60,6 +60,13 @@ export function exportProjects(params) {
   return request.get('/projects/export', { params })
 }
 
+/**
+ * 项目筛选选项（去重下拉）
+ */
+export function getProjectOptions() {
+  return request.get('/projects/options')
+}
+
 export default {
   getProjects,
   getProjectDetail,
@@ -67,5 +74,6 @@ export default {
   updateProject,
   deleteProject,
   importProjects,
-  exportProjects
+  exportProjects,
+  getProjectOptions
 }

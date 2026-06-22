@@ -142,8 +142,9 @@ const handleLogin = async () => {
       })
 
       ElMessage.success('登录成功')
-      const redirect = route.query.redirect || '/home'
-      router.push(redirect)
+      // redirect 可能是数组（重复 query），统一转成字符串
+      const redirect = Array.isArray(route.query.redirect) ? route.query.redirect[0] : route.query.redirect
+      router.push(redirect || '/home')
     } else {
       // 非 200 的响应（理论上不会到这里，interceptor 已 reject）
       ElMessage.error(res.message || '登录失败')

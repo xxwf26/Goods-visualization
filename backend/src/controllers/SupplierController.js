@@ -258,7 +258,11 @@ class SupplierController {
         shipping_fee,
         cooperation_status = 'potential',
         rating,
+        contract_type,
+        risk_level,
+        risk_notes,
         category_ids,
+        advantage_categories,
         main_products,
         advantage,
         remark,
@@ -271,16 +275,18 @@ class SupplierController {
           supplier_name, supplier_code, supplier_type, contact_person, contact_phone, contact_email,
           province, city, district, address, license_image, business_license,
           tax_rate, payment_days, min_order_amount, shipping_fee,
-          cooperation_status, rating, category_ids, main_products, advantage, remark, attachments, case_files,
+          cooperation_status, rating, contract_type, risk_level, risk_notes,
+          category_ids, advantage_categories, main_products, advantage, remark, attachments, case_files,
           create_user_id, create_time, update_time, is_delete
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), 0)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), 0)
       `
 
       const result = await db.query(sql, [
         supplier_name, supplier_code, supplier_type, contact_person, contact_phone, contact_email,
         province, city, district, address, license_image, business_license,
         tax_rate, payment_days, min_order_amount, shipping_fee,
-        cooperation_status, rating, category_ids, main_products, advantage, remark, attachments, case_files,
+        cooperation_status, rating, contract_type, risk_level, risk_notes,
+        category_ids, advantage_categories, main_products, advantage, remark, attachments, case_files,
         req.user?.id
       ])
 
@@ -316,7 +322,11 @@ class SupplierController {
         shipping_fee,
         cooperation_status,
         rating,
+        contract_type,
+        risk_level,
+        risk_notes,
         category_ids,
+        advantage_categories,
         main_products,
         advantage,
         remark,
@@ -344,7 +354,11 @@ class SupplierController {
           shipping_fee = COALESCE(?, shipping_fee),
           cooperation_status = COALESCE(?, cooperation_status),
           rating = COALESCE(?, rating),
+          contract_type = COALESCE(?, contract_type),
+          risk_level = COALESCE(?, risk_level),
+          risk_notes = COALESCE(?, risk_notes),
           category_ids = COALESCE(?, category_ids),
+          advantage_categories = COALESCE(?, advantage_categories),
           main_products = COALESCE(?, main_products),
           advantage = COALESCE(?, advantage),
           remark = COALESCE(?, remark),
@@ -358,7 +372,8 @@ class SupplierController {
         supplier_name, supplier_code, supplier_type, contact_person, contact_phone, contact_email,
         province, city, district, address, license_image, business_license,
         tax_rate, payment_days, min_order_amount, shipping_fee,
-        cooperation_status, rating, category_ids, main_products, advantage, remark, attachments, case_files,
+        cooperation_status, rating, contract_type, risk_level, risk_notes,
+        category_ids, advantage_categories, main_products, advantage, remark, attachments, case_files,
         id
       ])
 

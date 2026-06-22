@@ -354,20 +354,28 @@ class ImportService {
    * 查找重复项目
    */
   static async findDuplicateProject(project) {
-    let sql = 'SELECT * FROM project WHERE is_delete = 0 AND '
+    const conditions = []
     const params = []
 
     // 按项目名称精确匹配
     if (project.project_name) {
-      sql += 'project_name = ?'
+      conditions.push('project_name = ?')
       params.push(project.project_name)
-
-      // 如果有项目编号，按编号二次确认
-      if (project.project_code) {
-        sql += ' OR project_code = ?'
-        params.push(project.project_code)
-      }
     }
+
+    // 如果有项目编号，按编号匹配
+    if (project.project_code) {
+      conditions.push('project_code = ?')
+      params.push(project.project_code)
+    }
+
+    // 没有任何可比对字段时，不视为重复
+    if (conditions.length === 0) {
+      return null
+    }
+
+    // 用括号包裹 OR 条件，避免 AND/OR 优先级导致匹配到已删除记录
+    const sql = `SELECT * FROM project WHERE is_delete = 0 AND (${conditions.join(' OR ')})`
 
     const results = await db.query(sql, params)
     return results.length > 0 ? results[0] : null
@@ -517,11 +525,22 @@ class ImportService {
    * 更新项目记录
    */
   static async updateProject(id, project, updateFields) {
+    // 字段白名单：updateFields 来自请求体，会被拼入列名，必须校验防注入
+    const allowedFields = new Set([
+      'project_name', 'project_code', 'project_type', 'status', 'priority',
+      'ip_tag_ids', 'category_tag_ids', 'craft_tag_ids', 'scene_tag_ids',
+      'supplier_name', 'product_name', 'quantity', 'single_quantity', 'total_quantity',
+      'unit_price', 'total_amount', 'project_year', 'person_days', 'quotation_file',
+      'requirement_type', 'purchase_order_no', 'project_start_date', 'project_end_date',
+      'requester', 'project_leader', 'remark', 'file_storage', 'parent_record', 'region',
+      'product_spec', 'product_material', 'product_size', 'sample_cycle', 'mass_production_cycle'
+    ])
+
     const updates = []
     const params = []
 
     for (const field of updateFields) {
-      if (project[field] !== undefined) {
+      if (allowedFields.has(field) && project[field] !== undefined) {
         updates.push(`${field} = ?`)
         params.push(project[field])
       }

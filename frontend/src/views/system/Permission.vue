@@ -107,8 +107,9 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="选择权限">
-          <el-checkbox-group v-model="roleForm.permissions">
+        <el-form-item label="该角色权限">
+          <div class="perm-hint">权限由角色自动决定（不支持单独勾选），以下为该角色拥有的权限预览：</div>
+          <el-checkbox-group v-model="roleForm.permissions" disabled>
             <el-checkbox
               v-for="perm in permissionOptions"
               :key="perm.value"
@@ -129,10 +130,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getUsers, createUser, updateUser, deleteUser } from '@/api/auth'
+import { getPermissionsByRole } from '@/constants/permission'
 import UserEditDialog from '@/components/permission/UserEditDialog.vue'
 
 // 表格数据
@@ -232,19 +234,27 @@ function handleEditUser(row) {
 
 function handleAssignRole(row) {
   currentUser.value = row
-  roleForm.role = row.role
-  roleForm.permissions = [...(row.permissions || [])]
+  roleForm.role = row.role || 'viewer'
+  // 权限预览随角色自动计算
+  roleForm.permissions = getPermissionsByRole(roleForm.role)
   roleDialogVisible.value = true
 }
 
+// 选择角色变化时，刷新权限预览
+watch(() => roleForm.role, (newRole) => {
+  roleForm.permissions = getPermissionsByRole(newRole)
+})
+
 async function handleSaveRole() {
   try {
+    // 后端按角色授权，仅提交 role；权限由角色自动决定
     await updateUser(currentUser.value.id, { role: roleForm.role })
     ElMessage.success('角色分配成功')
     roleDialogVisible.value = false
     loadData()
   } catch (error) {
     console.error('保存角色失败:', error)
+    ElMessage.error('保存失败，请重试')
   }
 }
 

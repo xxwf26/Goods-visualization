@@ -48,8 +48,13 @@ request.interceptors.response.use(
             return Promise.reject(error)
           }
           ElMessage.error('登录已过期，请重新登录')
-          localStorage.removeItem('token')
-          window.location.href = '/login'
+          // 清理全部登录态，避免残留导致界面误判已登录
+          ;['token', 'userInfo', 'permissions', 'menus', 'role'].forEach(k => localStorage.removeItem(k))
+          // 携带当前路径，登录后可跳回
+          if (!location.pathname.startsWith('/login')) {
+            const redirect = encodeURIComponent(location.pathname + location.search)
+            window.location.href = `/login?redirect=${redirect}`
+          }
           break
         case 403:
           ElMessage.error(data?.message || '没有权限访问')

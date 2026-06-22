@@ -118,6 +118,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -153,7 +154,9 @@ async function loadData() {
       inspiration_type: activeTab.value,
       keyword: filterForm.keyword || undefined,
       source_type: filterForm.source_type || undefined,
-      collection_status: filterForm.collection_status || undefined
+      collection_status: filterForm.collection_status || undefined,
+      category_tag_ids: filterForm.category_tag_ids || undefined,
+      craft_tag_ids: filterForm.craft_tag_ids || undefined
     }
     const res = await getInspirations(params)
     tableData.value = res.data?.list || []
@@ -188,7 +191,14 @@ function getDisplayTags(item) {
 function getSourceLabel(s) { const m={'小红书':'小红书','淘宝':'淘宝','1688':'1688','站酷':'站酷','微博':'微博','抖音':'抖音','pinterest':'Pinterest','instagram':'Instagram','other':'其他'}; return m[s]||s||'其他' }
 function formatDate(d) { if(!d) return '-'; return d.split('T')[0] }
 
-onMounted(() => { loadOptions(); loadData() })
+onMounted(() => {
+  const route = useRoute()
+  // 从品类详情页跳转携带的筛选
+  if (route.query.category_tag_ids) {
+    filterForm.category_tag_ids = String(route.query.category_tag_ids)
+  }
+  loadOptions(); loadData()
+})
 </script>
 
 <style scoped>

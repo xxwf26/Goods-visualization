@@ -1,4 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { checkRoutePermission } from './permissionGuard'
+import { useUserStore } from '@/stores/user'
+import { ElMessage } from 'element-plus'
 
 const routes = [
   {
@@ -107,6 +110,15 @@ router.beforeEach((to, from) => {
   // 已登录访问登录页，重定向到首页
   if (to.path === '/login' && token) {
     return '/home'
+  }
+
+  // 基于角色的路由权限校验（防止直接输入 URL 越权访问）
+  if (token && to.meta.requiresAuth !== false) {
+    const userStore = useUserStore()
+    if (userStore.role && !checkRoutePermission(to.path, userStore.role)) {
+      ElMessage.warning('您没有访问该页面的权限')
+      return from?.path && from.path !== to.path ? false : '/home'
+    }
   }
 
   // 更新页面标题

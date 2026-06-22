@@ -23,7 +23,11 @@ const storage = multer.diskStorage({
 })
 
 const fileFilter = (req, file, cb) => {
-  if (config.upload.allowedTypes.includes(file.mimetype)) {
+  const ext = path.extname(file.originalname).toLowerCase()
+  const mimeOk = config.upload.allowedTypes.includes(file.mimetype)
+  const extOk = config.upload.allowedExts.includes(ext)
+  // MIME 与扩展名双重校验：MIME 可被伪造，扩展名决定落盘文件名，二者都需在白名单内
+  if (mimeOk && extOk) {
     cb(null, true)
   } else {
     cb(new Error('不支持的文件类型'), false)

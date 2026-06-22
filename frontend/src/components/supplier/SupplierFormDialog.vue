@@ -34,6 +34,7 @@
               <el-option label="合作中" value="active" />
               <el-option label="暂停合作" value="paused" />
               <el-option label="已终止" value="terminated" />
+              <el-option label="潜在" value="potential" />
             </el-select>
           </el-form-item>
         </el-col>
@@ -42,8 +43,9 @@
           <el-form-item label="合同类型" prop="contractType">
             <el-select v-model="formData.contractType" style="width: 100%">
               <el-option label="框架合同" value="framework" />
-              <el-option label="单项目合同" value="project" />
-              <el-option label="长期合作" value="longterm" />
+              <el-option label="单次合同" value="project" />
+              <el-option label="三方合同" value="third_party" />
+              <el-option label="无合同" value="none" />
             </el-select>
           </el-form-item>
         </el-col>
@@ -62,7 +64,7 @@
           <el-form-item label="主观评分" prop="score">
             <div class="score-input">
               <el-rate v-model="formData.score" allow-half />
-              <span class="score-label">{{ formData.score.toFixed(1) }}分</span>
+              <span class="score-label">{{ Number(formData.score || 0).toFixed(1) }}分</span>
             </div>
           </el-form-item>
         </el-col>
@@ -174,7 +176,7 @@ import { ElMessage } from 'element-plus'
 import { Upload } from '@element-plus/icons-vue'
 import { createSupplier, updateSupplier } from '@/api/suppliers'
 import { getTagsByType } from '@/api/tags'
-import request from '@/utils/request'
+import request from '@/api/request'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -270,8 +272,8 @@ watch(() => props.supplierData, (newData) => {
       name: newData.supplier_name || '',
       status: newData.cooperation_status || 'active',
       contractType: newData.contract_type || 'framework',
-      riskLevel: newData.riskLevel || 'low',
-      score: newData.rating || 4,
+      riskLevel: newData.risk_level || 'low',
+      score: Math.min(Number(newData.rating) || 4, 5),
       advantageCategories: newData.advantage_categories ? newData.advantage_categories.split(',') : [],
       contact: {
         person: newData.contact_person || '',
@@ -376,6 +378,7 @@ async function handleSubmit() {
       contract_type: formData.contractType,
       cooperation_status: formData.status,
       rating: formData.score,
+      risk_level: formData.riskLevel,
       advantage_categories: formData.advantageCategories.join(','),
       risk_notes: formData.remark,
       remark: formData.remark,
