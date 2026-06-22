@@ -460,11 +460,22 @@ class ProjectController {
         )
         return rows.map(r => r.v)
       }
-      // 列名为固定常量，无注入风险
-      const [ipTagIds, years, suppliers, reqTypes] = await Promise.all([
-        pick('ip_tag_ids'), pick('project_year'), pick('supplier_name'), pick('requirement_type')
+      // supplier_name 通过 JOIN supplier 表获取
+      const supplierRows = await db.query(
+        `SELECT DISTINCT s.supplier_name as v FROM project p
+         JOIN supplier s ON p.supplier_id = s.id
+         WHERE p.is_delete = 0 AND s.supplier_name IS NOT NULL
+         ORDER BY v`
+      )
+      const [ipTagIds, years, reqTypes] = await Promise.all([
+        pick('ip_tag_ids'), pick('project_year'), pick('requirement_type')
       ])
-      res.json(Response.success({ ipTagIds, years, suppliers, reqTypes }))
+      res.json(Response.success({
+        ipTagIds,
+        years,
+        suppliers: supplierRows.map(r => r.v),
+        reqTypes
+      }))
     } catch (error) {
       next(error)
     }
