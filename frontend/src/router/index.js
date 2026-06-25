@@ -76,6 +76,12 @@ const routes = [
         meta: { requiresAuth: true, title: '权限管理' }
       },
       {
+        path: 'system/logs',
+        name: 'OperationLogs',
+        component: () => import('@/views/system/Logs.vue'),
+        meta: { requiresAuth: true, title: '操作日志' }
+      },
+      {
         path: 'category/:id',
         name: 'CategoryDetail',
         component: () => import('@/views/category/CategoryDetail.vue'),

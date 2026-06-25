@@ -235,6 +235,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { Search, Refresh, PictureFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getPriceRecords, getPriceRecordOptions, deletePriceRecord } from '@/api/priceRecords'
@@ -395,6 +396,11 @@ function handleFormSuccess() {
 }
 
 onMounted(() => {
+  const route = useRoute()
+  // 从全局检索跳转携带的关键词
+  if (route.query.keyword) {
+    filterForm.keyword = String(route.query.keyword)
+  }
   loadOptions()
   loadData()
 })

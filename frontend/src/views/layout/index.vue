@@ -7,19 +7,34 @@
         <router-view />
       </div>
     </div>
+    <GlobalSearch v-model:visible="searchOpen" />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, provide, onMounted, onUnmounted } from 'vue'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import Header from '@/components/layout/Header.vue'
+import GlobalSearch from '@/components/layout/GlobalSearch.vue'
 
 const isCollapsed = ref(false)
 
 const toggleSidebar = () => {
   isCollapsed.value = !isCollapsed.value
 }
+
+// 全局检索面板（Ctrl/Cmd + K 唤起，Header 按钮也可打开）
+const searchOpen = ref(false)
+provide('openGlobalSearch', () => { searchOpen.value = true })
+
+function onGlobalKeydown(e) {
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault()
+    searchOpen.value = true
+  }
+}
+onMounted(() => window.addEventListener('keydown', onGlobalKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onGlobalKeydown))
 </script>
 
 <style scoped>

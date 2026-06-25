@@ -228,6 +228,110 @@ class PriceRecordController {
   }
 
   /**
+   * 报价审核参考（需求场景5）
+   * GET /api/price-records/quote-review
+   * 入参：category(必填)、supplier_name、quantity(目标数量)、quote_price(待审单价)
+   * 返回：同品类历史价格区间、报价裁定(高于/低于均价%)、相近数量参考、同供应商历史、跨供应商对比
+   */
+  async quoteReview(req, res, next) {
+    try {
+      const { category, supplier_name, quantity, quote_price } = req.query
+      if (!category) {
+        return res.status(400).json(Response.badRequest('请选择品类'))
+      }
+
+      // 基础范围：同品类、有效单价
+      const base = 'WHERE is_delete = 0 AND unit_price > 0 AND category LIKE ?'
+      const baseParams = [`%${category}%`]
+
+      // 1. 同品类历史价格区间
+      const [range] = await db.query(
+        `SELECT COUNT(*) total_count, MAX(unit_price) max_price, MIN(unit_price) min_price, AVG(unit_price) avg_price
+         FROM price_record ${base}`,
+        baseParams
+      )
+      const avg = toNum(range.avg_price)
+
+      // 2. 报价裁定：与历史均价比较（偏离 >10% 视为偏高/偏低）
+      let verdict = null
+      const qp = (quote_price !== undefined && quote_price !== '' && quote_price !== null) ? Number(quote_price) : null
+      if (qp !== null && Number.isFinite(qp) && avg > 0) {
+        const diffPct = Math.round(((qp - avg) / avg) * 100)
+        verdict = {
+          quote_price: toNum(qp),
+          avg_price: avg,
+          diff_pct: diffPct,
+          level: diffPct > 10 ? 'high' : (diffPct < -10 ? 'low' : 'normal')
+        }
+      }
+
+      // 3. 相近数量参考（目标数量 ±50%，最少 ±50）
+      let similar_quantity = []
+      if (quantity) {
+        const qty = parseInt(quantity, 10)
+        if (Number.isFinite(qty) && qty > 0) {
+          const tol = Math.max(Math.ceil(qty * 0.5), 50)
+          similar_quantity = await db.query(
+            `SELECT id, product_name, supplier_name, ip, project_name, unit_price, total_quantity, total_price, create_time
+             FROM price_record ${base} AND total_quantity BETWEEN ? AND ?
+             ORDER BY ABS(total_quantity - ?) ASC LIMIT 10`,
+            [...baseParams, qty - tol, qty + tol, qty]
+          )
+        }
+      }
+
+      // 4. 同供应商历史（本品类）
+      let same_supplier = null
+      if (supplier_name) {
+        const [ss] = await db.query(
+          `SELECT COUNT(*) record_count, AVG(unit_price) avg_price, MIN(unit_price) min_price, MAX(unit_price) max_price
+           FROM price_record ${base} AND supplier_name LIKE ?`,
+          [...baseParams, `%${supplier_name}%`]
+        )
+        if (ss && ss.record_count > 0) {
+          same_supplier = {
+            supplier_name,
+            record_count: ss.record_count,
+            avg_price: toNum(ss.avg_price),
+            min_price: toNum(ss.min_price),
+            max_price: toNum(ss.max_price)
+          }
+        }
+      }
+
+      // 5. 跨供应商对比（本品类，按均价升序）
+      const compRows = await db.query(
+        `SELECT supplier_name, COUNT(*) record_count, AVG(unit_price) avg_price, MIN(unit_price) min_price, MAX(unit_price) max_price
+         FROM price_record ${base} AND supplier_name IS NOT NULL AND supplier_name <> ''
+         GROUP BY supplier_name ORDER BY avg_price ASC`,
+        baseParams
+      )
+      const supplier_comparison = compRows.map(s => ({
+        supplier_name: s.supplier_name,
+        record_count: s.record_count,
+        avg_price: toNum(s.avg_price),
+        min_price: toNum(s.min_price),
+        max_price: toNum(s.max_price)
+      }))
+
+      res.json(Response.success({
+        range: {
+          total_count: range.total_count || 0,
+          max_price: toNum(range.max_price),
+          min_price: toNum(range.min_price),
+          avg_price: avg
+        },
+        verdict,
+        similar_quantity,
+        same_supplier,
+        supplier_comparison
+      }))
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
    * 价格记录筛选选项（去重，供前端下拉使用）
    * GET /api/price-records/options
    */

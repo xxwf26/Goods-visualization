@@ -193,6 +193,10 @@ function formatDate(d) { if(!d) return '-'; return d.split('T')[0] }
 
 onMounted(() => {
   const route = useRoute()
+  // 从全局检索跳转携带的关键词
+  if (route.query.keyword) {
+    filterForm.keyword = String(route.query.keyword)
+  }
   // 从品类详情页跳转携带的筛选
   if (route.query.category_tag_ids) {
     filterForm.category_tag_ids = String(route.query.category_tag_ids)

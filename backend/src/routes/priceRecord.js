@@ -10,6 +10,7 @@ router.use(authMiddleware)
 
 router.get('/', controller.list)
 router.get('/query', controller.priceQuery)
+router.get('/quote-review', controller.quoteReview)
 router.get('/options', controller.options)
 router.get('/:id', controller.detail)
 router.post('/', requireRole('editor'), controller.create)

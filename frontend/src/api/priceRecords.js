@@ -25,6 +25,13 @@ export function getPriceRecordOptions() {
 }
 
 /**
+ * 报价审核参考（场景5）：同品类历史区间 + 报价裁定 + 相近数量 + 同/跨供应商对比
+ */
+export function quoteReviewPrice(params) {
+  return request.get('/price-records/quote-review', { params })
+}
+
+/**
  * 获取价格记录详情
  */
 export function getPriceRecordDetail(id) {

@@ -1,23 +1,24 @@
 <template>
   <div class="quick-access">
-    <!-- 全局搜索框 -->
+    <!-- 全局搜索框（内嵌大搜索，跨模块实时检索） -->
     <div class="search-section">
       <el-card class="search-card">
         <el-input
-          v-model="searchKeyword"
-          placeholder="搜索项目、商品、灵感..."
+          v-model="keyword"
+          placeholder="搜索项目、价格、供应商、灵感、品类…"
           size="large"
           :prefix-icon="Search"
           clearable
-          @keyup.enter="handleSearch"
           @focus="showSearchTips = true"
-          @blur="handleSearchBlur"
+          @keydown="onKeydown"
         >
           <template #append>
-            <el-button :icon="Search" @click="handleSearch" />
+            <span class="search-kbd">Ctrl K 全局唤起</span>
           </template>
         </el-input>
-        <div v-if="showSearchTips && !searchKeyword" class="search-tips">
+
+        <!-- 无输入时：热门搜索 -->
+        <div v-if="showSearchTips && !keyword.trim()" class="search-tips">
           <div class="tips-title">热门搜索</div>
           <div class="tips-list">
             <el-tag
@@ -29,6 +30,21 @@
               {{ tag }}
             </el-tag>
           </div>
+        </div>
+
+        <!-- 有输入时：实时结果直接铺在主页 -->
+        <div v-if="keyword.trim()" ref="resultsRef" class="search-results-inline" v-loading="loading">
+          <SearchResults
+            :data="data"
+            :visible-groups="visibleGroups"
+            :active-index="activeIndex"
+            :keyword="keyword"
+            :show-empty="showEmpty"
+            :flat-index-of="flatIndexOf"
+            @select="go"
+            @select-group="goList"
+            @hover="activeIndex = $event"
+          />
         </div>
       </el-card>
     </div>
@@ -67,31 +83,65 @@
         </div>
       </el-card>
     </div>
+
+    <SearchDetailDialogs ref="detailRef" />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, Link, Plus, Goods, Folder, Shop, Upload, User, TrendCharts } from '@element-plus/icons-vue'
-import { useUserStore } from '@/stores/user'
 import { hasPermission } from '@/utils/permission'
+import SearchResults from '@/components/common/SearchResults.vue'
+import SearchDetailDialogs from '@/components/common/SearchDetailDialogs.vue'
+import { useGlobalSearch } from '@/composables/useGlobalSearch'
 
 const router = useRouter()
-const userStore = useUserStore()
 
-const searchKeyword = ref('')
 const showSearchTips = ref(false)
+const resultsRef = ref(null)
+const detailRef = ref(null)
 
-// 热门搜索标签
+const {
+  keyword, loading, data, activeIndex,
+  visibleGroups, showEmpty, flatIndexOf,
+  moveActive, go, goList, activateCurrent
+} = useGlobalSearch({
+  onOpenDetail: (type, id) => detailRef.value?.open(type, id)
+})
+
+// 热门搜索标签（本司真实高频词）
 const hotSearchTags = [
-  '原神周边',
-  '明日方舟',
-  '手办',
-  '立牌',
-  '限定版',
-  '联名款'
+  '恋与深空',
+  '暖暖',
+  '吧唧',
+  '亚克力立牌',
+  '镭射票',
+  '明信片'
 ]
+
+function onKeydown(e) {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault(); moveActive(1); scrollActiveIntoView()
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault(); moveActive(-1); scrollActiveIntoView()
+  } else if (e.key === 'Enter') {
+    e.preventDefault(); activateCurrent()
+  }
+}
+
+function scrollActiveIntoView() {
+  nextTick(() => {
+    const el = resultsRef.value?.querySelector('.active')
+    if (el) el.scrollIntoView({ block: 'nearest' })
+  })
+}
+
+// 快捷搜索：点热门标签直接填入并触发检索
+function quickSearch(tag) {
+  keyword.value = tag
+}
 
 // 快捷入口配置
 const shortcuts = [
@@ -159,25 +209,6 @@ const shortcuts = [
   return true
 })
 
-// 搜索处理
-function handleSearch() {
-  if (!searchKeyword.value.trim()) return
-  router.push({ path: '/projects', query: { keyword: searchKeyword.value.trim() } })
-}
-
-// 搜索框失焦处理
-function handleSearchBlur() {
-  setTimeout(() => {
-    showSearchTips.value = false
-  }, 200)
-}
-
-// 快捷搜索
-function quickSearch(keyword) {
-  searchKeyword.value = keyword
-  handleSearch()
-}
-
 // 快捷入口点击
 function handleShortcutClick(item) {
   router.push(item.path)
@@ -196,6 +227,21 @@ function handleShortcutClick(item) {
 
 .search-tips {
   padding: 12px 0 0;
+}
+
+.search-results-inline {
+  margin-top: 14px;
+  max-height: 60vh;
+  overflow-y: auto;
+  border-top: 1px solid var(--border-color, #EDE9FE);
+  padding-top: 14px;
+}
+
+.search-kbd {
+  font-size: 12px;
+  color: var(--text-secondary, #94A3B8);
+  white-space: nowrap;
+  padding: 0 4px;
 }
 
 .tips-title {

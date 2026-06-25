@@ -59,6 +59,10 @@
           <el-icon><Lock /></el-icon>
           <template #title>权限管理</template>
         </el-menu-item>
+        <el-menu-item index="/system/logs">
+          <el-icon><Tickets /></el-icon>
+          <template #title>操作日志</template>
+        </el-menu-item>
       </el-sub-menu>
     </el-menu>
 
@@ -86,7 +90,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { HomeFilled, Monitor, FolderOpened, Money, Coin, Sunny, WarningFilled, Shop, Setting, Upload, Collection, Lock } from '@element-plus/icons-vue'
+import { HomeFilled, Monitor, FolderOpened, Money, Coin, Sunny, WarningFilled, Shop, Setting, Upload, Collection, Lock, Tickets } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
 defineProps({

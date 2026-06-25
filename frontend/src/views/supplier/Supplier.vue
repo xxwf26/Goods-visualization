@@ -209,6 +209,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { Plus, Search, Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getSuppliers, createSupplier, updateSupplier, deleteSupplier } from '@/api/suppliers'
@@ -370,6 +371,11 @@ async function loadCategoryOptions() {
 }
 
 onMounted(() => {
+  const route = useRoute()
+  // 从全局检索跳转携带的关键词
+  if (route.query.keyword) {
+    filterForm.keyword = String(route.query.keyword)
+  }
   loadCategoryOptions()
   loadData()
 })

@@ -11,6 +11,11 @@
       </el-breadcrumb>
     </div>
     <div class="header-right">
+      <div class="search-trigger" @click="openSearch">
+        <el-icon><Search /></el-icon>
+        <span class="search-trigger-text">搜索</span>
+        <span class="search-trigger-kbd">Ctrl K</span>
+      </div>
       <el-dropdown @command="handleCommand">
         <span class="user-info">
           <el-avatar :size="32" :style="{ backgroundColor: avatarColor }">
@@ -31,9 +36,9 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Fold, Expand, ArrowDown } from '@element-plus/icons-vue'
+import { Fold, Expand, ArrowDown, Search } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { ElMessageBox } from 'element-plus'
 
@@ -79,6 +84,9 @@ const currentTitle = computed(() => {
 const toggleSidebar = () => {
   emit('toggle')
 }
+
+// 打开全局检索面板（由 layout/index.vue 通过 provide 注入）
+const openSearch = inject('openGlobalSearch', () => {})
 
 const handleCommand = (command) => {
   if (command === 'logout') {
@@ -129,6 +137,32 @@ const handleCommand = (command) => {
 .header-right {
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+.search-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 7px 12px;
+  border-radius: 20px;
+  background: var(--bg-primary);
+  color: var(--text-secondary, #94A3B8);
+  font-size: 13px;
+  transition: all 0.3s;
+}
+
+.search-trigger:hover {
+  background: var(--card-bg);
+  color: var(--accent);
+}
+
+.search-trigger-kbd {
+  font-size: 11px;
+  border: 1px solid var(--border-color, #EDE9FE);
+  border-radius: 5px;
+  padding: 1px 6px;
 }
 
 .user-info {
