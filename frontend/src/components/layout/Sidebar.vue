@@ -40,6 +40,10 @@
         <el-icon><Shop /></el-icon>
         <template #title>供应商库</template>
       </el-menu-item>
+      <el-menu-item index="/supplier-dashboard">
+        <el-icon><DataAnalysis /></el-icon>
+        <template #title>供应商评分看板</template>
+      </el-menu-item>
 
       <!-- 系统管理子菜单（仅管理员可见） -->
       <el-sub-menu v-if="isAdmin" index="/system">
@@ -90,7 +94,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { HomeFilled, Monitor, FolderOpened, Money, Coin, Sunny, WarningFilled, Shop, Setting, Upload, Collection, Lock, Tickets } from '@element-plus/icons-vue'
+import { HomeFilled, Monitor, FolderOpened, Money, Coin, Sunny, WarningFilled, Shop, Setting, Upload, Collection, Lock, Tickets, DataAnalysis } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
 defineProps({

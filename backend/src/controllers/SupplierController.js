@@ -120,6 +120,102 @@ class SupplierController {
   }
 
   /**
+   * 供应商表现评分看板（聚合 supplier 表已存储的评分/合作统计）
+   * GET /api/suppliers/dashboard
+   */
+  async dashboard(req, res, next) {
+    try {
+      const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : 0 }
+      const mapSupplier = (s) => ({
+        id: s.id,
+        supplier_name: s.supplier_name,
+        supplier_short_name: s.supplier_short_name,
+        rating: s.rating === null ? null : num(s.rating),
+        cooperation_project_count: num(s.cooperation_project_count),
+        cooperation_total_amount: num(s.cooperation_total_amount)
+      })
+
+      // 概览
+      const [summary] = await db.query(`
+        SELECT
+          COUNT(*) total,
+          COUNT(rating) rated,
+          ROUND(AVG(rating), 1) avg_rating,
+          SUM(CASE WHEN cooperation_status = 'active' THEN 1 ELSE 0 END) active_count,
+          SUM(cooperation_total_amount) total_amount,
+          SUM(cooperation_project_count) total_projects
+        FROM supplier WHERE is_delete = 0
+      `)
+
+      // 评分排行 Top 10
+      const ratingRows = await db.query(`
+        SELECT id, supplier_name, supplier_short_name, rating, cooperation_project_count, cooperation_total_amount
+        FROM supplier WHERE is_delete = 0 AND rating IS NOT NULL
+        ORDER BY rating DESC, cooperation_total_amount DESC
+        LIMIT 10
+      `)
+
+      // 评分分布（百分制分档）
+      const [dist] = await db.query(`
+        SELECT
+          SUM(rating >= 90) excellent,
+          SUM(rating >= 80 AND rating < 90) good,
+          SUM(rating >= 70 AND rating < 80) fair,
+          SUM(rating IS NOT NULL AND rating < 70) poor,
+          SUM(rating IS NULL) unrated
+        FROM supplier WHERE is_delete = 0
+      `)
+
+      // 合作金额 Top 10
+      const amountRows = await db.query(`
+        SELECT id, supplier_name, supplier_short_name, cooperation_total_amount, cooperation_project_count, rating
+        FROM supplier WHERE is_delete = 0 AND cooperation_total_amount > 0
+        ORDER BY cooperation_total_amount DESC
+        LIMIT 10
+      `)
+
+      // 优势品类分布（advantage_categories 按常见分隔符拆分计数）
+      const advRows = await db.query(
+        `SELECT advantage_categories FROM supplier WHERE is_delete = 0 AND advantage_categories <> ''`
+      )
+      const catMap = {}
+      for (const r of advRows) {
+        String(r.advantage_categories)
+          .split(/[,，、;；/]/)
+          .map(s => s.trim())
+          .filter(Boolean)
+          .forEach(cat => { catMap[cat] = (catMap[cat] || 0) + 1 })
+      }
+      const category_distribution = Object.entries(catMap)
+        .map(([category, count]) => ({ category, count }))
+        .sort((a, b) => b.count - a.count)
+
+      res.json(Response.success({
+        summary: {
+          total: num(summary.total),
+          rated: num(summary.rated),
+          avg_rating: num(summary.avg_rating),
+          active_count: num(summary.active_count),
+          total_amount: num(summary.total_amount),
+          total_projects: num(summary.total_projects)
+        },
+        rating_ranking: ratingRows.map(mapSupplier),
+        rating_distribution: {
+          excellent: num(dist.excellent),
+          good: num(dist.good),
+          fair: num(dist.fair),
+          poor: num(dist.poor),
+          unrated: num(dist.unrated)
+        },
+        amount_ranking: amountRows.map(mapSupplier),
+        category_distribution
+      }))
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
    * 供应商详情
    * GET /api/suppliers/:id
    */
