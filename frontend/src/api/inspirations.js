@@ -76,6 +76,22 @@ export function createFolder(data) {
   return request.post('/inspiration-folders', data)
 }
 
+/**
+ * 检测单条灵感链接是否失效
+ * @param {number} id - 灵感ID
+ */
+export function checkInspirationLink(id) {
+  return request.post(`/inspirations/${id}/check-link`)
+}
+
+/**
+ * 批量检测灵感链接失效
+ * @param {Object} data - { inspiration_type? } 可选按类型限定
+ */
+export function checkInspirationLinks(data = {}) {
+  return request.post('/inspirations/check-links', data)
+}
+
 export default {
   getInspirations,
   getInspirationDetail,
@@ -85,5 +101,7 @@ export default {
   collectInspiration,
   uncollectInspiration,
   getFolders,
-  createFolder
+  createFolder,
+  checkInspirationLink,
+  checkInspirationLinks
 }

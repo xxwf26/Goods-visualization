@@ -44,10 +44,18 @@ export function deleteSupplier(id) {
   return request.delete(`/suppliers/${id}`)
 }
 
+/**
+ * 供应商表现评分看板聚合数据
+ */
+export function getSupplierDashboard() {
+  return request.get('/suppliers/dashboard')
+}
+
 export default {
   getSuppliers,
   getSupplierDetail,
   createSupplier,
   updateSupplier,
-  deleteSupplier
+  deleteSupplier,
+  getSupplierDashboard
 }

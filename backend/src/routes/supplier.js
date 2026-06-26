@@ -11,6 +11,7 @@ router.use(authMiddleware)
 
 // 查看: viewer+
 router.get('/', supplierController.list)
+router.get('/dashboard', supplierController.dashboard)
 router.get('/:id', supplierController.detail)
 
 // 评价: editor+（补充参考说明属于编辑权限）

@@ -6,6 +6,9 @@
         <span class="data-count">共 {{ total }} 条灵感</span>
       </div>
       <div class="page-actions">
+        <el-button v-if="canEdit" :loading="checking" @click="handleCheckLinks">
+          <el-icon><Link /></el-icon> 检测失效链接
+        </el-button>
         <PermissionButton permission="inspiration:create" type="primary" @click="handleAdd">
           <el-icon><Plus /></el-icon> 新增灵感
         </PermissionButton>
@@ -60,6 +63,16 @@
               </el-select>
             </el-form-item>
           </el-col>
+          <el-col :xs="24" :sm="12" :md="8" :lg="6">
+            <el-form-item label="链接状态" class="filter-item">
+              <el-select v-model="filterForm.link_status" placeholder="选择链接状态" clearable style="width:100%">
+                <el-option label="✅ 正常" value="ok" />
+                <el-option label="❌ 已失效" value="dead" />
+                <el-option label="⚠️ 无法验证" value="error" />
+                <el-option label="未检测" value="unknown" />
+              </el-select>
+            </el-form-item>
+          </el-col>
           <el-col :xs="24" :sm="24" :md="24" :lg="18">
             <el-form-item label="关键词" class="filter-item">
               <el-input v-model="filterForm.keyword" placeholder="搜索标题、描述等" clearable style="width:240px">
@@ -85,6 +98,11 @@
           </div>
           <div class="source-badge">
             <el-tag size="small" type="info">{{ getSourceLabel(item.source_type) }}</el-tag>
+          </div>
+          <div v-if="item.link_status==='dead' || item.link_status==='error'" class="link-badge">
+            <el-tag size="small" :type="item.link_status==='dead' ? 'danger' : 'warning'" effect="dark">
+              {{ item.link_status==='dead' ? '链接已失效' : '链接无法验证' }}
+            </el-tag>
           </div>
         </div>
         <div class="card-content">
@@ -119,11 +137,11 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock, Link } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getTagsByType } from '@/api/tags'
-import { getInspirations } from '@/api/inspirations'
+import { getInspirations, checkInspirationLinks } from '@/api/inspirations'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import InspirationFormDialog from '@/components/inspiration/InspirationFormDialog.vue'
 import InspirationDetailDialog from '@/components/inspiration/InspirationDetailDialog.vue'
@@ -132,9 +150,10 @@ const userStore = useUserStore()
 const canEdit = computed(() => userStore.hasPermission('inspiration:edit') || userStore.hasPermission('inspiration:create'))
 
 const activeTab = ref('product')
-const filterForm = reactive({ keyword: '', category_tag_ids: null, craft_tag_ids: null, source_type: null, collection_status: null })
+const filterForm = reactive({ keyword: '', category_tag_ids: null, craft_tag_ids: null, source_type: null, collection_status: null, link_status: null })
 const categoryOptions = ref([]), craftOptions = ref([])
 const loading = ref(false), tableData = ref([]), total = ref(0)
+const checking = ref(false)
 const pagination = reactive({ page: 1, pageSize: 24 })
 const formDialogVisible = ref(false), detailDialogVisible = ref(false), formMode = ref('add'), currentInspiration = ref(null)
 
@@ -156,7 +175,8 @@ async function loadData() {
       source_type: filterForm.source_type || undefined,
       collection_status: filterForm.collection_status || undefined,
       category_tag_ids: filterForm.category_tag_ids || undefined,
-      craft_tag_ids: filterForm.craft_tag_ids || undefined
+      craft_tag_ids: filterForm.craft_tag_ids || undefined,
+      link_status: filterForm.link_status || undefined
     }
     const res = await getInspirations(params)
     tableData.value = res.data?.list || []
@@ -167,7 +187,7 @@ async function loadData() {
 
 function handleTabChange() { pagination.page = 1; loadData() }
 function handleFilter() { pagination.page = 1; loadData() }
-function handleReset() { filterForm.keyword=''; filterForm.category_tag_ids=null; filterForm.craft_tag_ids=null; filterForm.source_type=null; filterForm.collection_status=null; pagination.page=1; loadData() }
+function handleReset() { filterForm.keyword=''; filterForm.category_tag_ids=null; filterForm.craft_tag_ids=null; filterForm.source_type=null; filterForm.collection_status=null; filterForm.link_status=null; pagination.page=1; loadData() }
 function handleSizeChange(s) { pagination.pageSize=s; pagination.page=1; loadData() }
 function handlePageChange(p) { pagination.page=p; loadData() }
 function handleAdd() { formMode.value='add'; currentInspiration.value=null; formDialogVisible.value=true }
@@ -177,6 +197,31 @@ function handleJump(item) {
   else ElMessage.warning('暂无原始链接')
 }
 function handleFormSuccess() { loadData() }
+
+async function handleCheckLinks() {
+  try {
+    await ElMessageBox.confirm(
+      `将逐条访问当前「${activeTab.value==='craft'?'工艺':'周边制品'}灵感」的外部链接并更新失效状态，可能需要一点时间。是否继续？`,
+      '检测失效链接',
+      { confirmButtonText: '开始检测', cancelButtonText: '取消', type: 'info' }
+    )
+  } catch { return }
+  checking.value = true
+  try {
+    const res = await checkInspirationLinks({ inspiration_type: activeTab.value })
+    const d = res.data || {}
+    ElMessage({
+      type: d.dead > 0 ? 'warning' : 'success',
+      message: `检测完成：失效 ${d.dead||0}，无法验证 ${d.error||0}，正常 ${d.ok||0}（共 ${d.checked||0} 条）`,
+      duration: 4000
+    })
+    loadData()
+  } catch (e) {
+    ElMessage.error('检测失败：' + (e?.message || '请稍后重试'))
+  } finally {
+    checking.value = false
+  }
+}
 
 function getImageList(images) {
   if (!images) return []
@@ -228,6 +273,7 @@ onMounted(() => {
 .no-image { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--border-color); gap:8px; }
 .type-badge { position:absolute; top:10px; right:10px; }
 .source-badge { position:absolute; top:10px; left:10px; }
+.link-badge { position:absolute; bottom:10px; left:10px; }
 .card-content { padding:14px; flex:1; display:flex; flex-direction:column; }
 .card-title { font-size:15px; font-weight:700; color:var(--text-primary); margin-bottom:8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .card-tags { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px; }

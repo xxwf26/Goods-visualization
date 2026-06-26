@@ -4,6 +4,7 @@
 const { Response } = require('../utils/response')
 const db = require('../config/database')
 const { validate } = require('../utils/validator')
+const LinkChecker = require('../services/LinkChecker')
 
 class InspirationController {
   /**
@@ -14,7 +15,7 @@ class InspirationController {
     try {
       const {
         page = 1, pageSize = 10, keyword, inspiration_type, source_type,
-        collection_status, folder_id, is_featured, is_pinned,
+        collection_status, folder_id, is_featured, is_pinned, link_status,
         tag_type, tag_ids, category_tag_ids, craft_tag_ids, ip_tag_ids, scene_tag_ids,
         start_date, end_date,
         sort_field = 'create_time', sort_order = 'DESC'
@@ -52,6 +53,12 @@ class InspirationController {
       if (folder_id) {
         whereClause += ' AND i.folder_id = ?'
         params.push(folder_id)
+      }
+
+      // 链接状态筛选（unknown/ok/dead/error）
+      if (link_status) {
+        whereClause += ' AND i.link_status = ?'
+        params.push(link_status)
       }
 
       // 精选筛选
@@ -414,13 +421,71 @@ class InspirationController {
   }
 
   /**
+   * 检测单条灵感的链接是否失效
+   * POST /api/inspirations/:id/check-link
+   */
+  async checkLink(req, res, next) {
+    try {
+      const { id } = req.params
+      const [row] = await db.query(
+        'SELECT id, source_url, link FROM inspiration WHERE id = ? AND is_delete = 0',
+        [id]
+      )
+      if (!row) {
+        return res.status(404).json(Response.notFound('灵感不存在'))
+      }
+      const url = row.source_url || row.link
+      const r = await LinkChecker.check(url)
+      await db.query(
+        'UPDATE inspiration SET link_status = ?, link_http_code = ?, link_checked_at = NOW() WHERE id = ?',
+        [r.status, r.httpCode, id]
+      )
+      res.json(Response.success(r, '检测完成'))
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * 批量检测链接失效（默认检测全部未删除灵感，可按 inspiration_type 限定）
+   * POST /api/inspirations/check-links
+   */
+  async checkLinksBatch(req, res, next) {
+    try {
+      const { inspiration_type } = req.body || {}
+      let sql = 'SELECT id, source_url, link FROM inspiration WHERE is_delete = 0'
+      const params = []
+      if (inspiration_type) {
+        sql += ' AND inspiration_type = ?'
+        params.push(inspiration_type)
+      }
+      const rows = await db.query(sql, params)
+      const items = rows
+        .map(r => ({ id: r.id, url: r.source_url || r.link }))
+        .filter(it => it.url)
+
+      const summary = await LinkChecker.checkBatch(items, async (id, r) => {
+        await db.query(
+          'UPDATE inspiration SET link_status = ?, link_http_code = ?, link_checked_at = NOW() WHERE id = ?',
+          [r.status, r.httpCode, id]
+        )
+      })
+      // 没有链接可检测的条目记为跳过
+      summary.skipped = rows.length - items.length
+      res.json(Response.success(summary, `检测完成：失效 ${summary.dead}，无法验证 ${summary.error}，正常 ${summary.ok}`))
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
    * 收藏夹列表
    * GET /api/inspiration-folders
    */
   async folders(req, res, next) {
     try {
       const sql = `
-        SELECT f.*, 
+        SELECT f.*,
                COUNT(i.id) as inspiration_count
         FROM inspiration_folder f
         LEFT JOIN inspiration i ON f.id = i.folder_id AND i.is_delete = 0

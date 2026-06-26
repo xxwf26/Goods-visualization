@@ -58,6 +58,12 @@ const routes = [
         meta: { requiresAuth: true, title: '供应商库' }
       },
       {
+        path: 'supplier-dashboard',
+        name: 'SupplierDashboard',
+        component: () => import('@/views/supplier/SupplierDashboard.vue'),
+        meta: { requiresAuth: true, title: '供应商评分看板' }
+      },
+      {
         path: 'import',
         name: 'Import',
         component: () => import('@/views/import/Import.vue'),

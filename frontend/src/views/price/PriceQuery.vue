@@ -192,6 +192,22 @@
               title="未填写待审单价，以下仅展示该品类历史价格参考"
             />
 
+            <!-- 按相近数量校准的裁定（比全品类均价更可比） -->
+            <el-alert
+              v-if="review.quantity_verdict"
+              :type="quantityVerdictType"
+              :closable="false"
+              show-icon
+              class="verdict-alert"
+            >
+              <template #title>
+                <span class="verdict-text">
+                  <b>按相近数量校准</b>：约 {{ reviewForm.quantity }} 件附近（{{ review.quantity_verdict.record_count }} 条）历史均价
+                  <b>¥{{ money(review.quantity_verdict.avg_price) }}</b>，{{ quantityVerdictLabel }}
+                </span>
+              </template>
+            </el-alert>
+
             <!-- 历史价格区间 -->
             <div class="stats-section">
               <el-row :gutter="16">
@@ -215,7 +231,7 @@
 
             <!-- 相近数量参考 -->
             <el-card v-if="review.similar_quantity && review.similar_quantity.length" class="result-card">
-              <template #header><div class="section-header"><span><el-icon><Histogram /></el-icon> 相近数量历史单价</span><span class="desc">目标数量 {{ reviewForm.quantity }} 附近</span></div></template>
+              <template #header><div class="section-header"><span><el-icon><Histogram /></el-icon> 相近数量历史单价</span><span class="desc"><template v-if="review.similar_quantity_stats">区间均价 ¥{{ money(review.similar_quantity_stats.avg_price) }} · 共 {{ review.similar_quantity_stats.record_count }} 条</template><template v-else>目标数量 {{ reviewForm.quantity }} 附近</template></span></div></template>
               <el-table :data="review.similar_quantity" stripe border size="small">
                 <el-table-column prop="product_name" label="单品" min-width="140" show-overflow-tooltip />
                 <el-table-column prop="supplier_name" label="供应商" width="130" show-overflow-tooltip />
@@ -319,7 +335,7 @@ function handleReset() {
 // ===== Tab2: 报价审核 =====
 const reviewForm = reactive({ category: null, supplier_name: null, quantity: null, quote_price: null })
 const reviewLoading = ref(false), reviewSearched = ref(false)
-const review = ref({ range: null, verdict: null, similar_quantity: [], same_supplier: null, supplier_comparison: [] })
+const review = ref({ range: null, verdict: null, quantity_verdict: null, similar_quantity: [], similar_quantity_stats: null, same_supplier: null, supplier_comparison: [] })
 
 const verdictType = computed(() => {
   const lv = review.value.verdict?.level
@@ -331,6 +347,17 @@ const verdictLabel = computed(() => {
   if (v.level === 'high') return `高于均价 ${v.diff_pct}%，建议复议`
   if (v.level === 'low') return `低于均价 ${Math.abs(v.diff_pct)}%，价格有优势`
   return `与均价基本持平（${v.diff_pct >= 0 ? '+' : ''}${v.diff_pct}%）`
+})
+const quantityVerdictType = computed(() => {
+  const lv = review.value.quantity_verdict?.level
+  return lv === 'high' ? 'error' : lv === 'low' ? 'success' : 'warning'
+})
+const quantityVerdictLabel = computed(() => {
+  const v = review.value.quantity_verdict
+  if (!v) return ''
+  if (v.level === 'high') return `本次报价高 ${v.diff_pct}%，建议复议`
+  if (v.level === 'low') return `本次报价低 ${Math.abs(v.diff_pct)}%，价格有优势`
+  return `与同数量级基本持平（${v.diff_pct >= 0 ? '+' : ''}${v.diff_pct}%）`
 })
 
 async function handleReview() {
@@ -344,7 +371,7 @@ async function handleReview() {
       quote_price: (reviewForm.quote_price !== null && reviewForm.quote_price !== '') ? reviewForm.quote_price : undefined
     }
     const res = await quoteReviewPrice(params)
-    review.value = res.data || { range: null, verdict: null, similar_quantity: [], same_supplier: null, supplier_comparison: [] }
+    review.value = res.data || { range: null, verdict: null, quantity_verdict: null, similar_quantity: [], similar_quantity_stats: null, same_supplier: null, supplier_comparison: [] }
   } catch(e) { console.error(e) }
   finally { reviewLoading.value = false }
 }
@@ -352,7 +379,7 @@ async function handleReview() {
 function handleReviewReset() {
   Object.keys(reviewForm).forEach(k => reviewForm[k] = null)
   reviewSearched.value = false
-  review.value = { range: null, verdict: null, similar_quantity: [], same_supplier: null, supplier_comparison: [] }
+  review.value = { range: null, verdict: null, quantity_verdict: null, similar_quantity: [], similar_quantity_stats: null, same_supplier: null, supplier_comparison: [] }
 }
 
 onMounted(() => loadOptions())

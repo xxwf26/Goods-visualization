@@ -29,6 +29,8 @@ router.get('/:id', inspirationController.detail)
 
 // 新增/编辑/收藏: editor+
 router.post('/', requireRole('editor'), inspirationController.create)
+router.post('/check-links', requireRole('editor'), inspirationController.checkLinksBatch)
+router.post('/:id/check-link', requireRole('editor'), inspirationController.checkLink)
 router.post('/:id/collect', requireRole('editor'), inspirationController.collect)
 router.post('/:id/uncollect', requireRole('editor'), inspirationController.uncollect)
 router.put('/:id', requireRole('editor'), inspirationController.update)

@@ -265,18 +265,49 @@ class PriceRecordController {
         }
       }
 
-      // 3. 相近数量参考（目标数量 ±50%，最少 ±50）
+      // 3. 相近数量参考（目标数量 ±50%，最少 ±50）+ 按数量校准的裁定
       let similar_quantity = []
+      let similar_quantity_stats = null
+      let quantity_verdict = null
       if (quantity) {
         const qty = parseInt(quantity, 10)
         if (Number.isFinite(qty) && qty > 0) {
           const tol = Math.max(Math.ceil(qty * 0.5), 50)
+          const lo = qty - tol, hi = qty + tol
           similar_quantity = await db.query(
             `SELECT id, product_name, supplier_name, ip, project_name, unit_price, total_quantity, total_price, create_time
              FROM price_record ${base} AND total_quantity BETWEEN ? AND ?
              ORDER BY ABS(total_quantity - ?) ASC LIMIT 10`,
-            [...baseParams, qty - tol, qty + tol, qty]
+            [...baseParams, lo, hi, qty]
           )
+          // 相近数量区间的整体均价（覆盖全部命中记录，不止上面展示的 10 条），
+          // 比全品类均价更可比——单价高度依赖数量，拿同数量级的均价裁定更公允。
+          const [qstat] = await db.query(
+            `SELECT COUNT(*) record_count, AVG(unit_price) avg_price, MIN(unit_price) min_price, MAX(unit_price) max_price
+             FROM price_record ${base} AND total_quantity BETWEEN ? AND ?`,
+            [...baseParams, lo, hi]
+          )
+          if (qstat && qstat.record_count > 0) {
+            const qAvg = toNum(qstat.avg_price)
+            similar_quantity_stats = {
+              quantity: qty,
+              band: [lo, hi],
+              record_count: qstat.record_count,
+              avg_price: qAvg,
+              min_price: toNum(qstat.min_price),
+              max_price: toNum(qstat.max_price)
+            }
+            if (qp !== null && Number.isFinite(qp) && qAvg > 0) {
+              const qDiff = Math.round(((qp - qAvg) / qAvg) * 100)
+              quantity_verdict = {
+                quote_price: toNum(qp),
+                avg_price: qAvg,
+                record_count: qstat.record_count,
+                diff_pct: qDiff,
+                level: qDiff > 10 ? 'high' : (qDiff < -10 ? 'low' : 'normal')
+              }
+            }
+          }
         }
       }
 
@@ -322,7 +353,9 @@ class PriceRecordController {
           avg_price: avg
         },
         verdict,
+        quantity_verdict,
         similar_quantity,
+        similar_quantity_stats,
         same_supplier,
         supplier_comparison
       }))
