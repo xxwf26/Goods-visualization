@@ -308,7 +308,7 @@ class InspirationController {
   async update(req, res, next) {
     try {
       const { id } = req.params
-      const {
+      let {
         title,
         source_type,
         source_name,
@@ -340,16 +340,27 @@ class InspirationController {
       // 编辑时若提供了新链接且快照字段为空，自动抓取补全（已有内容不覆盖）
       if (source_url) {
         const snap = {
-          title, source_name, source_type, description, content_summary, cover_image
+          title: title || null,
+          author: author || null,
+          source_name: source_name || null,
+          source_platform: null,
+          source_type: source_type || null,
+          description: description || null,
+          reference_value: null,
+          content_summary: content_summary || null,
+          cover_image: cover_image || null,
+          images: images || null
         }
         await InspirationController.autofillFromUrl(snap, source_url)
         // 把补全后的值回填到局部变量（COALESCE 会保留数据库已有非空值，这里只补原本为空的）
         if (snap.title) title = snap.title
+        if (snap.author) author = snap.author
         if (snap.source_name) source_name = snap.source_name
         if (snap.source_type) source_type = snap.source_type
         if (snap.description) description = snap.description
         if (snap.content_summary) content_summary = snap.content_summary
         if (snap.cover_image) cover_image = snap.cover_image
+        if (snap.images) images = snap.images
       }
 
       const sql = `
