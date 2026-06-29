@@ -271,7 +271,8 @@ async function handleDelete() {
 async function handleAnalyze() {
   if (!props.inspiration?.id) return
   if (editing.value) { ElMessage.info('请先退出编辑模式'); return }
-  analyzing.value = true  try {
+  analyzing.value = true
+  try {
     const res = await analyzeInspirationImages(props.inspiration.id)
     if (res.code === 200) {
       ElMessage.success(res.message || 'AI分析完成')
