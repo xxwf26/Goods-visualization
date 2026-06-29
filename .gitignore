@@ -24,3 +24,6 @@ uploads/*
 
 # 临时提交说明文件
 .gitcommit
+
+# AI 工具缓存
+.proxyai/
