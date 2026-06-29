@@ -609,6 +609,45 @@ class InspirationController {
   }
 
   /**
+   * 编辑灵感详情（就地修改图文）
+   * PUT /api/inspirations/:id/detail
+   * body: { title?, author?, description?, content_summary?, image_texts? }
+   *   image_texts 为 [{file, text}] 数组（编辑后的逐图文字+本地文件名）
+   */
+  async updateDetail(req, res, next) {
+    try {
+      const { id } = req.params
+      const { title, author, description, content_summary, image_texts } = req.body
+
+      const updates = []
+      const params = []
+      if (title !== undefined) { updates.push('title = ?'); params.push(title) }
+      if (author !== undefined) { updates.push('author = ?'); params.push(author) }
+      if (description !== undefined) { updates.push('description = ?'); params.push(description) }
+      if (content_summary !== undefined) { updates.push('content_summary = ?'); params.push(content_summary) }
+      if (image_texts !== undefined) {
+        // image_texts 可能为 null（清空）或数组
+        const arr = Array.isArray(image_texts) ? image_texts : []
+        const json = arr.length ? JSON.stringify(arr.map(r => ({ file: r.file || null, text: r.text || '' }))) : null
+        const files = arr.filter(r => r.file).map(r => r.file)
+        updates.push('image_texts = ?'); params.push(json)
+        updates.push('images = ?'); params.push(files.length ? files.join(',') : null)
+        // 封面取第一张本地图
+        updates.push('cover_image = COALESCE(?, cover_image)'); params.push(files[0] || null)
+      }
+      if (updates.length === 0) {
+        return res.json(Response.success(null, '无更新内容'))
+      }
+      updates.push('update_time = NOW()')
+      params.push(id)
+      await db.query(`UPDATE inspiration SET ${updates.join(', ')} WHERE id = ? AND is_delete = 0`, params)
+      res.json(Response.success(null, '保存成功'))
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
    * 新增收藏夹
    * POST /api/inspiration-folders
    */

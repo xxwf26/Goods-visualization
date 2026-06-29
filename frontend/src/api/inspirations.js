@@ -100,6 +100,15 @@ export function analyzeInspirationImages(id) {
   return request.post(`/inspirations/${id}/analyze`)
 }
 
+/**
+ * 编辑灵感详情（就地修改图文）
+ * @param {number} id - 灵感ID
+ * @param {Object} data - { title?, author?, description?, content_summary?, image_texts? }
+ */
+export function updateInspirationDetail(id, data) {
+  return request.put(`/inspirations/${id}/detail`, data)
+}
+
 export default {
   getInspirations,
   getInspirationDetail,
@@ -112,5 +121,6 @@ export default {
   createFolder,
   checkInspirationLink,
   checkInspirationLinks,
-  analyzeInspirationImages
+  analyzeInspirationImages,
+  updateInspirationDetail
 }

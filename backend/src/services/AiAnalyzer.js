@@ -129,7 +129,10 @@ class AiAnalyzer {
     }
     await Promise.all(Array.from({ length: Math.min(concurrency, imgs.length) }, () => worker()))
 
-    // 2. 汇总所有 OCR 文字 + 正文，让文本模型总结
+    // 2. 批量清洗各图 OCR 文字：去除水印/装饰/页眉页脚/图形化文字，只留实质内容
+    await this.cleanOcrTexts(imageTexts)
+
+    // 3. 汇总所有清洗后文字 + 正文，让文本模型总结
     const ocrText = imageTexts
       .filter(Boolean)
       .map(r => `【图${r.index}】\n${r.text || '(无文字)'}`)
@@ -157,6 +160,40 @@ ${ocrText || '(无)'}
     }
 
     return { imageTexts, summary }
+  }
+
+  /**
+   * 批量清洗各图 OCR 文字（一次调用）：去除水印、装饰文字、页眉页脚、
+   * 与主内容无关的图形化文字（如 "Independent Designer"、"PACKAGING DESIGN"、
+   * 乱码"开容"等），只保留实质性内容。原地修改 imageTexts[*].text。
+   */
+  static async cleanOcrTexts(imageTexts) {
+    const items = imageTexts.filter(Boolean)
+    if (items.length === 0) return
+    const input = items.map(r => `【图${r.index}】\n${r.text || '(无文字)'}`).join('\n\n')
+    const prompt = `下面是一篇帖子各图片的原始OCR文字，其中混有水印、装饰文字、页眉页脚、图形化英文标题、OCR乱码等与主内容无关的内容。请逐图清洗，只保留每张图实质性的正文内容（如工艺名称、介绍、效果、用途等），删除无关装饰文字。如果某张图清洗后无实质内容，输出"（无实质内容）"。
+
+原始OCR：
+${input}
+
+请严格按以下格式输出，每张图一段，不要输出任何解释：
+<<<图1>>>
+（清洗后文字）
+<<<图2>>>
+（清洗后文字）
+...依此类推`
+
+    let resp = ''
+    try {
+      resp = await chatCompletion(CFG.textModel, [{ role: 'user', content: prompt }], 2500)
+    } catch (e) { return } // 清洗失败则保留原始文字
+
+    // 解析 <<<图N>>> 分隔的各段
+    for (const r of items) {
+      const re = new RegExp(`<<<图${r.index}>>>\\s*([\\s\\S]*?)(?=<<<图\\d+>>>|$)`)
+      const m = resp.match(re)
+      if (m && m[1].trim()) r.text = m[1].trim()
+    }
   }
 }
 
