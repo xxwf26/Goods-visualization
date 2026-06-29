@@ -5,6 +5,7 @@ const { Response } = require('../utils/response')
 const db = require('../config/database')
 const MetaFetcher = require('../services/MetaFetcher')
 const AiAnalyzer = require('../services/AiAnalyzer')
+const { downloadImage } = require('../utils/imageDownload')
 const { validate } = require('../utils/validator')
 const LinkChecker = require('../services/LinkChecker')
 
@@ -27,7 +28,11 @@ class InspirationController {
     if (!data.description && meta.description) data.description = meta.description.substring(0, 1000)
     if (!data.reference_value && meta.description) data.reference_value = meta.description.substring(0, 500)
     if (!data.content_summary && meta.description) data.content_summary = meta.description.substring(0, 500)
-    if (!data.cover_image && meta.image) data.cover_image = meta.image
+    if (!data.cover_image && meta.image) {
+      // 封面下载到本地，避免 CDN 链接过期后卡片封面丢失
+      const localFile = await downloadImage(meta.image, 'cover')
+      data.cover_image = localFile || meta.image
+    }
     if (!data.images && meta.allImages?.length) data.images = meta.allImages.join(',')
   }
 
@@ -258,6 +263,7 @@ class InspirationController {
       // 首次录入：自动从链接抓取元数据，补全空字段（链接失效后这些快照仍保留）
       const snap = {
         title: title || null,
+        author: author || null,
         source_name: source_name || null,
         source_platform: null,
         source_type: source_type || null,
@@ -281,7 +287,7 @@ class InspirationController {
       `
 
       const result = await db.query(sql, [
-        snap.title, inspiration_type, snap.source_type, snap.source_platform, snap.source_name, source_url, source_url, author, author_url,
+        snap.title, inspiration_type, snap.source_type, snap.source_platform, snap.source_name, source_url, source_url, snap.author, author_url,
         ip_tag_ids, category_tag_ids, craft_tag_ids, scene_tag_ids,
         snap.description, snap.reference_value, snap.content_summary, notes, application_scenario,
         snap.cover_image, snap.images, video_url, thumbnail,
