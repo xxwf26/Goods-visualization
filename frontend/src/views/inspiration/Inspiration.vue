@@ -89,7 +89,7 @@
     <!-- 卡片网格 -->
     <div v-loading="loading" class="inspiration-grid">
       <el-empty v-if="!loading && !tableData.length" description="暂无数据" />
-      <div v-for="item in tableData" :key="item.id" class="inspiration-card" @click="handleJump(item)">
+      <div v-for="item in tableData" :key="item.id" class="inspiration-card" @click="handleView(item)">
         <div class="card-image">
           <el-image v-if="item.cover_image" :src="item.cover_image" fit="cover" :preview-src-list="getImageList(item.images)" preview-teleported />
           <div v-else class="no-image"><el-icon :size="32"><Picture /></el-icon><span>暂无截图</span></div>
@@ -118,8 +118,8 @@
           </div>
           <div class="card-time"><el-icon><Clock /></el-icon>{{ formatDate(item.create_time) }}</div>
         </div>
-        <div class="card-actions" v-if="canEdit">
-          <el-button link type="primary" size="small" @click.stop="handleEdit(item)">编辑</el-button>
+        <div class="card-actions">
+          <el-button v-if="canEdit" link type="primary" size="small" @click.stop="handleEdit(item)">编辑</el-button>
           <el-button link type="primary" size="small" @click.stop="handleJump(item)">跳转链接</el-button>
         </div>
       </div>
@@ -192,6 +192,7 @@ function handleSizeChange(s) { pagination.pageSize=s; pagination.page=1; loadDat
 function handlePageChange(p) { pagination.page=p; loadData() }
 function handleAdd() { formMode.value='add'; currentInspiration.value=null; formDialogVisible.value=true }
 function handleEdit(item) { formMode.value='edit'; currentInspiration.value={...item}; formDialogVisible.value=true }
+function handleView(item) { currentInspiration.value={...item}; detailDialogVisible.value=true }
 function handleJump(item) {
   if (item.source_url||item.link) window.open(item.source_url||item.link,'_blank')
   else ElMessage.warning('暂无原始链接')
