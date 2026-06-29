@@ -557,7 +557,8 @@ class InspirationController {
   /**
    * AI 分析帖子图片内容
    * POST /api/inspirations/:id/analyze
-   * 读取帖子的所有图片 + 正文，用视觉模型OCR + 文本模型总结，存入 content_summary
+   * 读取帖子所有图片 + 正文，OCR 每张图 + 文本模型总结，
+   * 同时把图片下载到本地永久保存，每图OCR文字存入 image_texts
    */
   async analyzeImages(req, res, next) {
     try {
@@ -566,32 +567,42 @@ class InspirationController {
       if (!insp) return res.status(404).json(Response.notFound('灵感不存在'))
 
       let imageUrls = []
-      // 优先用已存的 images 字段；没有则实时抓取链接获取全部图片
-      if (insp.images) {
+      // 已存的 images 若是本地文件(不含http)则直接用本地图；否则视为远程URL需重新抓取
+      if (insp.images && !String(insp.images).includes('http')) {
+        // 已下载过本地图，但仍需远程URL做OCR(本地文件AI读不了)，所以重新抓远程URL
+      }
+      const url = insp.link || insp.source_url
+      if (url) {
+        try {
+          const meta = await MetaFetcher.fetch(url)
+          imageUrls = meta.allImages || []
+          if (imageUrls.length) {
+            await db.query('UPDATE inspiration SET cover_image = COALESCE(cover_image, ?) WHERE id = ?', [meta.image, id])
+          }
+        } catch (e) { /* 链接已失效则用已存图片兜底 */ }
+      }
+      // 链接抓不到时，用已存的远程URL兜底
+      if (imageUrls.length === 0 && insp.images && String(insp.images).includes('http')) {
         imageUrls = String(insp.images).split(',').map(s => s.trim()).filter(Boolean)
-      } else {
-        const url = insp.link || insp.source_url
-        if (url) {
-          try {
-            const meta = await MetaFetcher.fetch(url)
-            imageUrls = meta.allImages || []
-            // 顺带把图片存下来，下次不用再抓
-            if (imageUrls.length) {
-              await db.query('UPDATE inspiration SET images = ?, cover_image = COALESCE(cover_image, ?) WHERE id = ?', [imageUrls.join(','), meta.image, id])
-            }
-          } catch (e) { /* 抓取失败继续 */ }
-        }
       }
 
       if (imageUrls.length === 0) {
         return res.status(400).json(Response.badRequest('该灵感没有可分析的图片，请先确保链接有效或手动上传图片'))
       }
 
-      const { ocrResults, summary } = await AiAnalyzer.analyzePost(imageUrls, insp.description || '')
-      // 存入 content_summary
-      await db.query('UPDATE inspiration SET content_summary = ?, update_time = NOW() WHERE id = ?', [summary, id])
+      const { imageTexts, summary } = await AiAnalyzer.analyzePost(imageUrls, insp.description || '')
 
-      res.json(Response.success({ ocrCount: ocrResults.length, summary }, 'AI分析完成'))
+      // 本地文件名列表（下载成功的）
+      const localFiles = imageTexts.filter(r => r.file).map(r => r.file)
+      // 每图OCR JSON
+      const imageTextsJson = JSON.stringify(imageTexts.map(r => ({ file: r.file, url: r.url, text: r.text })))
+
+      await db.query(
+        'UPDATE inspiration SET content_summary = ?, image_texts = ?, images = COALESCE(?, images), update_time = NOW() WHERE id = ?',
+        [summary, imageTextsJson, localFiles.length ? localFiles.join(',') : null, id]
+      )
+
+      res.json(Response.success({ ocrCount: imageTexts.length, downloaded: localFiles.length, summary }, 'AI分析完成'))
     } catch (error) {
       next(error)
     }

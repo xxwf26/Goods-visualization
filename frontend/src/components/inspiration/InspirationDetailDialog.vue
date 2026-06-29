@@ -55,6 +55,29 @@
         </div>
       </div>
 
+      <!-- 逐图 OCR（图片+识别文字，本地永久保存） -->
+      <div v-if="imageTexts.length" class="content-section">
+        <div class="sec-label"><el-icon><Picture /></el-icon> 帖子图片（已存本地 + 识别文字）</div>
+        <div v-for="(it, i) in imageTexts" :key="i" class="img-ocr-item">
+          <div class="img-ocr-img">
+            <el-image
+              v-if="it.file"
+              :src="`/uploads/${it.file}`"
+              fit="contain"
+              :preview-src-list="imageTexts.filter(x=>x.file).map(x=>`/uploads/${x.file}`)"
+              :initial-index="imageTexts.filter(x=>x.file).indexOf(it)"
+              preview-teleported
+              class="ocr-pic"
+            />
+            <div v-else class="img-fail">图片下载失败</div>
+          </div>
+          <div class="img-ocr-text">
+            <div class="img-ocr-no">图 {{ i + 1 }}</div>
+            <div class="img-ocr-content">{{ it.text || '(未识别到文字)' }}</div>
+          </div>
+        </div>
+      </div>
+
       <!-- 参考价值 -->
       <div v-if="inspiration.reference_value && inspiration.reference_value !== inspiration.description" class="content-section">
         <div class="sec-label"><el-icon><Star /></el-icon> 参考价值</div>
@@ -96,7 +119,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { Link, User, Document, Star, MagicStick } from '@element-plus/icons-vue'
+import { Link, User, Document, Star, MagicStick, Picture } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { analyzeInspirationImages } from '@/api/inspirations'
 
@@ -112,6 +135,16 @@ const coverImages = computed(() => {
   const list = []
   if (props.inspiration?.cover_image) list.push(props.inspiration.cover_image)
   return list
+})
+
+// 解析每张图的本地文件名 + OCR 文字
+const imageTexts = computed(() => {
+  const raw = props.inspiration?.image_texts
+  if (!raw) return []
+  try {
+    const arr = typeof raw === 'string' ? JSON.parse(raw) : raw
+    return Array.isArray(arr) ? arr : []
+  } catch { return [] }
 })
 
 const collectionStatusText = computed(() => {
@@ -181,6 +214,18 @@ async function handleAnalyze() {
   font-size: 13px; color: #94A3B8; line-height: 1.7;
   background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 10px; padding: 14px 16px;
 }
+
+/* 逐图 OCR */
+.img-ocr-item {
+  display: flex; gap: 12px; margin-bottom: 14px;
+  background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px;
+}
+.img-ocr-img { flex-shrink: 0; width: 140px; }
+.ocr-pic { width: 140px; height: 140px; border-radius: 8px; background: #fff; cursor: pointer; }
+.img-fail { width: 140px; height: 140px; display: flex; align-items: center; justify-content: center; color: #EF4444; font-size: 12px; background: #FEF2F2; border-radius: 8px; }
+.img-ocr-text { flex: 1; min-width: 0; }
+.img-ocr-no { font-size: 12px; color: #8B5CF6; font-weight: 600; margin-bottom: 6px; }
+.img-ocr-content { font-size: 13px; color: #334155; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
 
 .d-info { margin-top: 4px; }
 .d-link { color: #8B5CF6; text-decoration: none; word-break: break-all; }

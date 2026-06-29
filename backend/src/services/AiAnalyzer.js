@@ -2,14 +2,55 @@
  * AI 内容分析服务
  * 用视觉模型(OCR)读取帖子图片文字，再用文本模型总结成结构化内容。
  * 用于小红书等"内容在图片里"的帖子。
+ * 分析时会把图片下载到本地永久保存（原始CDN链接会过期）。
  */
 const https = require('https')
+const http = require('http')
+const fs = require('fs')
+const path = require('path')
+const config = require('../config')
 
 const CFG = {
   apiKey: process.env.AI_API_KEY,
   baseUrl: (process.env.AI_BASE_URL || '').replace(/\/$/, ''),
   ocrModel: process.env.AI_OCR_MODEL || 'qwen-vl-ocr',
   textModel: process.env.AI_TEXT_MODEL || 'glm-5.2'
+}
+
+// 下载图片到 uploads 目录，返回本地文件名（失败返回 null）
+function downloadImage(url) {
+  return new Promise((resolve) => {
+    // 强制 https（小红书 CDN 链接可能是 http，升级为 https）
+    const safeUrl = url.replace(/^http:\/\//, 'https://')
+    const client = safeUrl.startsWith('https') ? https : http
+    const ext = /\.(png|jpg|jpeg|webp|gif)/i.test(safeUrl) ? '' : '.webp'
+    const filename = `insp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`
+    const dest = path.join(config.upload.path, filename)
+    const file = fs.createWriteStream(dest)
+    const req = client.get(safeUrl, {
+      timeout: 15000,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', 'Referer': 'https://www.xiaohongshu.com/' }
+    }, (res) => {
+      // 跟随重定向
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume()
+        file.close(() => fs.existsSync(dest) && fs.unlinkSync(dest))
+        downloadImage(res.headers.location).then(resolve)
+        return
+      }
+      if (res.statusCode !== 200) {
+        res.resume()
+        file.close(() => fs.existsSync(dest) && fs.unlinkSync(dest))
+        resolve(null)
+        return
+      }
+      res.pipe(file)
+      file.on('finish', () => { file.close(() => resolve(filename)) })
+      file.on('error', () => { fs.existsSync(dest) && fs.unlinkSync(dest); resolve(null) })
+    })
+    req.on('error', () => { fs.existsSync(dest) && fs.unlinkSync(dest); resolve(null) })
+    req.on('timeout', () => { req.destroy(); fs.existsSync(dest) && fs.unlinkSync(dest); resolve(null) })
+  })
 }
 
 // OpenAI 兼容的 chat/completions 调用
@@ -60,9 +101,10 @@ class AiAnalyzer {
 
   /**
    * 分析整个帖子：OCR 所有图片 + 结合正文引言，总结成结构化内容
+   * 同时把每张图片下载到本地，返回 {file, text} 结构
    * @param {string[]} imageUrls 图片URL列表
    * @param {string} caption 帖子正文引言（可选）
-   * @returns {Promise<{ocrResults:Array,summary:string}>}
+   * @returns {Promise<{imageTexts:Array, summary:string}>}
    */
   static async analyzePost(imageUrls, caption = '') {
     const imgs = (imageUrls || []).filter(Boolean)
@@ -70,25 +112,25 @@ class AiAnalyzer {
       throw new Error('没有图片也没有正文，无法分析')
     }
 
-    // 1. 逐张 OCR（限制并发3，避免触发限流）
-    const ocrResults = []
+    // 1. 逐张 OCR + 下载（并发3）
+    const imageTexts = []
     const concurrency = 3
     let cursor = 0
     const worker = async () => {
       while (cursor < imgs.length) {
         const idx = cursor++
-        try {
-          const text = await this.ocrImage(imgs[idx])
-          ocrResults[idx] = { index: idx + 1, url: imgs[idx], text }
-        } catch (e) {
-          ocrResults[idx] = { index: idx + 1, url: imgs[idx], text: '', error: e.message }
-        }
+        const url = imgs[idx]
+        let text = ''
+        let file = null
+        try { text = await this.ocrImage(url) } catch (e) { text = '' }
+        try { file = await downloadImage(url) } catch { file = null }
+        imageTexts[idx] = { index: idx + 1, url, file, text }
       }
     }
     await Promise.all(Array.from({ length: Math.min(concurrency, imgs.length) }, () => worker()))
 
     // 2. 汇总所有 OCR 文字 + 正文，让文本模型总结
-    const ocrText = ocrResults
+    const ocrText = imageTexts
       .filter(Boolean)
       .map(r => `【图${r.index}】\n${r.text || '(无文字)'}`)
       .join('\n\n')
@@ -111,12 +153,12 @@ ${ocrText || '(无)'}
     try {
       summary = await chatCompletion(CFG.textModel, [{ role: 'user', content: summaryPrompt }], 1500)
     } catch (e) {
-      // 文本模型失败时，至少把 OCR 文字拼接返回
       summary = '总结生成失败，以下为各图片识别文字：\n\n' + ocrText
     }
 
-    return { ocrResults, summary }
+    return { imageTexts, summary }
   }
 }
 
 module.exports = AiAnalyzer
+
