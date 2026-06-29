@@ -25,9 +25,8 @@ class InspirationController {
     if (!data.source_platform && meta.platform) data.source_platform = meta.platform
     if (!data.source_type && meta.platform) data.source_type = meta.platform
     if (!data.author && meta.author) data.author = meta.author
-    if (!data.description && meta.description) data.description = meta.description.substring(0, 1000)
-    if (!data.reference_value && meta.description) data.reference_value = meta.description.substring(0, 500)
-    if (!data.content_summary && meta.description) data.content_summary = meta.description.substring(0, 500)
+    // 内容快照(description)= 帖子正文引言，单独存储(2000字)；价值说明(reference_value)由用户填写，不自动填充；AI总结(content_summary)由分析接口生成
+    if (!data.description && meta.description) data.description = meta.description.substring(0, 2000)
     if (!data.cover_image && meta.image) {
       // 封面下载到本地，避免 CDN 链接过期后卡片封面丢失
       const localFile = await downloadImage(meta.image, 'cover')

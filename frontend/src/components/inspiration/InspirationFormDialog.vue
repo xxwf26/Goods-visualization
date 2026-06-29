@@ -149,6 +149,20 @@
           </el-form-item>
         </el-col>
 
+        <!-- 内容快照（自动抓取的帖子正文，可编辑） -->
+        <el-col :span="24">
+          <el-form-item label="内容快照" prop="description">
+            <el-input
+              v-model="formData.description"
+              type="textarea"
+              :rows="4"
+              maxlength="2000"
+              show-word-limit
+              placeholder="自动抓取帖子正文，可编辑修改"
+            />
+          </el-form-item>
+        </el-col>
+
         <!-- 价值说明 -->
         <el-col :span="24">
           <el-form-item label="价值说明" prop="reference_value">
@@ -156,9 +170,9 @@
               v-model="formData.reference_value"
               type="textarea"
               :rows="3"
-              maxlength="500"
+              maxlength="2000"
               show-word-limit
-              placeholder="请描述此灵感的参考价值"
+              placeholder="请描述此灵感的参考价值（与内容快照区分，填你的主观评估）"
             />
           </el-form-item>
         </el-col>
@@ -279,6 +293,7 @@ const formData = reactive({
   is_adopted: 0,
   collect_time: '',
   reference_value: '',
+  description: '',
   cover_image: ''
 })
 
@@ -354,7 +369,7 @@ async function fetchMeta() {
         const m = res.data
         if (m.title && !formData.title) formData.title = m.title.substring(0, 100)
         if (m.platform && !formData.source_type) formData.source_type = m.platform
-        if (m.description && !formData.reference_value) formData.reference_value = m.description.substring(0, 500)
+        if (m.description && !formData.description) formData.description = m.description.substring(0, 2000)
         if (m.image && !formData.cover_image) {
           formData.cover_image = m.image
           fileList.value = [{ name: 'cover', url: m.image }]
@@ -377,6 +392,7 @@ function resetForm() {
   formData.is_adopted = 0
   formData.collect_time = ''
   formData.reference_value = ''
+  formData.description = ''
   formData.cover_image = ''
   fileList.value = []
   formRef.value?.clearValidate()
@@ -397,8 +413,7 @@ function buildPayload() {
     collection_status: formData.is_adopted ? 'applied' : 'collected',
     collect_time: formData.collect_time || null,
     reference_value: formData.reference_value || null,
-    // description 用于卡片列表展示，与价值说明同步
-    description: formData.reference_value || null,
+    description: formData.description || null,
     cover_image: formData.cover_image || null
   }
 }
