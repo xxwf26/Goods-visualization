@@ -19,9 +19,10 @@ class InspirationController {
     try { meta = await MetaFetcher.fetch(url) } catch { return } // 抓取失败静默跳过，保留用户手填内容
     if (!meta) return
     if (!data.title && meta.title) data.title = meta.title.substring(0, 200)
-    if (!data.source_name && meta.site_name) data.source_name = meta.site_name
+    if (!data.source_name && (meta.site_name || meta.author)) data.source_name = meta.author || meta.site_name
     if (!data.source_platform && meta.platform) data.source_platform = meta.platform
     if (!data.source_type && meta.platform) data.source_type = meta.platform
+    if (!data.author && meta.author) data.author = meta.author
     if (!data.description && meta.description) data.description = meta.description.substring(0, 1000)
     if (!data.reference_value && meta.description) data.reference_value = meta.description.substring(0, 500)
     if (!data.content_summary && meta.description) data.content_summary = meta.description.substring(0, 500)

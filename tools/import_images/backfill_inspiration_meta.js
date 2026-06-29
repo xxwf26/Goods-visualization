@@ -34,11 +34,14 @@ async function main() {
       continue
     }
 
+    const [rows2] = await db.execute('SELECT author FROM inspiration WHERE id=?', [r.id])
+    const curAuthor = rows2[0]?.author
     const updates = []
     const params = []
     if (!r.description && meta.description) { updates.push('description = ?'); params.push(meta.description.substring(0,1000)) }
     if (!r.cover_image && meta.image) { updates.push('cover_image = ?'); params.push(meta.image) }
     if (!r.source_platform && meta.platform) { updates.push('source_platform = ?'); params.push(meta.platform) }
+    if (!curAuthor && meta.author) { updates.push('author = ?'); params.push(meta.author) }
 
     if (updates.length > 0) {
       params.push(r.id)
