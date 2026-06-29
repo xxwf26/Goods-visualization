@@ -4,6 +4,7 @@
 const { Response } = require('../utils/response')
 const db = require('../config/database')
 const MetaFetcher = require('../services/MetaFetcher')
+const AiAnalyzer = require('../services/AiAnalyzer')
 const { validate } = require('../utils/validator')
 const LinkChecker = require('../services/LinkChecker')
 
@@ -27,6 +28,7 @@ class InspirationController {
     if (!data.reference_value && meta.description) data.reference_value = meta.description.substring(0, 500)
     if (!data.content_summary && meta.description) data.content_summary = meta.description.substring(0, 500)
     if (!data.cover_image && meta.image) data.cover_image = meta.image
+    if (!data.images && meta.allImages?.length) data.images = meta.allImages.join(',')
   }
 
   /**
@@ -262,7 +264,8 @@ class InspirationController {
         description: description || null,
         reference_value: reference_value || null,
         content_summary: content_summary || null,
-        cover_image: cover_image || null
+        cover_image: cover_image || null,
+        images: images || null
       }
       await InspirationController.autofillFromUrl(snap, source_url)
 
@@ -281,7 +284,7 @@ class InspirationController {
         snap.title, inspiration_type, snap.source_type, snap.source_platform, snap.source_name, source_url, source_url, author, author_url,
         ip_tag_ids, category_tag_ids, craft_tag_ids, scene_tag_ids,
         snap.description, snap.reference_value, snap.content_summary, notes, application_scenario,
-        snap.cover_image, images, video_url, thumbnail,
+        snap.cover_image, snap.images, video_url, thumbnail,
         collect_time || null, is_adopted, collection_status, folder_id, is_featured, is_pinned,
         related_project_ids, req.user?.id
       ])
@@ -546,6 +549,49 @@ class InspirationController {
       const list = await db.query(sql)
 
       res.json(Response.success(list))
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * AI 分析帖子图片内容
+   * POST /api/inspirations/:id/analyze
+   * 读取帖子的所有图片 + 正文，用视觉模型OCR + 文本模型总结，存入 content_summary
+   */
+  async analyzeImages(req, res, next) {
+    try {
+      const { id } = req.params
+      const [insp] = await db.query('SELECT id, link, source_url, images, description FROM inspiration WHERE id = ? AND is_delete = 0', [id])
+      if (!insp) return res.status(404).json(Response.notFound('灵感不存在'))
+
+      let imageUrls = []
+      // 优先用已存的 images 字段；没有则实时抓取链接获取全部图片
+      if (insp.images) {
+        imageUrls = String(insp.images).split(',').map(s => s.trim()).filter(Boolean)
+      } else {
+        const url = insp.link || insp.source_url
+        if (url) {
+          try {
+            const meta = await MetaFetcher.fetch(url)
+            imageUrls = meta.allImages || []
+            // 顺带把图片存下来，下次不用再抓
+            if (imageUrls.length) {
+              await db.query('UPDATE inspiration SET images = ?, cover_image = COALESCE(cover_image, ?) WHERE id = ?', [imageUrls.join(','), meta.image, id])
+            }
+          } catch (e) { /* 抓取失败继续 */ }
+        }
+      }
+
+      if (imageUrls.length === 0) {
+        return res.status(400).json(Response.badRequest('该灵感没有可分析的图片，请先确保链接有效或手动上传图片'))
+      }
+
+      const { ocrResults, summary } = await AiAnalyzer.analyzePost(imageUrls, insp.description || '')
+      // 存入 content_summary
+      await db.query('UPDATE inspiration SET content_summary = ?, update_time = NOW() WHERE id = ?', [summary, id])
+
+      res.json(Response.success({ ocrCount: ocrResults.length, summary }, 'AI分析完成'))
     } catch (error) {
       next(error)
     }

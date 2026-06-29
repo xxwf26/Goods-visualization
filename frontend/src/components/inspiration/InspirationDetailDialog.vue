@@ -37,6 +37,24 @@
         <div class="content-text">{{ inspiration.description }}</div>
       </div>
 
+      <!-- AI 图片分析结果 -->
+      <div class="content-section">
+        <div class="sec-label">
+          <el-icon><MagicStick /></el-icon> AI 图片分析
+          <el-button
+            link type="primary" size="small" :loading="analyzing"
+            @click="handleAnalyze"
+            style="margin-left:auto;"
+          >
+            {{ inspiration.content_summary ? '重新分析' : 'AI 分析图片内容' }}
+          </el-button>
+        </div>
+        <div v-if="inspiration.content_summary" class="content-text ai-text">{{ inspiration.content_summary }}</div>
+        <div v-else class="ai-empty">
+          点击「AI 分析图片内容」，自动读取帖子所有图片文字并总结成结构化内容（链接失效后此分析结果仍保留）。
+        </div>
+      </div>
+
       <!-- 参考价值 -->
       <div v-if="inspiration.reference_value && inspiration.reference_value !== inspiration.description" class="content-section">
         <div class="sec-label"><el-icon><Star /></el-icon> 参考价值</div>
@@ -77,15 +95,18 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { Link, User, Document, Star } from '@element-plus/icons-vue'
+import { computed, ref } from 'vue'
+import { Link, User, Document, Star, MagicStick } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { analyzeInspirationImages } from '@/api/inspirations'
 
 const props = defineProps({
   modelValue: Boolean,
   inspiration: { type: Object, default: null }
 })
-defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'analyzed'])
+
+const analyzing = ref(false)
 
 const coverImages = computed(() => {
   const list = []
@@ -107,6 +128,25 @@ function jumpToOriginal() {
   const url = props.inspiration?.link || props.inspiration?.source_url
   if (url) window.open(url, '_blank')
   else ElMessage.warning('暂无原始链接')
+}
+
+async function handleAnalyze() {
+  if (!props.inspiration?.id) return
+  analyzing.value = true
+  try {
+    const res = await analyzeInspirationImages(props.inspiration.id)
+    if (res.code === 200) {
+      ElMessage.success(res.message || 'AI分析完成')
+      // 通知父组件刷新数据（拿到最新的 content_summary）
+      emit('analyzed', props.inspiration.id)
+    } else {
+      ElMessage.error(res.message || '分析失败')
+    }
+  } catch (e) {
+    ElMessage.error('分析失败：' + (e?.message || '请稍后重试'))
+  } finally {
+    analyzing.value = false
+  }
 }
 </script>
 
@@ -135,6 +175,11 @@ function jumpToOriginal() {
   font-size: 14px; color: #334155; line-height: 1.8; white-space: pre-wrap;
   background: #F8F5FF; border-radius: 10px; padding: 14px 16px;
   border: 1px solid #EDE9FE;
+}
+.ai-text { background: #FFF7ED; border-color: #FED7AA; }
+.ai-empty {
+  font-size: 13px; color: #94A3B8; line-height: 1.7;
+  background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 10px; padding: 14px 16px;
 }
 
 .d-info { margin-top: 4px; }

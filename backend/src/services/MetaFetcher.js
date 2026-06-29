@@ -100,7 +100,7 @@ class MetaFetcher {
     else if (host.includes('bilibili')) platform = 'B站'
 
     // 从 SSR 注入的 __INITIAL_STATE__ 提取真实正文（小红书等 JS 渲染站点正文在此，meta 只有站点通用信息）
-    let ssrTitle = '', ssrDesc = '', ssrAuthor = '', ssrImage = '', ssrTags = []
+    let ssrTitle = '', ssrDesc = '', ssrAuthor = '', ssrImage = '', ssrTags = [], ssrAllImages = []
     const stateMatch = html.match(/window\.__INITIAL_STATE__\s*=\s*(\{[\s\S]*?\})\s*<\/script>/)
     if (stateMatch) {
       try {
@@ -118,6 +118,8 @@ class MetaFetcher {
           ssrAuthor = note.user?.nickname || note.user?.name || ''
           ssrImage = note.imageList?.[0]?.urlDefault || note.imageList?.[0]?.infoList?.[0]?.url || note.imageList?.[0]?.url || note.cover?.url || ''
           ssrTags = (note.tagList || note.descTags || []).map(t => t.name || t).filter(Boolean)
+          // 收集所有图片URL（供 AI 视觉分析用）
+          ssrAllImages = (note.imageList || []).map(img => img.urlDefault || img.infoList?.[0]?.url || img.url).filter(Boolean)
         }
       } catch { /* SSR 解析失败，回退 meta */ }
     }
@@ -140,7 +142,8 @@ class MetaFetcher {
       platform,
       site_name: getOg('site_name') || '',
       author: ssrAuthor || '',
-      tags: ssrTags
+      tags: ssrTags,
+      allImages: ssrAllImages
     }
   }
 }

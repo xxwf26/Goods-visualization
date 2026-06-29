@@ -92,6 +92,14 @@ export function checkInspirationLinks(data = {}) {
   return request.post('/inspirations/check-links', data)
 }
 
+/**
+ * AI 分析帖子图片内容（OCR图片 + 总结）
+ * @param {number} id - 灵感ID
+ */
+export function analyzeInspirationImages(id) {
+  return request.post(`/inspirations/${id}/analyze`)
+}
+
 export default {
   getInspirations,
   getInspirationDetail,
@@ -103,5 +111,6 @@ export default {
   getFolders,
   createFolder,
   checkInspirationLink,
-  checkInspirationLinks
+  checkInspirationLinks,
+  analyzeInspirationImages
 }

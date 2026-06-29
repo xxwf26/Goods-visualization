@@ -130,7 +130,7 @@
     </div>
 
     <InspirationFormDialog v-model="formDialogVisible" :mode="formMode" :inspiration-data="currentInspiration" :inspiration-type="activeTab" @success="handleFormSuccess" />
-    <InspirationDetailDialog v-model="detailDialogVisible" :inspiration="currentInspiration" />
+    <InspirationDetailDialog v-model="detailDialogVisible" :inspiration="currentInspiration" @analyzed="handleAnalyzed" />
   </div>
 </template>
 
@@ -141,7 +141,7 @@ import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock, Link } from 
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getTagsByType } from '@/api/tags'
-import { getInspirations, checkInspirationLinks } from '@/api/inspirations'
+import { getInspirations, checkInspirationLinks, getInspirationDetail } from '@/api/inspirations'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import InspirationFormDialog from '@/components/inspiration/InspirationFormDialog.vue'
 import InspirationDetailDialog from '@/components/inspiration/InspirationDetailDialog.vue'
@@ -193,6 +193,14 @@ function handlePageChange(p) { pagination.page=p; loadData() }
 function handleAdd() { formMode.value='add'; currentInspiration.value=null; formDialogVisible.value=true }
 function handleEdit(item) { formMode.value='edit'; currentInspiration.value={...item}; formDialogVisible.value=true }
 function handleView(item) { currentInspiration.value={...item}; detailDialogVisible.value=true }
+async function handleAnalyzed(id) {
+  // 重新拉取详情，让弹窗显示最新的 AI 分析结果
+  try {
+    const res = await getInspirationDetail(id)
+    if (res.code === 200 && res.data) currentInspiration.value = { ...res.data }
+  } catch (e) { /* 忽略，列表稍后刷新 */ }
+  loadData()
+}
 function handleJump(item) {
   if (item.source_url||item.link) window.open(item.source_url||item.link,'_blank')
   else ElMessage.warning('暂无原始链接')
