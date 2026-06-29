@@ -160,6 +160,7 @@ import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { createPriceRecord, updatePriceRecord } from '@/api/priceRecords'
 import request from '@/api/request'
+import { usePasteUpload } from '@/composables/usePasteUpload'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -216,9 +217,8 @@ function resetForm() {
   formRef.value?.clearValidate()
 }
 
-async function handleFileChange(file, fileList) {
-  const rawFiles = fileList.filter(f => f.status === 'ready').map(f => f.raw)
-  if (!rawFiles.length) return
+async function uploadRawFiles(rawFiles) {
+  if (!rawFiles || !rawFiles.length) return
   uploading.value = true
   try {
     const fd = new FormData()
@@ -235,6 +235,11 @@ async function handleFileChange(file, fileList) {
     uploading.value = false
   }
 }
+function handleFileChange(file, fileList) {
+  const rawFiles = fileList.filter(f => f.status === 'ready').map(f => f.raw)
+  uploadRawFiles(rawFiles)
+}
+usePasteUpload(files => uploadRawFiles(files))
 
 function removeFile(idx) {
   imageFiles.value.splice(idx, 1)

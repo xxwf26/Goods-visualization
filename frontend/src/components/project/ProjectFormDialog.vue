@@ -167,6 +167,7 @@ import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { createProject, updateProject } from '@/api/projects'
 import request from '@/api/request'
+import { usePasteUpload } from '@/composables/usePasteUpload'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -223,11 +224,8 @@ function resetForm() {
 }
 
 // el-upload on-change：选文件后立即上传
-async function handleFileChange(file, fileList) {
-  // 只处理新增的这一批
-  const rawFiles = fileList.filter(f => f.status === 'ready').map(f => f.raw)
-  if (!rawFiles.length) return
-
+async function uploadRawFiles(rawFiles) {
+  if (!rawFiles || !rawFiles.length) return
   uploading.value = true
   try {
     const fd = new FormData()
@@ -244,6 +242,11 @@ async function handleFileChange(file, fileList) {
     uploading.value = false
   }
 }
+function handleFileChange(file, fileList) {
+  const rawFiles = fileList.filter(f => f.status === 'ready').map(f => f.raw)
+  uploadRawFiles(rawFiles)
+}
+usePasteUpload(files => uploadRawFiles(files))
 
 function removeFile(idx) {
   quotationFiles.value.splice(idx, 1)

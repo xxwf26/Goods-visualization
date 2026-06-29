@@ -93,6 +93,7 @@
         <el-upload v-if="editing" :show-file-list="false" :auto-upload="false" accept="image/*" multiple :on-change="handleUpload">
           <el-button size="small" :loading="uploading" :icon="Plus">添加图片</el-button>
         </el-upload>
+        <span v-if="editing" class="paste-tip">或直接 Ctrl+V 粘贴截图</span>
       </div>
 
       <!-- 附加信息（只读） -->
@@ -139,6 +140,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { analyzeInspirationImages, updateInspirationDetail, deleteInspiration, refreshInspirationSnapshot } from '@/api/inspirations'
 import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
+import { usePasteUpload } from '@/composables/usePasteUpload'
 
 const userStore = useUserStore()
 const canEdit = computed(() => userStore.hasPermission('inspiration:edit') || userStore.hasPermission('inspiration:create'))
@@ -231,9 +233,8 @@ async function saveEdit() {
 }
 
 // 上传新图片
-async function handleUpload(file, fileList) {
-  const rawFiles = fileList.filter(f => f.status === 'ready').map(f => f.raw)
-  if (!rawFiles.length) return
+async function uploadRawFiles(rawFiles) {
+  if (!rawFiles || !rawFiles.length) return
   uploading.value = true
   try {
     const fd = new FormData()
@@ -248,6 +249,16 @@ async function handleUpload(file, fileList) {
     uploading.value = false
   }
 }
+// el-upload 选择文件
+function handleUpload(file, fileList) {
+  const rawFiles = fileList.filter(f => f.status === 'ready').map(f => f.raw)
+  uploadRawFiles(rawFiles)
+}
+// 粘贴图片上传（需在编辑模式）
+usePasteUpload(files => {
+  if (!editing.value) return
+  uploadRawFiles(files)
+})
 
 function removeImage(idx) {
   form.imageTexts.splice(idx, 1)
@@ -366,6 +377,7 @@ watch(() => props.modelValue, (v) => { if (!v) editing.value = false })
 .ocr-pic { width: 140px; height: 140px; border-radius: 8px; background: #fff; cursor: pointer; }
 .img-fail { width: 140px; height: 140px; display: flex; align-items: center; justify-content: center; color: #94A3B8; font-size: 12px; background: #F1F5F9; border-radius: 8px; }
 .img-del { display: block; margin: 4px auto 0; }
+.paste-tip { font-size: 12px; color: #94A3B8; margin-left: 8px; }
 .img-ocr-text { flex: 1; min-width: 0; }
 .img-ocr-no { font-size: 12px; color: #8B5CF6; font-weight: 600; margin-bottom: 6px; }
 .img-ocr-content { font-size: 13px; color: #334155; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }

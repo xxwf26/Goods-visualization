@@ -219,6 +219,7 @@ import { ElMessage } from 'element-plus'
 import { request } from '@/api'
 import { getTagsByType } from '@/api/tags'
 import { createInspiration, updateInspiration } from '@/api/inspirations'
+import { usePasteUpload } from '@/composables/usePasteUpload'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -341,6 +342,16 @@ function handleFileChange(file, files) {
     reader.readAsDataURL(file.raw)
   }
 }
+
+// 粘贴图片作为封面/截图
+usePasteUpload(files => {
+  const f = files[0]
+  if (!f) return
+  fileList.value = [{ name: f.name || 'screenshot', url: URL.createObjectURL(f) }]
+  const reader = new FileReader()
+  reader.onload = (e) => { formData.cover_image = e.target.result }
+  reader.readAsDataURL(f)
+})
 
 function handleFileRemove() {
   fileList.value = []
