@@ -3,10 +3,31 @@
  */
 const { Response } = require('../utils/response')
 const db = require('../config/database')
+const MetaFetcher = require('../services/MetaFetcher')
 const { validate } = require('../utils/validator')
 const LinkChecker = require('../services/LinkChecker')
 
 class InspirationController {
+  /**
+   * 从链接自动抓取元数据，只补全 data 中为空的字段（已有内容不覆盖，保留快照）
+   * @param {object} data 表单数据（会被原地修改）
+   * @param {string} url 待抓取的链接
+   */
+  static async autofillFromUrl(data, url) {
+    if (!url || !url.startsWith('http')) return
+    let meta
+    try { meta = await MetaFetcher.fetch(url) } catch { return } // 抓取失败静默跳过，保留用户手填内容
+    if (!meta) return
+    if (!data.title && meta.title) data.title = meta.title.substring(0, 200)
+    if (!data.source_name && meta.site_name) data.source_name = meta.site_name
+    if (!data.source_platform && meta.platform) data.source_platform = meta.platform
+    if (!data.source_type && meta.platform) data.source_type = meta.platform
+    if (!data.description && meta.description) data.description = meta.description.substring(0, 1000)
+    if (!data.reference_value && meta.description) data.reference_value = meta.description.substring(0, 500)
+    if (!data.content_summary && meta.description) data.content_summary = meta.description.substring(0, 500)
+    if (!data.cover_image && meta.image) data.cover_image = meta.image
+  }
+
   /**
    * 灵感列表（筛选、搜索）
    * GET /api/inspirations
@@ -231,6 +252,19 @@ class InspirationController {
         related_project_ids
       } = req.body
 
+      // 首次录入：自动从链接抓取元数据，补全空字段（链接失效后这些快照仍保留）
+      const snap = {
+        title: title || null,
+        source_name: source_name || null,
+        source_platform: null,
+        source_type: source_type || null,
+        description: description || null,
+        reference_value: reference_value || null,
+        content_summary: content_summary || null,
+        cover_image: cover_image || null
+      }
+      await InspirationController.autofillFromUrl(snap, source_url)
+
       const sql = `
         INSERT INTO inspiration (
           title, inspiration_type, source_type, source_platform, source_name, source_url, link, author, author_url,
@@ -243,10 +277,10 @@ class InspirationController {
       `
 
       const result = await db.query(sql, [
-        title, inspiration_type, source_type, source_type, source_name, source_url, source_url, author, author_url,
+        snap.title, inspiration_type, snap.source_type, snap.source_platform, snap.source_name, source_url, source_url, author, author_url,
         ip_tag_ids, category_tag_ids, craft_tag_ids, scene_tag_ids,
-        description, reference_value, content_summary, notes, application_scenario,
-        cover_image, images, video_url, thumbnail,
+        snap.description, snap.reference_value, snap.content_summary, notes, application_scenario,
+        snap.cover_image, images, video_url, thumbnail,
         collect_time || null, is_adopted, collection_status, folder_id, is_featured, is_pinned,
         related_project_ids, req.user?.id
       ])
@@ -292,6 +326,21 @@ class InspirationController {
         is_sensitive,
         sensitive_reason
       } = req.body
+
+      // 编辑时若提供了新链接且快照字段为空，自动抓取补全（已有内容不覆盖）
+      if (source_url) {
+        const snap = {
+          title, source_name, source_type, description, content_summary, cover_image
+        }
+        await InspirationController.autofillFromUrl(snap, source_url)
+        // 把补全后的值回填到局部变量（COALESCE 会保留数据库已有非空值，这里只补原本为空的）
+        if (snap.title) title = snap.title
+        if (snap.source_name) source_name = snap.source_name
+        if (snap.source_type) source_type = snap.source_type
+        if (snap.description) description = snap.description
+        if (snap.content_summary) content_summary = snap.content_summary
+        if (snap.cover_image) cover_image = snap.cover_image
+      }
 
       const sql = `
         UPDATE inspiration SET
