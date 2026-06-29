@@ -5,6 +5,9 @@
  * 分析时会把图片下载到本地永久保存（原始CDN链接会过期）。
  */
 const https = require('https')
+const fs = require('fs')
+const path = require('path')
+const config = require('../config')
 const { downloadImage } = require('../utils/imageDownload')
 
 const CFG = {
@@ -61,6 +64,27 @@ class AiAnalyzer {
   }
 
   /**
+   * OCR 本地图片文件（转 base64 发给视觉模型），用于登录墙平台(1688/淘宝)的截图识别
+   * @param {string} filename uploads 目录下的文件名
+   */
+  static async ocrLocalFile(filename) {
+    const filePath = path.join(config.upload.path, filename)
+    if (!fs.existsSync(filePath)) return ''
+    const buf = fs.readFileSync(filePath)
+    const ext = /\.(jpe?g|png|webp|gif)$/i.test(filename) ? RegExp.$1.toLowerCase() : 'webp'
+    const mime = ext === 'jpg' ? 'jpeg' : ext
+    const b64 = `data:image/${mime};base64,${buf.toString('base64')}`
+    const content = await chatCompletion(CFG.ocrModel, [{
+      role: 'user',
+      content: [
+        { type: 'image_url', image_url: { url: b64 } },
+        { type: 'text', text: '识别这张图片里的全部文字内容，保持原有排版和层级，原样输出。只输出识别到的文字，不要解释。' }
+      ]
+    }], 1500)
+    return content.trim()
+  }
+
+  /**
    * 分析整个帖子：OCR 所有图片 + 结合正文引言，总结成结构化内容
    * 同时把每张图片下载到本地，返回 {file, text} 结构
    * @param {string[]} imageUrls 图片URL列表
@@ -99,6 +123,14 @@ class AiAnalyzer {
       .map(r => `【图${r.index}】\n${r.text || '(无文字)'}`)
       .join('\n\n')
 
+    const summary = await this.summarize(ocrText, caption)
+    return { imageTexts, summary }
+  }
+
+  /**
+   * 综合正文 + 各图 OCR 文字，生成结构化总结
+   */
+  static async summarize(ocrText, caption = '') {
     const summaryPrompt = `你是一个包装印刷/周边物料领域的助理。下面是一篇社交媒体帖子的内容，包括正文引言和每张图片里识别出的文字。请综合分析，输出结构化总结：
 
 正文引言：
@@ -113,14 +145,11 @@ ${ocrText || '(无)'}
 【关键要点】列出3-8条要点（工艺/参数/适用场景等，每条一行）
 【适用场景】这条内容适合用在什么产品/场景`
 
-    let summary = ''
     try {
-      summary = await chatCompletion(CFG.textModel, [{ role: 'user', content: summaryPrompt }], 1500)
+      return await chatCompletion(CFG.textModel, [{ role: 'user', content: summaryPrompt }], 1500)
     } catch (e) {
-      summary = '总结生成失败，以下为各图片识别文字：\n\n' + ocrText
+      return '总结生成失败，以下为各图片识别文字：\n\n' + ocrText
     }
-
-    return { imageTexts, summary }
   }
 
   /**
