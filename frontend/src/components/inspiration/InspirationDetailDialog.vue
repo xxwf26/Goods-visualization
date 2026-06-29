@@ -106,13 +106,15 @@
 
     <template #footer>
       <el-button @click="$emit('update:modelValue', false)">关闭</el-button>
-      <el-button
+      <a
         v-if="inspiration && (inspiration.link || inspiration.source_url)"
-        type="primary"
-        @click="jumpToOriginal"
+        :href="inspiration.link || inspiration.source_url"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="jump-primary-btn"
       >
         <el-icon><Link /></el-icon> 跳转原始链接
-      </el-button>
+      </a>
     </template>
   </el-dialog>
 </template>
@@ -230,4 +232,13 @@ async function handleAnalyze() {
 .d-info { margin-top: 4px; }
 .d-link { color: #8B5CF6; text-decoration: none; word-break: break-all; }
 .d-link:hover { text-decoration: underline; }
+
+/* 主跳转按钮（真实锚点，避免弹窗拦截） */
+.jump-primary-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #8B5CF6; color: #fff; text-decoration: none;
+  padding: 8px 16px; border-radius: 8px; font-size: 14px; cursor: pointer;
+  transition: background 0.2s;
+}
+.jump-primary-btn:hover { background: #7C3AED; }
 </style>

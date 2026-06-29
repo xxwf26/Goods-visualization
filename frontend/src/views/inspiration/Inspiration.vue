@@ -120,7 +120,15 @@
         </div>
         <div class="card-actions">
           <el-button v-if="canEdit" link type="primary" size="small" @click.stop="handleEdit(item)">编辑</el-button>
-          <el-button link type="primary" size="small" @click.stop="handleJump(item)">跳转链接</el-button>
+          <a
+            v-if="item.link || item.source_url"
+            :href="item.link || item.source_url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="card-jump-link"
+            @click.stop
+          >跳转链接</a>
+          <el-button v-else link type="primary" size="small" @click.stop="handleJump(item)">跳转链接</el-button>
         </div>
       </div>
     </div>
@@ -291,7 +299,11 @@ onMounted(() => {
 .card-stats { display:flex; gap:12px; font-size:12px; color:#A8A29E; margin-bottom:4px; }
 .card-stats span { display:flex; align-items:center; gap:2px; }
 .card-time { display:flex; align-items:center; gap:4px; font-size:12px; color:#A8A29E; }
-.card-actions { display:flex; justify-content:center; gap:16px; padding:10px 14px; border-top:1px solid var(--bg-primary); background:var(--card-bg); }
+.card-actions { display:flex; justify-content:center; align-items:center; gap:16px; padding:10px 14px; border-top:1px solid var(--bg-primary); background:var(--card-bg); }
+.card-jump-link {
+  color: var(--accent, #8B5CF6); font-size: 12px; text-decoration: none; cursor: pointer;
+}
+.card-jump-link:hover { opacity: 0.8; }
 .pagination-wrapper { display:flex; justify-content:flex-end; margin-top:20px; }
 @media (max-width:768px) { .inspiration-grid { grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); } }
 </style>
