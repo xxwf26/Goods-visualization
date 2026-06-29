@@ -61,9 +61,13 @@
       </div>
 
       <!-- 帖子图片 + 识别文字（可编辑） -->
-      <div v-if="displayImageTexts.length || editing" class="content-section">
+      <div class="content-section">
         <div class="sec-label">
-          <el-icon><Picture /></el-icon> 帖子图片{{ editing ? '（可编辑文字 / 删除 / 上传）' : '（已存本地 + 识别文字）' }}
+          <el-icon><Picture /></el-icon> 帖子图片{{ editing ? '（可编辑文字 / 删除 / 上传）' : (displayImageTexts.length ? '（已存本地 + 识别文字）' : '') }}
+        </div>
+        <!-- 无图片时的引导 -->
+        <div v-if="!displayImageTexts.length && !editing" class="ai-empty">
+          暂无图片。点底部「编辑」→「添加图片」上传截图（1688/淘宝等登录墙平台，请在已登录的浏览器截图后上传），保存后再点「AI 分析图片内容」即可识别文字。
         </div>
         <div v-for="(it, i) in displayImageTexts" :key="i" class="img-ocr-item">
           <div class="img-ocr-img">
