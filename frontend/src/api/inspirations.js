@@ -101,6 +101,14 @@ export function analyzeInspirationImages(id) {
 }
 
 /**
+ * 重新抓取内容快照（从链接重新拉取完整正文）
+ * @param {number} id - 灵感ID
+ */
+export function refreshInspirationSnapshot(id) {
+  return request.post(`/inspirations/${id}/refresh-snapshot`)
+}
+
+/**
  * 编辑灵感详情（就地修改图文）
  * @param {number} id - 灵感ID
  * @param {Object} data - { title?, author?, description?, content_summary?, image_texts? }
@@ -122,5 +130,6 @@ export default {
   checkInspirationLink,
   checkInspirationLinks,
   analyzeInspirationImages,
+  refreshInspirationSnapshot,
   updateInspirationDetail
 }

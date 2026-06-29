@@ -664,6 +664,47 @@ class InspirationController {
   }
 
   /**
+   * 重新抓取内容快照（从链接重新拉取完整正文，覆盖被字数限制截断的 description）
+   * POST /api/inspirations/:id/refresh-snapshot
+   * 覆盖 description；title/author/cover 为空则补全，非空保留
+   */
+  async refreshSnapshot(req, res, next) {
+    try {
+      const { id } = req.params
+      const [insp] = await db.query('SELECT id, link, source_url, description, title, author, cover_image FROM inspiration WHERE id = ? AND is_delete = 0', [id])
+      if (!insp) return res.status(404).json(Response.notFound('灵感不存在'))
+
+      const url = insp.link || insp.source_url
+      if (!url) return res.status(400).json(Response.badRequest('该灵感没有链接，无法重新抓取'))
+
+      let meta
+      try { meta = await MetaFetcher.fetch(url) }
+      catch (e) { return res.status(400).json(Response.badRequest('链接抓取失败（可能已失效）：' + e.message)) }
+
+      const updates = []
+      const params = []
+      // description 强制覆盖为完整正文（解决之前字数截断）
+      if (meta.description) { updates.push('description = ?'); params.push(meta.description.substring(0, 2000)) }
+      // 其余字段仅补空
+      if (!insp.title && meta.title) { updates.push('title = ?'); params.push(meta.title.substring(0, 200)) }
+      if (!insp.author && meta.author) { updates.push('author = ?'); params.push(meta.author) }
+      if (!insp.cover_image && meta.image) {
+        const localFile = await downloadImage(meta.image, 'cover')
+        if (localFile) { updates.push('cover_image = ?'); params.push(localFile) }
+      }
+      if (updates.length === 0) {
+        return res.json(Response.success(null, '未抓取到可更新的内容'))
+      }
+      updates.push('update_time = NOW()')
+      params.push(id)
+      await db.query(`UPDATE inspiration SET ${updates.join(', ')} WHERE id = ?`, params)
+      res.json(Response.success({ descLength: meta.description ? meta.description.length : 0 }, '内容快照已重新生成'))
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
    * 新增收藏夹
    * POST /api/inspiration-folders
    */

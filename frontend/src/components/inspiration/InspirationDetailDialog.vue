@@ -34,10 +34,15 @@
 
       <!-- 正文内容快照 -->
       <div class="content-section">
-        <div class="sec-label"><el-icon><Document /></el-icon> 内容快照</div>
-        <el-input v-if="editing" v-model="form.description" type="textarea" :rows="3" placeholder="正文内容" />
+        <div class="sec-label">
+          <el-icon><Document /></el-icon> 内容快照
+          <el-button v-if="!editing && canEdit" link type="primary" size="small" :loading="refreshing" @click="handleRefresh" style="margin-left:auto;">
+            重新抓取
+          </el-button>
+        </div>
+        <el-input v-if="editing" v-model="form.description" type="textarea" :rows="4" placeholder="正文内容" />
         <div v-else-if="inspiration.description" class="content-text">{{ inspiration.description }}</div>
-        <div v-else class="ai-empty">暂无内容</div>
+        <div v-else class="ai-empty">暂无内容，可点「重新抓取」从链接获取</div>
       </div>
 
       <!-- AI 图片分析结果 -->
@@ -125,7 +130,7 @@
 import { computed, ref, reactive, watch } from 'vue'
 import { Link, User, Document, Star, MagicStick, Picture, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { analyzeInspirationImages, updateInspirationDetail, deleteInspiration } from '@/api/inspirations'
+import { analyzeInspirationImages, updateInspirationDetail, deleteInspiration, refreshInspirationSnapshot } from '@/api/inspirations'
 import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
 
@@ -142,6 +147,7 @@ const emit = defineEmits(['update:modelValue', 'analyzed', 'deleted'])
 const analyzing = ref(false)
 const uploading = ref(false)
 const saving = ref(false)
+const refreshing = ref(false)
 const editing = ref(false)
 
 const form = reactive({
@@ -265,8 +271,7 @@ async function handleDelete() {
 async function handleAnalyze() {
   if (!props.inspiration?.id) return
   if (editing.value) { ElMessage.info('请先退出编辑模式'); return }
-  analyzing.value = true
-  try {
+  analyzing.value = true  try {
     const res = await analyzeInspirationImages(props.inspiration.id)
     if (res.code === 200) {
       ElMessage.success(res.message || 'AI分析完成')
@@ -278,6 +283,25 @@ async function handleAnalyze() {
     ElMessage.error('分析失败：' + (e?.message || '请稍后重试'))
   } finally {
     analyzing.value = false
+  }
+}
+
+async function handleRefresh() {
+  if (!props.inspiration?.id) return
+  if (editing.value) { ElMessage.info('请先退出编辑模式'); return }
+  refreshing.value = true
+  try {
+    const res = await refreshInspirationSnapshot(props.inspiration.id)
+    if (res.code === 200) {
+      ElMessage.success(res.message || '已重新抓取')
+      emit('analyzed', props.inspiration.id) // 复用刷新逻辑
+    } else {
+      ElMessage.error(res.message || '抓取失败')
+    }
+  } catch (e) {
+    ElMessage.error('抓取失败：' + (e?.message || '链接可能已失效'))
+  } finally {
+    refreshing.value = false
   }
 }
 
