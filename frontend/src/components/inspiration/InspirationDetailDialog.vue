@@ -110,18 +110,20 @@
     </div>
 
     <template #footer>
-      <template v-if="editing">
-        <el-button @click="cancelEdit">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="saveEdit">保存</el-button>
-      </template>
-      <template v-else>
-        <el-button v-if="canDelete" type="danger" plain @click="handleDelete">删除</el-button>
-        <el-button @click="$emit('update:modelValue', false)">关闭</el-button>
-        <el-button v-if="canEdit" type="warning" plain @click="startEdit">编辑</el-button>
-        <a v-if="inspiration && (inspiration.link || inspiration.source_url)" :href="inspiration.link || inspiration.source_url" target="_blank" rel="noopener noreferrer" class="jump-primary-btn">
-          <el-icon><Link /></el-icon> 跳转原始链接
-        </a>
-      </template>
+      <div class="dialog-footer">
+        <template v-if="editing">
+          <el-button @click="cancelEdit">取消</el-button>
+          <el-button type="primary" :loading="saving" @click="saveEdit">保存</el-button>
+        </template>
+        <template v-else>
+          <el-button v-if="canDelete" type="danger" plain @click="handleDelete">删除</el-button>
+          <el-button @click="$emit('update:modelValue', false)">关闭</el-button>
+          <el-button v-if="canEdit" type="warning" plain @click="startEdit">编辑</el-button>
+          <a v-if="inspiration && (inspiration.link || inspiration.source_url)" :href="inspiration.link || inspiration.source_url" target="_blank" rel="noopener noreferrer" class="jump-primary-btn">
+            <el-icon><Link /></el-icon> 跳转原始链接
+          </a>
+        </template>
+      </div>
     </template>
   </el-dialog>
 </template>
@@ -368,11 +370,14 @@ watch(() => props.modelValue, (v) => { if (!v) editing.value = false })
 .d-link { color: #8B5CF6; text-decoration: none; word-break: break-all; }
 .d-link:hover { text-decoration: underline; }
 
+.dialog-footer { display: flex; justify-content: flex-end; align-items: center; gap: 10px; flex-wrap: wrap; }
+
 .jump-primary-btn {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 32px; padding: 0 16px; box-sizing: border-box;
   background: #8B5CF6; color: #fff; text-decoration: none;
-  padding: 8px 16px; border-radius: 8px; font-size: 14px; cursor: pointer;
-  transition: background 0.2s;
+  border: 1px solid #8B5CF6; border-radius: 4px; font-size: 14px; cursor: pointer;
+  line-height: 1; transition: background 0.2s;
 }
-.jump-primary-btn:hover { background: #7C3AED; }
+.jump-primary-btn:hover { background: #7C3AED; border-color: #7C3AED; }
 </style>
