@@ -110,6 +110,7 @@
         <el-button type="primary" :loading="saving" @click="saveEdit">保存</el-button>
       </template>
       <template v-else>
+        <el-button v-if="canDelete" type="danger" plain @click="handleDelete">删除</el-button>
         <el-button @click="$emit('update:modelValue', false)">关闭</el-button>
         <el-button v-if="canEdit" type="warning" plain @click="startEdit">编辑</el-button>
         <a v-if="inspiration && (inspiration.link || inspiration.source_url)" :href="inspiration.link || inspiration.source_url" target="_blank" rel="noopener noreferrer" class="jump-primary-btn">
@@ -123,19 +124,20 @@
 <script setup>
 import { computed, ref, reactive, watch } from 'vue'
 import { Link, User, Document, Star, MagicStick, Picture, Plus } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
-import { analyzeInspirationImages, updateInspirationDetail } from '@/api/inspirations'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { analyzeInspirationImages, updateInspirationDetail, deleteInspiration } from '@/api/inspirations'
 import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
 
 const userStore = useUserStore()
 const canEdit = computed(() => userStore.hasPermission('inspiration:edit') || userStore.hasPermission('inspiration:create'))
+const canDelete = computed(() => userStore.role === 'admin' || userStore.role === 'super_admin')
 
 const props = defineProps({
   modelValue: Boolean,
   inspiration: { type: Object, default: null }
 })
-const emit = defineEmits(['update:modelValue', 'analyzed'])
+const emit = defineEmits(['update:modelValue', 'analyzed', 'deleted'])
 
 const analyzing = ref(false)
 const uploading = ref(false)
@@ -237,6 +239,27 @@ async function handleUpload(file, fileList) {
 
 function removeImage(idx) {
   form.imageTexts.splice(idx, 1)
+}
+
+async function handleDelete() {
+  if (!props.inspiration?.id) return
+  try {
+    await ElMessageBox.confirm(
+      `确定删除灵感「${props.inspiration.title || '无标题'}」吗？删除后无法恢复。`,
+      '删除确认',
+      { confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'warning' }
+    )
+    const res = await deleteInspiration(props.inspiration.id)
+    if (res.code === 200) {
+      ElMessage.success('删除成功')
+      emit('update:modelValue', false)
+      emit('deleted', props.inspiration.id)
+    } else {
+      ElMessage.error(res.message || '删除失败')
+    }
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('删除失败：' + (e?.message || '请重试'))
+  }
 }
 
 async function handleAnalyze() {

@@ -129,6 +129,7 @@
             @click.stop
           >跳转链接</a>
           <el-button v-else link type="primary" size="small" @click.stop="handleJump(item)">跳转链接</el-button>
+          <el-button v-if="canDelete" link type="danger" size="small" @click.stop="handleDelete(item)">删除</el-button>
         </div>
       </div>
     </div>
@@ -138,7 +139,7 @@
     </div>
 
     <InspirationFormDialog v-model="formDialogVisible" :mode="formMode" :inspiration-data="currentInspiration" :inspiration-type="activeTab" @success="handleFormSuccess" />
-    <InspirationDetailDialog v-model="detailDialogVisible" :inspiration="currentInspiration" @analyzed="handleAnalyzed" />
+    <InspirationDetailDialog v-model="detailDialogVisible" :inspiration="currentInspiration" @analyzed="handleAnalyzed" @deleted="handleDeleted" />
   </div>
 </template>
 
@@ -149,13 +150,14 @@ import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock, Link } from 
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getTagsByType } from '@/api/tags'
-import { getInspirations, checkInspirationLinks, getInspirationDetail } from '@/api/inspirations'
+import { getInspirations, checkInspirationLinks, getInspirationDetail, deleteInspiration } from '@/api/inspirations'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import InspirationFormDialog from '@/components/inspiration/InspirationFormDialog.vue'
 import InspirationDetailDialog from '@/components/inspiration/InspirationDetailDialog.vue'
 
 const userStore = useUserStore()
 const canEdit = computed(() => userStore.hasPermission('inspiration:edit') || userStore.hasPermission('inspiration:create'))
+const canDelete = computed(() => userStore.role === 'admin' || userStore.role === 'super_admin')
 
 const activeTab = ref('product')
 const filterForm = reactive({ keyword: '', category_tag_ids: null, craft_tag_ids: null, source_type: null, collection_status: null, link_status: null })
@@ -201,6 +203,21 @@ function handlePageChange(p) { pagination.page=p; loadData() }
 function handleAdd() { formMode.value='add'; currentInspiration.value=null; formDialogVisible.value=true }
 function handleEdit(item) { formMode.value='edit'; currentInspiration.value={...item}; formDialogVisible.value=true }
 function handleView(item) { currentInspiration.value={...item}; detailDialogVisible.value=true }
+function handleDeleted() { detailDialogVisible.value=false; loadData() }
+async function handleDelete(item) {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除灵感「${item.title || '无标题'}」吗？删除后无法恢复。`,
+      '删除确认',
+      { confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'warning' }
+    )
+    const res = await deleteInspiration(item.id)
+    if (res.code === 200) { ElMessage.success('删除成功'); loadData() }
+    else ElMessage.error(res.message || '删除失败')
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('删除失败')
+  }
+}
 async function handleAnalyzed(id) {
   // 重新拉取详情，让弹窗显示最新的 AI 分析结果
   try {
