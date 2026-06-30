@@ -27,3 +27,6 @@ uploads/*
 
 # AI 工具缓存
 .proxyai/
+
+# 流量统计运行数据
+traffic_stats.json

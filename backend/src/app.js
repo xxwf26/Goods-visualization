@@ -7,11 +7,15 @@ dotenv.config()
 
 const config = require('./config')
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler')
+const trafficMonitor = require('./middleware/trafficMonitor')
 
 const app = express()
 
 // CORS 跨域配置
 app.use(cors(config.cors))
+
+// 流量监控（在所有路由前，记录每个请求字节数）
+app.use(trafficMonitor.middleware)
 
 // 请求体解析
 app.use(express.json())
@@ -82,6 +86,35 @@ app.get('/api', (req, res) => {
     data: {
       version: '1.0.0',
       timestamp: new Date().toISOString()
+    }
+  })
+})
+
+// 流量统计（用于评估ECS带宽需求）
+app.get('/api/traffic-stats', (req, res) => {
+  const s = trafficMonitor.getStats()
+  const days = Object.keys(s.byDay).sort()
+  const fmt = b => (b / 1024 / 1024).toFixed(2) + ' MB'
+  // 日均流量（按已统计天数）
+  const dayCount = Math.max(days.length, 1)
+  const dailyAvgOut = s.totalBytesOut / dayCount
+  // 接口流量 Top10
+  const endpoints = Object.entries(s.byEndpoint)
+    .sort((a, b) => (b[1].bytesOut + b[1].bytesIn) - (a[1].bytesIn + a[1].bytesOut))
+    .slice(0, 10)
+    .map(([k, v]) => ({ endpoint: k, requests: v.requests, traffic: fmt(v.bytesIn + v.bytesOut) }))
+  res.json({
+    code: 200,
+    data: {
+      运行开始: s.startTime,
+      总请求数: s.totalRequests,
+      总入站: fmt(s.totalBytesIn),
+      总出站: fmt(s.totalBytesOut),
+      统计天数: days.length,
+      日均出站流量: fmt(dailyAvgOut),
+      峰值单次请求: fmt(s.peak.bytes) + ' @ ' + s.peak.time,
+      每日明细: days.map(d => ({ 日期: d, 请求数: s.byDay[d].requests, 出站: fmt(s.byDay[d].bytesOut) })),
+      接口流量Top10: endpoints
     }
   })
 })
