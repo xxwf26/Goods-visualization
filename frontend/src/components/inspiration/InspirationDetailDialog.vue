@@ -100,6 +100,10 @@
       <el-descriptions v-if="!editing" :column="2" border size="small" class="d-info">
         <el-descriptions-item label="来源类型">{{ inspiration.source_type || '-' }}</el-descriptions-item>
         <el-descriptions-item label="收集人">{{ inspiration.creator_name || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="IP">{{ tagNames(inspiration.ip_tag_ids) || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="品类">{{ tagNames(inspiration.category_tag_ids) || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="工艺">{{ tagNames(inspiration.craft_tag_ids) || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="适用场景">{{ tagNames(inspiration.scene_tag_ids) || '-' }}</el-descriptions-item>
         <el-descriptions-item label="采用状态">
           <el-tag :type="inspiration.is_adopted ? 'success' : 'info'" size="small">{{ inspiration.is_adopted ? '已采用' : '未采用' }}</el-tag>
         </el-descriptions-item>
@@ -134,7 +138,8 @@
 </template>
 
 <script setup>
-import { computed, ref, reactive, watch } from 'vue'
+import { computed, ref, reactive, watch, onMounted } from 'vue'
+import { getTagsByType } from '@/api/tags'
 import { Link, User, Document, Star, MagicStick, Picture, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { analyzeInspirationImages, updateInspirationDetail, deleteInspiration, refreshInspirationSnapshot } from '@/api/inspirations'
@@ -154,6 +159,23 @@ const emit = defineEmits(['update:modelValue', 'analyzed', 'deleted'])
 
 const analyzing = ref(false)
 const uploading = ref(false)
+
+// 标签ID→名称映射（用于展示自动匹配的标签）
+const tagMap = ref({})
+onMounted(async () => {
+  try {
+    const types = ['ip', 'category', 'craft', 'scene']
+    const results = await Promise.all(types.map(t => getTagsByType(t)))
+    types.forEach((t, i) => {
+      const list = results[i].data?.list || results[i].data || []
+      list.forEach(tag => { tagMap.value[tag.id] = tag.tag_name })
+    })
+  } catch (e) { /* 标签加载失败不影响展示 */ }
+})
+function tagNames(ids) {
+  if (!ids) return ''
+  return String(ids).split(',').map(id => tagMap.value[id]).filter(Boolean).join('、')
+}
 const saving = ref(false)
 const refreshing = ref(false)
 const editing = ref(false)

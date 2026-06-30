@@ -293,7 +293,7 @@ class InspirationController {
         ip_tag_ids, category_tag_ids, craft_tag_ids, scene_tag_ids,
         snap.description, snap.reference_value, snap.content_summary, notes, application_scenario,
         snap.cover_image, snap.images, video_url, thumbnail,
-        collect_time || null, is_adopted, collection_status, folder_id, is_featured, is_pinned,
+        collect_time || new Date(), is_adopted, collection_status, folder_id, is_featured, is_pinned,
         related_project_ids, req.user?.id
       ])
 
@@ -659,9 +659,37 @@ class InspirationController {
 
     const localFiles = imageTexts.filter(r => r.file).map(r => r.file)
     const imageTextsJson = JSON.stringify(imageTexts.map(r => ({ file: r.file, url: r.url, text: r.text })))
+
+    // 提取价值说明 + 自动匹配标签（IP/品类/工艺/场景）
+    let referenceValue = '', tagUpdates = {}
+    try {
+      const tags = await db.query("SELECT id, tag_name, tag_type FROM tag WHERE is_delete=0 AND status=1")
+      const tagsByType = { ip: [], category: [], craft: [], scene: [] }
+      for (const t of tags) {
+        if (tagsByType[t.tag_type]) tagsByType[t.tag_type].push({ id: t.id, name: t.tag_name })
+      }
+      const meta = await AiAnalyzer.extractMeta((insp.description || '') + '\n' + ocrText, tagsByType)
+      referenceValue = meta.reference_value
+      tagUpdates = meta.tagIds
+    } catch (e) { /* 标签提取失败不影响主流程 */ }
+
     await db.query(
-      'UPDATE inspiration SET content_summary = ?, image_texts = ?, images = COALESCE(?, images), update_time = NOW() WHERE id = ?',
-      [summary, imageTextsJson, localFiles.length ? localFiles.join(',') : null, id]
+      `UPDATE inspiration SET content_summary = ?, image_texts = ?, images = COALESCE(?, images),
+       reference_value = COALESCE(NULLIF(?, ''), reference_value),
+       ip_tag_ids = COALESCE(NULLIF(?, ''), ip_tag_ids),
+       category_tag_ids = COALESCE(NULLIF(?, ''), category_tag_ids),
+       craft_tag_ids = COALESCE(NULLIF(?, ''), craft_tag_ids),
+       scene_tag_ids = COALESCE(NULLIF(?, ''), scene_tag_ids),
+       update_time = NOW() WHERE id = ?`,
+      [
+        summary, imageTextsJson, localFiles.length ? localFiles.join(',') : null,
+        referenceValue,
+        (tagUpdates.ip || []).join(',') || null,
+        (tagUpdates.category || []).join(',') || null,
+        (tagUpdates.craft || []).join(',') || null,
+        (tagUpdates.scene || []).join(',') || null,
+        id
+      ]
     )
     return { ocrCount: imageTexts.length, downloaded: imageTexts.filter(r => r.file && r.url).length, summary }
   }

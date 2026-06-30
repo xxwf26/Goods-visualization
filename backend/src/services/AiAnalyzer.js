@@ -146,10 +146,58 @@ ${ocrText || '(无)'}
 【适用场景】这条内容适合用在什么产品/场景`
 
     try {
-      return await chatCompletion(CFG.textModel, [{ role: 'user', content: summaryPrompt }], 1500)
+      return await chatCompletion(CFG.textModel, [{ role: 'user', content: summaryPrompt }], 3000)
     } catch (e) {
       return '总结生成失败，以下为各图片识别文字：\n\n' + ocrText
     }
+  }
+
+  /**
+   * 从内容中提取价值说明 + 匹配标签库
+   * @param {string} content 正文+图片OCR文字
+   * @param {Object} tagsByType { ip:[{id,name}], category:[...], craft:[...], scene:[...] }
+   * @returns {Promise<{reference_value, tagIds:{ip,category,craft,scene}}>}
+   */
+  static async extractMeta(content, tagsByType) {
+    const tagLib = {}
+    for (const t of ['ip', 'category', 'craft', 'scene']) {
+      tagLib[t] = (tagsByType[t] || []).map(x => x.name)
+    }
+    const prompt = `你是包装印刷/周边物料领域的助理。根据帖子内容完成两件事：
+1. 价值说明：用一句话(50字内)说明这条灵感对周边物料采购/设计的参考价值
+2. 标签匹配：从标签库里选出与本帖内容确实相关的标签(宁少勿多，不确定就不选)
+
+帖子内容：
+${(content || '').substring(0, 1500)}
+
+标签库：
+IP类: ${tagLib.ip.join('、') || '(无)'}
+品类类: ${tagLib.category.join('、') || '(无)'}
+工艺类: ${tagLib.craft.join('、') || '(无)'}
+场景类: ${tagLib.scene.join('、') || '(无)'}
+
+只输出JSON，不要解释：
+{"reference_value":"价值说明","ip":["标签名"],"category":["标签名"],"craft":["标签名"],"scene":["标签名"]}`
+
+    let resp = ''
+    try {
+      resp = await chatCompletion(CFG.textModel, [{ role: 'user', content: prompt }], 2500)
+    } catch (e) {
+      return { reference_value: '', tagIds: {} }
+    }
+    // 提取JSON
+    const m = resp.match(/\{[\s\S]*\}/)
+    if (!m) return { reference_value: '', tagIds: {} }
+    let obj
+    try { obj = JSON.parse(m[0]) } catch { return { reference_value: '', tagIds: {} } }
+
+    // 标签名匹配回ID
+    const tagIds = {}
+    for (const t of ['ip', 'category', 'craft', 'scene']) {
+      const names = obj[t] || []
+      tagIds[t] = (tagsByType[t] || []).filter(x => names.includes(x.name)).map(x => x.id)
+    }
+    return { reference_value: obj.reference_value || '', tagIds }
   }
 
   /**
