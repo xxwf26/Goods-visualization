@@ -88,6 +88,12 @@ const routes = [
         meta: { requiresAuth: true, title: '操作日志' }
       },
       {
+        path: 'system/traffic',
+        name: 'TrafficStats',
+        component: () => import('@/views/system/Traffic.vue'),
+        meta: { requiresAuth: true, title: '流量监控' }
+      },
+      {
         path: 'category/:id',
         name: 'CategoryDetail',
         component: () => import('@/views/category/CategoryDetail.vue'),

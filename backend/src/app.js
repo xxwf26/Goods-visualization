@@ -90,8 +90,8 @@ app.get('/api', (req, res) => {
   })
 })
 
-// 流量统计（用于评估ECS带宽需求）
-app.get('/api/traffic-stats', (req, res) => {
+// 流量统计（用于评估ECS带宽需求，仅管理员）
+app.get('/api/traffic-stats', require('./middleware/auth').authMiddleware, require('./middleware/auth').requireRole('admin'), (req, res) => {
   const s = trafficMonitor.getStats()
   const days = Object.keys(s.byDay).sort()
   const fmt = b => (b / 1024 / 1024).toFixed(2) + ' MB'
