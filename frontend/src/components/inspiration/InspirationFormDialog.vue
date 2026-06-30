@@ -441,15 +441,20 @@ async function handleSubmit() {
   submitting.value = true
   try {
     const payload = buildPayload()
+    let addResult = null
     if (props.mode === 'add') {
-      await createInspiration(payload)
+      addResult = await createInspiration(payload)
     } else {
       const id = props.inspirationData?.id
       if (!id) throw new Error('缺少灵感 ID')
       await updateInspiration(id, payload)
     }
 
-    ElMessage.success(props.mode === 'add' ? '新增成功' : '修改成功')
+    if (props.mode === 'add' && addResult?.message) {
+      ElMessage.success(addResult.message)
+    } else {
+      ElMessage.success(props.mode === 'add' ? '新增成功' : '修改成功')
+    }
     emit('success')
     handleClose()
   } catch (error) {

@@ -294,7 +294,13 @@ class InspirationController {
         related_project_ids, req.user?.id
       ])
 
-      res.json(Response.success({ id: result.insertId }, '创建成功'))
+      // 后台自动触发 AI 图文分析（不阻塞创建请求，约1分钟完成，完成后图文自动入库）
+      const newId = result.insertId
+      InspirationController._analyzeInspiration(newId).catch(e => {
+        console.error(`[inspiration ${newId}] 后台自动分析失败:`, e.message)
+      })
+
+      res.json(Response.success({ id: newId }, '创建成功，正在后台自动分析图文，约1分钟后刷新查看'))
     } catch (error) {
       next(error)
     }
@@ -579,81 +585,78 @@ class InspirationController {
   async analyzeImages(req, res, next) {
     try {
       const { id } = req.params
-      const [insp] = await db.query('SELECT id, link, source_url, images, description, image_texts FROM inspiration WHERE id = ? AND is_delete = 0', [id])
-      if (!insp) return res.status(404).json(Response.notFound('灵感不存在'))
-
-      // 1. 尝试从链接抓远程图片（小红书等可抓；1688/淘宝登录墙则空）
-      let imageUrls = []
-      const url = insp.link || insp.source_url
-      if (url) {
-        try {
-          const meta = await MetaFetcher.fetch(url)
-          imageUrls = meta.allImages || []
-          if (imageUrls.length) {
-            await db.query('UPDATE inspiration SET cover_image = COALESCE(cover_image, ?) WHERE id = ?', [meta.image, id])
-          }
-        } catch (e) { /* 链接已失效则用已存图片兜底 */ }
-      }
-      if (imageUrls.length === 0 && insp.images && String(insp.images).includes('http')) {
-        imageUrls = String(insp.images).split(',').map(s => s.trim()).filter(Boolean)
-      }
-
-      // 2. 加载已存的本地图片（用户手动上传的截图，用于登录墙平台）
-      let existingLocal = []
-      if (insp.image_texts) {
-        try {
-          const arr = JSON.parse(insp.image_texts)
-          existingLocal = (Array.isArray(arr) ? arr : []).filter(r => r.file)
-        } catch {}
-      }
-
-      // 3. 远程图片：OCR + 下载。远程抓取成功则用全新结果替换（不合并旧图，避免重复）
-      let imageTexts = []
-      if (imageUrls.length) {
-        const r = await AiAnalyzer.analyzePost(imageUrls, insp.description || '')
-        imageTexts = r.imageTexts
-      }
-
-      // 4. 仅当没有远程图片时（登录墙平台），才用已存本地截图兜底
-      if (imageTexts.length === 0 && existingLocal.length) {
-        for (const local of existingLocal) {
-          imageTexts.push({ index: imageTexts.length + 1, url: '', file: local.file, text: local.text || '' })
-        }
-      }
-
-      if (imageTexts.length === 0) {
-        return res.status(400).json(Response.badRequest('该灵感没有可分析的图片。若是1688/淘宝等登录墙平台，请先在详情里上传截图，再点AI分析'))
-      }
-
-      // 5. 对本地截图(无远程url且无文字)做 base64 OCR
-      for (const r of imageTexts) {
-        if (!r.text && r.file && !r.url) {
-          try { r.text = await AiAnalyzer.ocrLocalFile(r.file) } catch { r.text = '' }
-        }
-      }
-
-      // 6. 清洗 + 总结
-      await AiAnalyzer.cleanOcrTexts(imageTexts)
-      const ocrText = imageTexts.filter(Boolean).map(r => `【图${r.index}】\n${r.text || '(无文字)'}`).join('\n\n')
-      let summary = ''
-      try {
-        summary = await AiAnalyzer.summarize(ocrText, insp.description || '')
-      } catch {
-        summary = '总结生成失败，以下为各图识别文字：\n\n' + ocrText
-      }
-
-      const localFiles = imageTexts.filter(r => r.file).map(r => r.file)
-      const imageTextsJson = JSON.stringify(imageTexts.map(r => ({ file: r.file, url: r.url, text: r.text })))
-
-      await db.query(
-        'UPDATE inspiration SET content_summary = ?, image_texts = ?, images = COALESCE(?, images), update_time = NOW() WHERE id = ?',
-        [summary, imageTextsJson, localFiles.length ? localFiles.join(',') : null, id]
-      )
-
-      res.json(Response.success({ ocrCount: imageTexts.length, downloaded: imageTexts.filter(r => r.file && r.url).length, summary }, 'AI分析完成'))
+      const r = await InspirationController._analyzeInspiration(id)
+      if (r.error) return res.status(400).json(Response.badRequest(r.error))
+      res.json(Response.success({ ocrCount: r.ocrCount, downloaded: r.downloaded, summary: r.summary }, 'AI分析完成'))
     } catch (error) {
       next(error)
     }
+  }
+
+  /**
+   * 分析灵感图文的核心逻辑（可被 analyzeImages 接口和 create 后台调用）
+   * @returns {Promise<{ocrCount, downloaded, summary, error?}>}
+   */
+  static async _analyzeInspiration(id) {
+    const [insp] = await db.query('SELECT id, link, source_url, images, description, image_texts FROM inspiration WHERE id = ? AND is_delete = 0', [id])
+    if (!insp) return { error: '灵感不存在' }
+
+    let imageUrls = []
+    const url = insp.link || insp.source_url
+    if (url) {
+      try {
+        const meta = await MetaFetcher.fetch(url)
+        imageUrls = meta.allImages || []
+        if (imageUrls.length) {
+          await db.query('UPDATE inspiration SET cover_image = COALESCE(cover_image, ?) WHERE id = ?', [meta.image, id])
+        }
+      } catch (e) { /* 链接已失效则用已存图片兜底 */ }
+    }
+    if (imageUrls.length === 0 && insp.images && String(insp.images).includes('http')) {
+      imageUrls = String(insp.images).split(',').map(s => s.trim()).filter(Boolean)
+    }
+
+    let existingLocal = []
+    if (insp.image_texts) {
+      try {
+        const arr = JSON.parse(insp.image_texts)
+        existingLocal = (Array.isArray(arr) ? arr : []).filter(r => r.file)
+      } catch {}
+    }
+
+    let imageTexts = []
+    if (imageUrls.length) {
+      const r = await AiAnalyzer.analyzePost(imageUrls, insp.description || '')
+      imageTexts = r.imageTexts
+    }
+    if (imageTexts.length === 0 && existingLocal.length) {
+      for (const local of existingLocal) {
+        imageTexts.push({ index: imageTexts.length + 1, url: '', file: local.file, text: local.text || '' })
+      }
+    }
+    if (imageTexts.length === 0) {
+      return { error: '该灵感没有可分析的图片。若是1688/淘宝等登录墙平台，请先在详情里上传截图，再点AI分析' }
+    }
+
+    for (const r of imageTexts) {
+      if (!r.text && r.file && !r.url) {
+        try { r.text = await AiAnalyzer.ocrLocalFile(r.file) } catch { r.text = '' }
+      }
+    }
+
+    await AiAnalyzer.cleanOcrTexts(imageTexts)
+    const ocrText = imageTexts.filter(Boolean).map(r => `【图${r.index}】\n${r.text || '(无文字)'}`).join('\n\n')
+    let summary = ''
+    try { summary = await AiAnalyzer.summarize(ocrText, insp.description || '') }
+    catch { summary = '总结生成失败，以下为各图识别文字：\n\n' + ocrText }
+
+    const localFiles = imageTexts.filter(r => r.file).map(r => r.file)
+    const imageTextsJson = JSON.stringify(imageTexts.map(r => ({ file: r.file, url: r.url, text: r.text })))
+    await db.query(
+      'UPDATE inspiration SET content_summary = ?, image_texts = ?, images = COALESCE(?, images), update_time = NOW() WHERE id = ?',
+      [summary, imageTextsJson, localFiles.length ? localFiles.join(',') : null, id]
+    )
+    return { ocrCount: imageTexts.length, downloaded: imageTexts.filter(r => r.file && r.url).length, summary }
   }
 
   /**

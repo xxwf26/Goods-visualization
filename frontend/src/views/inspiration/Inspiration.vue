@@ -166,6 +166,7 @@ const loading = ref(false), tableData = ref([]), total = ref(0)
 const checking = ref(false)
 const pagination = reactive({ page: 1, pageSize: 24 })
 const formDialogVisible = ref(false), detailDialogVisible = ref(false), formMode = ref('add'), currentInspiration = ref(null)
+let refreshTimer = null
 
 async function loadOptions() {
   try {
@@ -230,7 +231,14 @@ function handleJump(item) {
   if (item.source_url||item.link) window.open(item.source_url||item.link,'_blank')
   else ElMessage.warning('暂无原始链接')
 }
-function handleFormSuccess() { loadData() }
+function handleFormSuccess() {
+  loadData()
+  // 新增后后台AI分析约需1分钟，延时自动刷新一次让图文显示出来
+  if (formMode.value === 'add') {
+    clearTimeout(refreshTimer)
+    refreshTimer = setTimeout(() => { loadData() }, 75000)
+  }
+}
 
 async function handleCheckLinks() {
   try {
