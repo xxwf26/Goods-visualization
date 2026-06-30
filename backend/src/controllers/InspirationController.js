@@ -607,19 +607,18 @@ class InspirationController {
         } catch {}
       }
 
-      // 3. 远程图片：OCR + 下载
+      // 3. 远程图片：OCR + 下载。远程抓取成功则用全新结果替换（不合并旧图，避免重复）
       let imageTexts = []
       if (imageUrls.length) {
         const r = await AiAnalyzer.analyzePost(imageUrls, insp.description || '')
         imageTexts = r.imageTexts
       }
 
-      // 4. 合并已存本地图片（去重：远程已下载的不再 OCR 本地）
-      const remoteFiles = new Set(imageTexts.map(r => r.file).filter(Boolean))
-      for (const local of existingLocal) {
-        if (remoteFiles.has(local.file)) continue
-        // 已有文字的保留，没有的用 base64 OCR 本地截图
-        imageTexts.push({ index: imageTexts.length + 1, url: '', file: local.file, text: local.text || '' })
+      // 4. 仅当没有远程图片时（登录墙平台），才用已存本地截图兜底
+      if (imageTexts.length === 0 && existingLocal.length) {
+        for (const local of existingLocal) {
+          imageTexts.push({ index: imageTexts.length + 1, url: '', file: local.file, text: local.text || '' })
+        }
       }
 
       if (imageTexts.length === 0) {

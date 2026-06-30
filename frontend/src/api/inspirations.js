@@ -97,7 +97,7 @@ export function checkInspirationLinks(data = {}) {
  * @param {number} id - 灵感ID
  */
 export function analyzeInspirationImages(id) {
-  return request.post(`/inspirations/${id}/analyze`)
+  return request.post(`/inspirations/${id}/analyze`, {}, { timeout: 180000 })
 }
 
 /**
