@@ -218,8 +218,9 @@ class InspirationController {
    */
   async create(req, res, next) {
     try {
+      // title 非必填：有 source_url 时由 autofill 自动抓取标题
       const v = validate(req.body)
-        .required(['title', 'source_url'])
+        .required(['source_url'])
         .maxLength('title', 200)
         .maxLength('source_url', 1000)
         .isIn('source_type', ['pinterest', 'instagram', '小红书', '微博', '抖音', '淘宝', '1688', '站酷', '电商平台', 'other'])
@@ -273,6 +274,8 @@ class InspirationController {
         images: images || null
       }
       await InspirationController.autofillFromUrl(snap, source_url)
+      // 兜底：autofill 没抓到标题时给默认值（DB title 非空）
+      if (!snap.title) snap.title = '未命名灵感'
 
       const sql = `
         INSERT INTO inspiration (
