@@ -13,7 +13,16 @@ const { assertSafeUrl } = require('../utils/urlSafety')
 
 const MAX_REDIRECTS = 3
 const TIMEOUT_MS = 8000
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'
+// 完整浏览器头（与 MetaFetcher 一致），减少小红书等平台对简陋请求头返回假404
+const BROWSER_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'none',
+  'Upgrade-Insecure-Requests': '1'
+}
 
 function classify(httpCode) {
   if (httpCode >= 200 && httpCode < 400) return 'ok'
@@ -25,7 +34,7 @@ function classify(httpCode) {
 function request(url, method, redirectCount = 0) {
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https') ? https : http
-    const req = client.request(url, { method, timeout: TIMEOUT_MS, headers: { 'User-Agent': UA } }, (res) => {
+    const req = client.request(url, { method, timeout: TIMEOUT_MS, headers: BROWSER_HEADERS }, (res) => {
       const code = res.statusCode || 0
       res.resume() // 丢弃响应体，释放连接
       // 跟随重定向并对新地址再做安全校验
@@ -74,14 +83,16 @@ class LinkChecker {
 
   /**
    * 限并发批量探活。
+   * 注意：小红书等平台对快速连续请求会限流返回假404，故并发降到2且每条间隔1秒。
    * @param {Array<{id:number,url:string}>} items
    * @param {(id:number, r:object)=>Promise<void>} onResult 每条结果回调（用于落库）
    * @param {number} concurrency
    * @returns {Promise<{checked:number, ok:number, dead:number, error:number}>}
    */
-  static async checkBatch(items, onResult, concurrency = 5) {
+  static async checkBatch(items, onResult, concurrency = 2) {
     const summary = { checked: 0, ok: 0, dead: 0, error: 0 }
     let cursor = 0
+    const delay = ms => new Promise(r => setTimeout(r, ms))
     const worker = async () => {
       while (cursor < items.length) {
         const item = items[cursor++]
@@ -89,6 +100,7 @@ class LinkChecker {
         summary.checked++
         summary[r.status]++
         if (onResult) await onResult(item.id, r)
+        await delay(1000) // 每条间隔1秒，避免触发小红书限流误判
       }
     }
     const n = Math.min(concurrency, items.length) || 0
