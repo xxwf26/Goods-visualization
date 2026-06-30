@@ -60,8 +60,10 @@ class LinkChecker {
     }
     try {
       let code = await request(url, 'HEAD')
-      // 不少站点对 HEAD 返回 403/405/501，用 GET 复核一次
-      if (code === 403 || code === 405 || code === 501 || code === 400) {
+      // HEAD 在很多站点不可靠（小红书首页 HEAD 返回 404、淘宝/CDN 对 HEAD 返回
+      // 403/405 等），只要 HEAD 看着不正常（非 2xx/3xx）就用 GET 复核一次，
+      // 避免把"对 HEAD 返回 404/410 但 GET 正常"的有效链接误判为失效。
+      if (classify(code) !== 'ok') {
         try { code = await request(url, 'GET') } catch { /* 用 HEAD 结果兜底 */ }
       }
       return { status: classify(code), httpCode: code }
