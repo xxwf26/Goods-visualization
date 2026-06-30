@@ -598,7 +598,7 @@ class InspirationController {
    * @returns {Promise<{ocrCount, downloaded, summary, error?}>}
    */
   static async _analyzeInspiration(id) {
-    const [insp] = await db.query('SELECT id, link, source_url, images, description, image_texts FROM inspiration WHERE id = ? AND is_delete = 0', [id])
+    const [insp] = await db.query('SELECT id, link, source_url, images, description, image_texts, cover_image FROM inspiration WHERE id = ? AND is_delete = 0', [id])
     if (!insp) return { error: '灵感不存在' }
 
     let imageUrls = []
@@ -607,8 +607,12 @@ class InspirationController {
       try {
         const meta = await MetaFetcher.fetch(url)
         imageUrls = meta.allImages || []
-        if (imageUrls.length) {
-          await db.query('UPDATE inspiration SET cover_image = COALESCE(cover_image, ?) WHERE id = ?', [meta.image, id])
+        if (imageUrls.length && meta.image) {
+          // 封面下载到本地（不存远程链接，避免防盗链/过期导致加载失败）
+          const localCover = insp.cover_image && !String(insp.cover_image).startsWith('http') ? insp.cover_image : (await downloadImage(meta.image, 'cover'))
+          if (localCover) {
+            await db.query('UPDATE inspiration SET cover_image = ? WHERE id = ?', [localCover, id])
+          }
         }
       } catch (e) { /* 链接已失效则用已存图片兜底 */ }
     }
