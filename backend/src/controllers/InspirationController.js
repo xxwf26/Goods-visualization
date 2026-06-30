@@ -28,9 +28,9 @@ class InspirationController {
     // 内容快照(description)= 帖子正文引言，单独存储(2000字)；价值说明(reference_value)由用户填写，不自动填充；AI总结(content_summary)由分析接口生成
     if (!data.description && meta.description) data.description = meta.description.substring(0, 2000)
     if (!data.cover_image && meta.image) {
-      // 封面下载到本地，避免 CDN 链接过期后卡片封面丢失
+      // 封面下载到本地，避免 CDN 链接过期/防盗链导致卡片封面无法显示
       const localFile = await downloadImage(meta.image, 'cover')
-      data.cover_image = localFile || meta.image
+      data.cover_image = localFile || null  // 下载失败不存远程链接（浏览器加载不了）
     }
     if (!data.images && meta.allImages?.length) data.images = meta.allImages.join(',')
   }
