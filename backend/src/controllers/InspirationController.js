@@ -674,12 +674,16 @@ class InspirationController {
       tagUpdates = meta.tagIds
     } catch (e) { /* 标签提取失败不影响主流程 */ }
 
-    // AI 多分类（可属于多个分类）
+    // AI 多分类（可属于多个分类），失败时兜底用已有 inspiration_type
     let categoriesStr = ''
     try {
       const cats = await AiAnalyzer.categorize((insp.description || '') + '\n' + ocrText + '\n' + (summary || ''))
       if (cats.length) categoriesStr = cats.join(',')
     } catch (e) { /* 分类失败不影响主流程 */ }
+    // 兜底：AI 分类失败时用已有 inspiration_type，确保至少有一个分类
+    if (!categoriesStr && insp.inspiration_type) {
+      categoriesStr = insp.inspiration_type
+    }
 
     await db.query(
       `UPDATE inspiration SET content_summary = ?, image_texts = ?, images = COALESCE(?, images),
