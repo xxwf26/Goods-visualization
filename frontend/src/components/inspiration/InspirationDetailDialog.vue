@@ -98,6 +98,10 @@
 
       <!-- 附加信息（只读） -->
       <el-descriptions v-if="!editing" :column="2" border size="small" class="d-info">
+        <el-descriptions-item label="分类" :span="2">
+          <el-tag v-for="c in categoryLabels" :key="c" size="small" type="primary" effect="plain" style="margin-right:4px;">{{ c }}</el-tag>
+          <span v-if="!categoryLabels.length">-</span>
+        </el-descriptions-item>
         <el-descriptions-item label="来源类型">{{ inspiration.source_type || '-' }}</el-descriptions-item>
         <el-descriptions-item label="收集人">{{ inspiration.creator_name || '-' }}</el-descriptions-item>
         <el-descriptions-item label="IP">{{ tagNames(inspiration.ip_tag_ids) || '-' }}</el-descriptions-item>
@@ -208,6 +212,13 @@ const displayCover = computed(() => {
 const collectionStatusText = computed(() => {
   const m = { uncollected: '未收藏', collected: '已收藏', applied: '已采用' }
   return m[props.inspiration?.collection_status] || '-'
+})
+
+const categoryLabels = computed(() => {
+  const cats = props.inspiration?.categories
+  if (!cats) return []
+  const map = { packaging: '包装结构', peripheral: '周边品类灵感', effect: '效果与特殊工艺', production: '印刷与生产攻略' }
+  return String(cats).split(',').map(s => s.trim()).filter(Boolean).map(v => map[v] || v)
 })
 
 function formatDate(d) {

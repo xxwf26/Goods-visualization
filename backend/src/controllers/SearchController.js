@@ -59,7 +59,7 @@ class SearchController {
         { type: 'project', label: '历史项目', permission: 'project:view', route: '/projects', ...project },
         { type: 'price', label: '价格记录', permission: 'price:view', route: '/price-records', ...price },
         { type: 'supplier', label: '供应商', permission: 'supplier:view', route: '/suppliers', ...supplier },
-        { type: 'inspiration', label: '灵感库', permission: 'inspiration:view', route: '/inspiration', craftTotal: inspiration.craftTotal, ...inspiration },
+        { type: 'inspiration', label: '灵感库', permission: 'inspiration:view', route: '/inspiration', ...inspiration },
         { type: 'designNote', label: '设计要求', permission: null, route: '/design-notes', ...designNote },
         { type: 'tag', label: '标签/品类', permission: null, route: null, ...tag }
       ].filter(g => g.total > 0)
@@ -137,22 +137,18 @@ class SearchController {
     const where = `WHERE is_delete = 0 AND (title LIKE ? OR description LIKE ? OR author LIKE ?)`
     const params = [like, like, like]
     const [cnt] = await db.query(`SELECT COUNT(*) AS total FROM inspiration ${where}`, params)
-    // 工艺灵感单独计数（首页搜索「工艺灵感」维度用）
-    const [craftCnt] = await db.query(
-      `SELECT COUNT(*) AS total FROM inspiration ${where} AND inspiration_type = 'craft'`,
-      params
-    )
     const rows = await db.query(
-      `SELECT id, title, description, author
+      `SELECT id, title, description, author, categories
        FROM inspiration ${where} ORDER BY update_time DESC LIMIT ?`,
       [...params, ITEM_LIMIT]
     )
     const items = rows.map(r => ({
       id: r.id,
       title: r.title || `灵感#${r.id}`,
-      subtitle: joinParts([r.author && `作者:${r.author}`, brief(r.description)])
+      subtitle: joinParts([r.author && `作者:${r.author}`, brief(r.description)]),
+      categories: r.categories || ''
     }))
-    return { total: cnt.total, craftTotal: craftCnt.total, items }
+    return { total: cnt.total, items }
   }
 
   async _searchDesignNote(like) {
