@@ -1,9 +1,17 @@
 <template>
   <div class="visitor-page">
-    <div class="topbar">
-      <span class="logo">周边灵感检索</span>
-      <el-button link @click="logout">退出登录</el-button>
-    </div>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-logo"><el-icon><Search /></el-icon></div>
+        <div class="brand-text">
+          <span class="brand-name">周边灵感检索</span>
+          <span class="brand-sub">Goods Visualization</span>
+        </div>
+      </div>
+      <button class="logout-btn" @click="logout">
+        <el-icon><SwitchButton /></el-icon> 退出
+      </button>
+    </header>
 
     <div class="search-section">
       <h1 class="title">想找什么周边物料？</h1>
@@ -57,7 +65,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Close, Loading, ArrowRight } from '@element-plus/icons-vue'
+import { Search, Close, Loading, ArrowRight, SwitchButton } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
 import { getInspirationDetail } from '@/api/inspirations'
@@ -126,13 +134,38 @@ function logout() { userStore.logout(); router.push('/login') }
 
 <style scoped>
 .visitor-page { min-height: 100vh; background: linear-gradient(180deg, #FDFBFF 0%, #F5F3FF 100%); }
-.topbar { display: flex; justify-content: space-between; align-items: center; padding: 16px 28px; }
-.logo { font-size: 18px; font-weight: 700; color: #7C3AED; }
 
-.search-section { text-align: center; padding: 60px 20px 30px; max-width: 720px; margin: 0 auto; }
-.title { font-size: 32px; font-weight: 800; color: #1E293B; margin: 0 0 12px; }
+/* 顶栏 */
+.topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 32px; background: rgba(255,255,255,0.7); backdrop-filter: blur(8px);
+  border-bottom: 1px solid #EDE9FE; position: sticky; top: 0; z-index: 20;
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-logo {
+  width: 38px; height: 38px; border-radius: 11px;
+  background: linear-gradient(135deg, #8B5CF6, #A78BFA);
+  display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px;
+  box-shadow: 0 4px 12px rgba(139,92,246,0.3);
+}
+.brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+.brand-name { font-size: 16px; font-weight: 700; color: #1E293B; }
+.brand-sub { font-size: 11px; color: #94A3B8; letter-spacing: 0.5px; }
+
+.logout-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid #E2E8F0; background: #fff; color: #64748B;
+  padding: 7px 14px; border-radius: 9px; font-size: 13px; cursor: pointer;
+  transition: all 0.2s;
+}
+.logout-btn:hover { color: #EF4444; border-color: #FECACA; background: #FEF2F2; }
+
+/* 搜索区 */
+.search-section { text-align: center; padding: 56px 20px 28px; max-width: 720px; margin: 0 auto; }
+.title { font-size: 30px; font-weight: 800; color: #1E293B; margin: 0 0 12px; letter-spacing: -0.5px; }
 .subtitle { font-size: 15px; color: #94A3B8; margin: 0 0 32px; }
-.search-box { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 28px; padding: 8px 12px 8px 22px; box-shadow: 0 12px 32px rgba(139,92,246,0.15); border: 2px solid #EDE9FE; }
+.search-box { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 28px; padding: 8px 12px 8px 22px; box-shadow: 0 12px 32px rgba(139,92,246,0.15); border: 2px solid #EDE9FE; transition: border-color 0.2s; }
+.search-box:focus-within { border-color: #A78BFA; }
 .search-icon { font-size: 22px; color: #8B5CF6; }
 .search-input { flex: 1; border: none; outline: none; font-size: 17px; padding: 12px 0; background: transparent; color: #1E293B; }
 .search-input::placeholder { color: #94A3B8; }
@@ -140,6 +173,7 @@ function logout() { userStore.logout(); router.push('/login') }
 .hot-label { font-size: 13px; color: #94A3B8; }
 .hot-tag { cursor: pointer; }
 
+/* 结果区 */
 .result-section { max-width: 860px; margin: 0 auto; padding: 20px 20px 60px; }
 .loading { text-align: center; color: #8B5CF6; padding: 40px; }
 .empty { text-align: center; color: #94A3B8; padding: 60px 0; font-size: 15px; }
