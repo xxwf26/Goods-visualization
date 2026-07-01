@@ -88,6 +88,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { Search, Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getDesignNotes, deleteDesignNote } from '@/api/designNotes'
@@ -124,7 +125,11 @@ async function handleDelete(row) {
   catch(e) { if(e!=='cancel') console.error(e) }
 }
 function handleFormSuccess() { loadData() }
-onMounted(() => loadData())
+onMounted(() => {
+  const route = useRoute()
+  if (route.query.keyword) filterForm.keyword = String(route.query.keyword)
+  loadData()
+})
 </script>
 
 <style scoped>

@@ -16,6 +16,7 @@
     </template>
 
     <template v-else>
+      <HomepageSearch />
       <StatsCards :stats="statsData" />
       <QuickAccess />
       <ChartsSection :ip-data="ipData" :category-data="categoryData" />
@@ -31,6 +32,7 @@ import { useUserStore } from '@/stores/user'
 import { request } from '@/api'
 import { getSuppliers } from '@/api/suppliers'
 import StatsCards from '@/components/home/StatsCards.vue'
+import HomepageSearch from '@/components/home/HomepageSearch.vue'
 import ChartsSection from '@/components/home/ChartsSection.vue'
 import RankingSection from '@/components/home/RankingSection.vue'
 import RecentUpdates from '@/components/home/RecentUpdates.vue'

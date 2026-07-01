@@ -295,9 +295,13 @@ function formatDate(d) { if(!d) return '-'; return d.split('T')[0] }
 
 onMounted(() => {
   const route = useRoute()
-  // 从全局检索跳转携带的关键词
+  // 从全局检索/首页搜索跳转携带的关键词
   if (route.query.keyword) {
     filterForm.keyword = String(route.query.keyword)
+  }
+  // 首页搜索「工艺灵感」携带的灵感类型
+  if (route.query.inspiration_type) {
+    activeTab.value = String(route.query.inspiration_type)
   }
   // 从品类详情页跳转携带的筛选
   if (route.query.category_tag_ids) {
