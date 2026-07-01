@@ -6,6 +6,7 @@ dist-ssr
 
 # 上传文件
 uploads/*
+backend/uploads/*
 !uploads/.gitkeep
 
 # IDE
