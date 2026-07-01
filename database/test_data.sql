@@ -120,7 +120,7 @@ INSERT INTO `project` (
 -- 插入外部灵感链接测试数据
 -- ============================================
 INSERT INTO `inspiration` (
-  `title`, `source_platform`, `source_type`, `source_url`, `link`,
+  `title`, `inspiration_type`, `categories`, `source_platform`, `source_type`, `source_url`, `link`,
   `category_tag_ids`, `craft_tag_ids`, `ip_tag_ids`, `scene_tag_ids`,
   `reference_value`, `description`,
   `collect_time`, `collector`, `collection_status`,
@@ -128,70 +128,70 @@ INSERT INTO `inspiration` (
   `create_user_id`, `create_time`
 ) VALUES
 -- 明信片灵感
-('【工艺参考】珠光纸明信片效果展示', '小红书', '小红书', 'https://www.xiaohongshu.com/explore/xxx1', 'https://www.xiaohongshu.com/explore/xxx1',
+('【工艺参考】珠光纸明信片效果展示', 'peripheral', 'peripheral,effect', '小红书', '小红书', 'https://www.xiaohongshu.com/explore/xxx1', 'https://www.xiaohongshu.com/explore/xxx1',
  '101', '1,2', '1,2,3', '2,7', '展示了珠光纸在不同光线下的效果，适合用于限定周边', '珠光纸材质在不同光线下反射效果极佳',
  '2024-06-15 10:00:00', '小明', 'applied', 2580, 890, 890, 156, 1, 1, '2024-06-15 10:00:00'),
 
-('【包装参考】明信片套组包装方案', '淘宝', '淘宝', 'https://item.taobao.com/item.htm?id=xxx1', 'https://item.taobao.com/item.htm?id=xxx1',
+('【包装参考】明信片套组包装方案', 'packaging', 'packaging,peripheral', '淘宝', '淘宝', 'https://item.taobao.com/item.htm?id=xxx1', 'https://item.taobao.com/item.htm?id=xxx1',
  '101', '2,3', '1,2,4', '1,3', '独立OPP袋+封口贴包装方案，适合展会无料', '简易独立包装方案参考',
  '2024-05-20 14:30:00', '小红', 'collected', 1200, 450, 450, 89, 0, 1, '2024-05-20 14:30:00'),
 
-('【工艺升级】局部UV+白墨组合效果', '站酷', '站酷', 'https://www.zcool.com.cn/work/xxx1.html', 'https://www.zcool.com.cn/work/xxx1.html',
+('【工艺升级】局部UV+白墨组合效果', 'effect', 'effect,production', '站酷', '站酷', 'https://www.zcool.com.cn/work/xxx1.html', 'https://www.zcool.com.cn/work/xxx1.html',
  '101', '3,4,5', '1,2', '2,5', '局部UV与白墨叠加使用，可增强图案层次感', '双重工艺叠加的效果演示',
  '2024-07-01 09:15:00', '小刚', 'collected', 3200, 1100, 1100, 234, 0, 1, '2024-07-01 09:15:00'),
 
-('【纸张推荐】特种纸厂家推荐清单', '1688', '1688', 'https://detail.1688.com/offer/xxx1.html', 'https://detail.1688.com/offer/xxx1.html',
+('【纸张推荐】特种纸厂家推荐清单', 'production', 'production', '1688', '1688', 'https://detail.1688.com/offer/xxx1.html', 'https://detail.1688.com/offer/xxx1.html',
  '101', '11', NULL, '3,4', '整理了常用的特种纸供应商，价格区间和质量对比', '批量采购特种纸参考',
  '2024-04-10 11:00:00', '小李', 'uncollected', 890, 320, 320, 45, 0, 1, '2024-04-10 11:00:00'),
 
 -- 镭射票灵感
-('【视觉参考】演唱会镭射票设计案例', '小红书', '小红书', 'https://www.xiaohongshu.com/explore/xxx2', 'https://www.xiaohongshu.com/explore/xxx2',
+('【视觉参考】演唱会镭射票设计案例', 'peripheral', 'peripheral,effect', '小红书', '小红书', 'https://www.xiaohongshu.com/explore/xxx2', 'https://www.xiaohongshu.com/explore/xxx2',
  '102', '0,2,3', '4,5', '2,7', '收集了多场演唱会的镭射票设计，设计风格参考', '多场演唱会镭射票设计合集',
  '2024-03-15 15:20:00', '小张', 'applied', 4500, 1500, 1500, 320, 1, 1, '2024-03-15 15:20:00'),
 
-('【工艺参考】镭射+烫金组合工艺', '微博', '微博', 'https://weibo.com/xxx/xxx2', 'https://weibo.com/xxx/xxx2',
+('【工艺参考】镭射+烫金组合工艺', 'effect', 'effect,production', '微博', '微博', 'https://weibo.com/xxx/xxx2', 'https://weibo.com/xxx/xxx2',
  '102', '0,2', NULL, '2,6', '镭射底+烫金图案的组合工艺，效果高端', '镭射搭配烫金的视觉效果',
  '2024-06-01 10:30:00', '小王', 'collected', 1800, 620, 620, 98, 0, 1, '2024-06-01 10:30:00'),
 
 -- 亚克力立牌灵感
-('【设计参考】双面印刷亚克力立牌效果', '站酷', '站酷', 'https://www.zcool.com.cn/work/xxx2.html', 'https://www.zcool.com.cn/work/xxx2.html',
+('【设计参考】双面印刷亚克力立牌效果', 'peripheral', 'peripheral,effect', '站酷', '站酷', 'https://www.zcool.com.cn/work/xxx2.html', 'https://www.zcool.com.cn/work/xxx2.html',
  '103', '7,10', '1,2,4', '3,9', '双面印刷+磨砂质感，适合角色立牌展示', '双面印刷亚克力立牌设计案例',
  '2024-05-10 14:00:00', '小陈', 'collected', 2800, 950, 950, 178, 0, 1, '2024-05-10 14:00:00'),
 
-('【工艺升级】异形裁切亚克力展示', '小红书', '小红书', 'https://www.xiaohongshu.com/explore/xxx3', 'https://www.xiaohongshu.com/explore/xxx3',
+('【工艺升级】异形裁切亚克力展示', 'peripheral', 'peripheral,effect', '小红书', '小红书', 'https://www.xiaohongshu.com/explore/xxx3', 'https://www.xiaohongshu.com/explore/xxx3',
  '103', '5,7', '1,3', '2,8', '不规则异形裁切亚克力，适合快闪店展示', '异形亚克力效果展示',
  '2024-07-20 16:45:00', '小刚', 'collected', 2100, 780, 780, 145, 0, 1, '2024-07-20 16:45:00'),
 
 -- 马口铁徽章灵感
-('【工艺参考】马口铁徽章柯式印刷效果', '1688', '1688', 'https://detail.1688.com/offer/xxx2.html', 'https://detail.1688.com/offer/xxx2.html',
+('【工艺参考】马口铁徽章柯式印刷效果', 'peripheral', 'peripheral,production', '1688', '1688', 'https://detail.1688.com/offer/xxx2.html', 'https://detail.1688.com/offer/xxx2.html',
  '104', '0,2', '1,2,4,5', '1,2,5', '柯式印刷马口铁徽章，色彩还原度高', '柯式印刷工艺参考',
  '2024-04-25 11:30:00', '小周', 'collected', 1560, 520, 520, 87, 0, 1, '2024-04-25 11:30:00'),
 
-('【包装参考】徽章独立包装方案', '淘宝', '淘宝', 'https://item.taobao.com/item.htm?id=xxx3', 'https://item.taobao.com/item.htm?id=xxx3',
+('【包装参考】徽章独立包装方案', 'packaging', 'packaging,peripheral', '淘宝', '淘宝', 'https://item.taobao.com/item.htm?id=xxx3', 'https://item.taobao.com/item.htm?id=xxx3',
  '104', NULL, NULL, '1,2,3', '徽章独立OPP袋+硬纸板背板包装方案', '独立包装参考',
  '2024-05-05 13:15:00', '小刘', 'collected', 980, 340, 340, 56, 0, 1, '2024-05-05 13:15:00'),
 
 -- 拍立得灵感
-('【设计参考】拍立得相框设计案例', '小红书', '小红书', 'https://www.xiaohongshu.com/explore/xxx4', 'https://www.xiaohongshu.com/explore/xxx4',
+('【设计参考】拍立得相框设计案例', 'peripheral', 'peripheral', '小红书', '小红书', 'https://www.xiaohongshu.com/explore/xxx4', 'https://www.xiaohongshu.com/explore/xxx4',
  '105', '0,2', '2,3', '2,6,7', '拍立得相框设计，适合周年庆活动', '拍立得设计案例参考',
  '2024-06-25 10:00:00', '小赵', 'collected', 1890, 650, 650, 112, 0, 1, '2024-06-25 10:00:00'),
 
 -- 纸袋灵感
-('【工艺参考】烫金工艺纸袋展示', '站酷', '站酷', 'https://www.zcool.com.cn/work/xxx3.html', 'https://www.zcool.com.cn/work/xxx3.html',
+('【工艺参考】烫金工艺纸袋展示', 'packaging', 'packaging,effect', '站酷', '站酷', 'https://www.zcool.com.cn/work/xxx3.html', 'https://www.zcool.com.cn/work/xxx3.html',
  '106', '2,3', '1,2', '3,4', '烫金工艺在纸袋上的应用，效果高档', '烫金纸袋工艺参考',
  '2024-05-30 15:30:00', '小孙', 'collected', 1100, 380, 380, 67, 0, 1, '2024-05-30 15:30:00'),
 
 -- 贴纸灵感
-('【工艺参考】异形裁切贴纸工艺', '小红书', '小红书', 'https://www.xiaohongshu.com/explore/xxx5', 'https://www.xiaohongshu.com/explore/xxx5',
+('【工艺参考】异形裁切贴纸工艺', 'peripheral', 'peripheral,effect', '小红书', '小红书', 'https://www.xiaohongshu.com/explore/xxx5', 'https://www.xiaohongshu.com/explore/xxx5',
  '108', '4,5,7', NULL, '2,5,8', '多种异形裁切贴纸工艺，适合活动奖品', '异形裁切贴纸参考',
  '2024-07-10 14:20:00', '小美', 'collected', 2300, 820, 820, 156, 0, 1, '2024-07-10 14:20:00'),
 
 -- 通用工艺参考
-('【趋势分析】2024周边工艺趋势总结', '小红书', '小红书', 'https://www.xiaohongshu.com/explore/xxx6', 'https://www.xiaohongshu.com/explore/xxx6',
+('【趋势分析】2024周边工艺趋势总结', 'effect', 'effect,production', '小红书', '小红书', 'https://www.xiaohongshu.com/explore/xxx6', 'https://www.xiaohongshu.com/explore/xxx6',
  NULL, '0,1,2,7', '1,2,3,4,5', '2,7', '总结了2024年周边制作的主流工艺趋势', '2024年主流工艺分析',
  '2024-07-25 09:00:00', '小杰', 'collected', 5200, 2100, 2100, 456, 0, 1, '2024-07-25 09:00:00'),
 
-('【成本参考】各类工艺价格区间对比', '1688', '1688', 'https://detail.1688.com/offer/xxx4.html', 'https://detail.1688.com/offer/xxx4.html',
+('【成本参考】各类工艺价格区间对比', 'production', 'production', '1688', '1688', 'https://detail.1688.com/offer/xxx4.html', 'https://detail.1688.com/offer/xxx4.html',
  NULL, '0,1,2,3,4,5', NULL, '3,4', '整理了常见工艺的厂家报价区间', '工艺价格参考',
  '2024-06-15 11:45:00', '小华', 'collected', 3400, 1200, 1200, 234, 0, 1, '2024-06-15 11:45:00');
 

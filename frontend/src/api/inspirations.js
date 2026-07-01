@@ -45,38 +45,6 @@ export function deleteInspiration(id) {
 }
 
 /**
- * 收藏灵感
- * @param {number} id - 灵感ID
- * @param {number} folder_id - 收藏夹ID
- */
-export function collectInspiration(id, folder_id) {
-  return request.post(`/inspirations/${id}/collect`, { folder_id })
-}
-
-/**
- * 取消收藏
- * @param {number} id - 灵感ID
- */
-export function uncollectInspiration(id) {
-  return request.post(`/inspirations/${id}/uncollect`)
-}
-
-/**
- * 获取收藏夹列表
- */
-export function getFolders() {
-  return request.get('/inspiration-folders')
-}
-
-/**
- * 新增收藏夹
- * @param {Object} data - 收藏夹数据
- */
-export function createFolder(data) {
-  return request.post('/inspiration-folders', data)
-}
-
-/**
  * 检测单条灵感链接是否失效
  * @param {number} id - 灵感ID
  */
@@ -123,10 +91,6 @@ export default {
   createInspiration,
   updateInspiration,
   deleteInspiration,
-  collectInspiration,
-  uncollectInspiration,
-  getFolders,
-  createFolder,
   checkInspirationLink,
   checkInspirationLinks,
   analyzeInspirationImages,
