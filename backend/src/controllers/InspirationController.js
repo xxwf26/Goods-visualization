@@ -59,9 +59,9 @@ class InspirationController {
         params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`)
       }
 
-      // 灵感类型筛选
+      // 灵感类型筛选（支持多分类：categories 字段用 FIND_IN_SET 匹配，兼容旧 inspiration_type）
       if (inspiration_type) {
-        whereClause += ' AND i.inspiration_type = ?'
+        whereClause += ' AND (FIND_IN_SET(?, COALESCE(i.categories, i.inspiration_type)) > 0)'
         params.push(inspiration_type)
       }
 
@@ -233,6 +233,7 @@ class InspirationController {
       const {
         title,
         inspiration_type = 'peripheral',
+        categories,
         source_type,
         source_name,
         source_url,
@@ -279,17 +280,17 @@ class InspirationController {
 
       const sql = `
         INSERT INTO inspiration (
-          title, inspiration_type, source_type, source_platform, source_name, source_url, link, author, author_url,
+          title, inspiration_type, categories, source_type, source_platform, source_name, source_url, link, author, author_url,
           ip_tag_ids, category_tag_ids, craft_tag_ids, scene_tag_ids,
           description, reference_value, content_summary, notes, application_scenario,
           cover_image, images, video_url, thumbnail,
           collect_time, is_adopted, collection_status, folder_id, is_featured, is_pinned,
           related_project_ids, create_user_id, create_time, update_time, is_delete
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), 0)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), 0)
       `
 
       const result = await db.query(sql, [
-        snap.title, inspiration_type, snap.source_type, snap.source_platform, snap.source_name, source_url, source_url, snap.author, author_url,
+        snap.title, inspiration_type, categories || null, snap.source_type, snap.source_platform, snap.source_name, source_url, source_url, snap.author, author_url,
         ip_tag_ids, category_tag_ids, craft_tag_ids, scene_tag_ids,
         snap.description, snap.reference_value, snap.content_summary, notes, application_scenario,
         snap.cover_image, snap.images, video_url, thumbnail,
@@ -673,6 +674,13 @@ class InspirationController {
       tagUpdates = meta.tagIds
     } catch (e) { /* 标签提取失败不影响主流程 */ }
 
+    // AI 多分类（可属于多个分类）
+    let categoriesStr = ''
+    try {
+      const cats = await AiAnalyzer.categorize((insp.description || '') + '\n' + ocrText + '\n' + (summary || ''))
+      if (cats.length) categoriesStr = cats.join(',')
+    } catch (e) { /* 分类失败不影响主流程 */ }
+
     await db.query(
       `UPDATE inspiration SET content_summary = ?, image_texts = ?, images = COALESCE(?, images),
        reference_value = COALESCE(NULLIF(?, ''), reference_value),
@@ -680,6 +688,7 @@ class InspirationController {
        category_tag_ids = COALESCE(NULLIF(?, ''), category_tag_ids),
        craft_tag_ids = COALESCE(NULLIF(?, ''), craft_tag_ids),
        scene_tag_ids = COALESCE(NULLIF(?, ''), scene_tag_ids),
+       categories = COALESCE(NULLIF(?, ''), categories),
        update_time = NOW() WHERE id = ?`,
       [
         summary, imageTextsJson, localFiles.length ? localFiles.join(',') : null,
@@ -688,6 +697,7 @@ class InspirationController {
         (tagUpdates.category || []).join(',') || null,
         (tagUpdates.craft || []).join(',') || null,
         (tagUpdates.scene || []).join(',') || null,
+        categoriesStr || null,
         id
       ]
     )
@@ -703,7 +713,7 @@ class InspirationController {
   async updateDetail(req, res, next) {
     try {
       const { id } = req.params
-      const { title, author, description, content_summary, image_texts } = req.body
+      const { title, author, description, content_summary, image_texts, categories } = req.body
 
       const updates = []
       const params = []
@@ -711,6 +721,12 @@ class InspirationController {
       if (author !== undefined) { updates.push('author = ?'); params.push(author) }
       if (description !== undefined) { updates.push('description = ?'); params.push(description) }
       if (content_summary !== undefined) { updates.push('content_summary = ?'); params.push(content_summary) }
+      if (categories !== undefined) {
+        updates.push('categories = ?'); params.push(categories || null)
+        // 同步 inspiration_type 为第一个分类
+        const first = categories ? String(categories).split(',')[0].trim() : null
+        if (first) { updates.push('inspiration_type = ?'); params.push(first) }
+      }
       if (image_texts !== undefined) {
         // image_texts 可能为 null（清空）或数组
         const arr = Array.isArray(image_texts) ? image_texts : []

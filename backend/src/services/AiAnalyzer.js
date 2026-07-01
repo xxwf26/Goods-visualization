@@ -153,6 +153,34 @@ ${ocrText || '(无)'}
   }
 
   /**
+   * AI 多分类：根据内容判断灵感属于哪些分类(可多选，至少1个)
+   * @param {string} content 标题+正文+总结+OCR文字
+   * @returns {Promise<string[]>} 分类值数组，如 ['peripheral','effect']
+   */
+  static async categorize(content) {
+    const prompt = `你是周边物料领域专家。根据帖子内容，判断它属于以下哪些分类（可多选，至少选1个，只选确实相关的）：
+
+1. packaging（包装结构）：礼盒、纸袋、卡套、开窗、抽拉盒、内托、外箱及运输包装等包装结构参考
+2. peripheral（周边品类灵感）：亚克力立牌、透卡、徽章、色纸、金属、PVC、纸品、礼盒套组等周边成品参考
+3. effect（效果与特殊工艺）：贝壳光、仿螺钿、反光、镭射、烫金、云母、幻彩、局部UV、立体烫金、压纹等视觉效果/工艺
+4. production（印刷与生产攻略）：纸张类型、印刷方式、覆膜、打样流程、工艺拆解、文件制作及生产避坑等
+
+帖子内容：
+${(content || '').substring(0, 1200)}
+
+只输出分类值(英文)，逗号分隔，不要解释。例如：peripheral,effect`
+
+    let resp = ''
+    try {
+      resp = await chatCompletion(CFG.textModel, [{ role: 'user', content: prompt }], 2000)
+    } catch (e) { return [] }
+    const valid = ['packaging', 'peripheral', 'effect', 'production']
+    const result = resp.split(/[,，\s]+/).map(s => s.trim().toLowerCase()).filter(s => valid.includes(s))
+    // 去重
+    return [...new Set(result)]
+  }
+
+  /**
    * 从内容中提取价值说明 + 匹配标签库
    * @param {string} content 正文+图片OCR文字
    * @param {Object} tagsByType { ip:[{id,name}], category:[...], craft:[...], scene:[...] }

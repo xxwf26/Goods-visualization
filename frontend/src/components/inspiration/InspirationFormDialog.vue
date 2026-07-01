@@ -33,10 +33,10 @@
           </el-form-item>
         </el-col>
 
-        <!-- 分类 -->
-        <el-col :span="12">
-          <el-form-item label="分类" prop="inspiration_type">
-            <el-select v-model="formData.inspiration_type" placeholder="选择分类" style="width:100%">
+        <!-- 分类（多选） -->
+        <el-col :span="24">
+          <el-form-item label="分类" prop="categories">
+            <el-select v-model="formData.categories" multiple placeholder="选择分类（可多选，AI也会自动分类）" style="width:100%">
               <el-option label="包装结构" value="packaging" />
               <el-option label="周边品类灵感" value="peripheral" />
               <el-option label="效果与特殊工艺" value="effect" />
@@ -296,7 +296,7 @@ async function loadTagOptions() {
 // 表单数据（字段名与后端对齐）
 const formData = reactive({
   title: '',
-  inspiration_type: '',
+  categories: [],
   source_url: '',
   source_type: '',
   author: '',
@@ -325,9 +325,17 @@ watch(() => props.inspirationData, (newData) => {
     // 仅回填 formData 已声明的字段，避免脏字段
     Object.keys(formData).forEach(key => {
       if (newData[key] !== undefined && newData[key] !== null) {
-        formData[key] = key.endsWith('_tag_ids') ? String(newData[key]) : newData[key]
+        if (key === 'categories') {
+          formData.categories = String(newData[key]).split(',').map(s => s.trim()).filter(Boolean)
+        } else {
+          formData[key] = key.endsWith('_tag_ids') ? String(newData[key]) : newData[key]
+        }
       }
     })
+    // categories 为空时，用 inspiration_type 兜底
+    if (formData.categories.length === 0 && newData.inspiration_type) {
+      formData.categories = [newData.inspiration_type]
+    }
     const cover = newData.cover_image || newData.screenshot
     if (cover) {
       formData.cover_image = cover
@@ -406,7 +414,7 @@ async function fetchMeta() {
 
 function resetForm() {
   formData.title = ''
-  formData.inspiration_type = props.inspirationType || 'peripheral'
+  formData.categories = []
   formData.source_url = ''
   formData.source_type = ''
   formData.author = ''
@@ -429,7 +437,8 @@ function buildPayload() {
     source_url: formData.source_url,
     source_type: formData.source_type,
     author: formData.author || null,
-    inspiration_type: formData.inspiration_type || props.inspirationType || 'peripheral',
+    inspiration_type: (formData.categories && formData.categories[0]) || props.inspirationType || 'peripheral',
+    categories: (formData.categories && formData.categories.length) ? formData.categories.join(',') : undefined,
     category_tag_ids: formData.category_tag_ids || null,
     craft_tag_ids: formData.craft_tag_ids || null,
     ip_tag_ids: formData.ip_tag_ids || null,
