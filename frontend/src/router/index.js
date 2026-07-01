@@ -11,6 +11,12 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/visitor',
+    name: 'Visitor',
+    component: () => import('@/views/visitor/index.vue'),
+    meta: { requiresAuth: true, title: '周边灵感检索' }
+  },
+  {
     path: '/',
     component: () => import('@/views/layout/index.vue'),
     redirect: '/home',
@@ -125,9 +131,18 @@ router.beforeEach((to, from) => {
     }
   }
 
-  // 已登录访问登录页，重定向到首页
+  // 已登录访问登录页，重定向（访客→搜索页，其他→首页）
   if (to.path === '/login' && token) {
-    return '/home'
+    const userStore = useUserStore()
+    return userStore.role === 'viewer' ? '/visitor' : '/home'
+  }
+
+  // 访客(viewer)只能进搜索页，拦住后台各库
+  if (token) {
+    const userStore = useUserStore()
+    if (userStore.role === 'viewer' && to.path !== '/visitor' && to.path !== '/login') {
+      return '/visitor'
+    }
   }
 
   // 基于角色的路由权限校验（防止直接输入 URL 越权访问）
