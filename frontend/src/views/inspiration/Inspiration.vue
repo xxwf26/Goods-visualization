@@ -15,76 +15,22 @@
       </div>
     </div>
 
-    <!-- 类型切换 Tab -->
-    <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="inspiration-tabs">
-      <el-tab-pane label="周边制品灵感" name="product" />
-      <el-tab-pane label="工艺灵感" name="craft" />
-    </el-tabs>
+    <!-- 关键词搜索（在分栏上一行） -->
+    <div class="keyword-row">
+      <el-input v-model="filterForm.keyword" placeholder="搜索标题、描述等关键词" clearable style="max-width:420px" @keyup.enter="handleFilter">
+        <template #prefix><el-icon><Search /></el-icon></template>
+      </el-input>
+      <el-button type="primary" :icon="Search" @click="handleFilter">搜索</el-button>
+      <el-button :icon="Refresh" @click="handleReset">重置</el-button>
+    </div>
 
-    <!-- 筛选区域 -->
-    <el-card class="filter-card">
-      <el-form :model="filterForm" inline>
-        <el-row :gutter="16">
-          <el-col :xs="24" :sm="12" :md="8" :lg="6">
-            <el-form-item label="品类" class="filter-item">
-              <el-select v-model="filterForm.category_tag_ids" placeholder="选择品类" clearable filterable style="width:100%">
-                <el-option v-for="cat in categoryOptions" :key="cat.id" :label="cat.tag_name" :value="cat.id" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :sm="12" :md="8" :lg="6">
-            <el-form-item label="工艺" class="filter-item">
-              <el-select v-model="filterForm.craft_tag_ids" placeholder="选择工艺" clearable filterable style="width:100%">
-                <el-option v-for="craft in craftOptions" :key="craft.id" :label="craft.tag_name" :value="craft.id" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :sm="12" :md="8" :lg="6">
-            <el-form-item label="来源平台" class="filter-item">
-              <el-select v-model="filterForm.source_type" placeholder="选择平台" clearable filterable style="width:100%">
-                <el-option label="小红书" value="小红书" />
-                <el-option label="淘宝" value="淘宝" />
-                <el-option label="1688" value="1688" />
-                <el-option label="站酷" value="站酷" />
-                <el-option label="微博" value="微博" />
-                <el-option label="抖音" value="抖音" />
-                <el-option label="Pinterest" value="pinterest" />
-                <el-option label="Instagram" value="instagram" />
-                <el-option label="其他" value="other" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :sm="12" :md="8" :lg="6">
-            <el-form-item label="采用状态" class="filter-item">
-              <el-select v-model="filterForm.collection_status" placeholder="选择状态" clearable style="width:100%">
-                <el-option label="已采用" value="applied" />
-                <el-option label="已收藏" value="collected" />
-                <el-option label="未收藏" value="uncollected" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :sm="12" :md="8" :lg="6">
-            <el-form-item label="链接状态" class="filter-item">
-              <el-select v-model="filterForm.link_status" placeholder="选择链接状态" clearable style="width:100%">
-                <el-option label="✅ 正常" value="ok" />
-                <el-option label="❌ 已失效" value="dead" />
-                <el-option label="⚠️ 无法验证" value="error" />
-                <el-option label="未检测" value="unknown" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :sm="24" :md="24" :lg="18">
-            <el-form-item label="关键词" class="filter-item">
-              <el-input v-model="filterForm.keyword" placeholder="搜索标题、描述等" clearable style="width:240px">
-                <template #prefix><el-icon><Search /></el-icon></template>
-              </el-input>
-              <el-button type="primary" :icon="Search" @click="handleFilter">搜索</el-button>
-              <el-button :icon="Refresh" @click="handleReset">重置</el-button>
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </el-form>
-    </el-card>
+    <!-- 分类分栏 -->
+    <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="inspiration-tabs">
+      <el-tab-pane label="包装结构" name="packaging" />
+      <el-tab-pane label="周边品类灵感" name="peripheral" />
+      <el-tab-pane label="效果与特殊工艺" name="effect" />
+      <el-tab-pane label="印刷与生产攻略" name="production" />
+    </el-tabs>
 
     <!-- 卡片网格 -->
     <div v-loading="loading" class="inspiration-grid">
@@ -94,7 +40,7 @@
           <el-image v-if="item.cover_image" :src="toImageUrl(item.cover_image)" fit="cover" :preview-src-list="getImageUrls(item.images)" preview-teleported />
           <div v-else class="no-image"><el-icon :size="32"><Picture /></el-icon><span>暂无截图</span></div>
           <div class="type-badge">
-            <el-tag size="small" :type="activeTab==='craft'?'warning':'primary'">{{ activeTab==='craft'?'工艺':'制品' }}</el-tag>
+            <el-tag size="small" type="primary">{{ tabLabelMap[item.inspiration_type] || '未分类' }}</el-tag>
           </div>
           <div class="source-badge">
             <el-tag size="small" type="info">{{ getSourceLabel(item.source_type) }}</el-tag>
@@ -149,7 +95,6 @@ import { useRoute } from 'vue-router'
 import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock, Link } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
-import { getTagsByType } from '@/api/tags'
 import { getInspirations, checkInspirationLinks, getInspirationDetail, deleteInspiration } from '@/api/inspirations'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import InspirationFormDialog from '@/components/inspiration/InspirationFormDialog.vue'
@@ -159,22 +104,15 @@ const userStore = useUserStore()
 const canEdit = computed(() => userStore.hasPermission('inspiration:edit') || userStore.hasPermission('inspiration:create'))
 const canDelete = computed(() => userStore.role === 'admin' || userStore.role === 'super_admin')
 
-const activeTab = ref('product')
-const filterForm = reactive({ keyword: '', category_tag_ids: null, craft_tag_ids: null, source_type: null, collection_status: null, link_status: null })
-const categoryOptions = ref([]), craftOptions = ref([])
+const activeTab = ref('peripheral')
+const filterForm = reactive({ keyword: '' })
 const loading = ref(false), tableData = ref([]), total = ref(0)
 const checking = ref(false)
 const pagination = reactive({ page: 1, pageSize: 24 })
 const formDialogVisible = ref(false), detailDialogVisible = ref(false), formMode = ref('add'), currentInspiration = ref(null)
 let refreshTimer = null
 
-async function loadOptions() {
-  try {
-    const [catR, craftR] = await Promise.all([getTagsByType('category'), getTagsByType('craft')])
-    categoryOptions.value = catR.data?.list || catR.data || []
-    craftOptions.value = craftR.data?.list || craftR.data || []
-  } catch(e) { console.error(e) }
-}
+const tabLabelMap = { packaging: '包装结构', peripheral: '周边品类灵感', effect: '效果与特殊工艺', production: '印刷与生产攻略' }
 
 async function loadData() {
   loading.value = true
@@ -182,12 +120,7 @@ async function loadData() {
     const params = {
       page: pagination.page, pageSize: pagination.pageSize,
       inspiration_type: activeTab.value,
-      keyword: filterForm.keyword || undefined,
-      source_type: filterForm.source_type || undefined,
-      collection_status: filterForm.collection_status || undefined,
-      category_tag_ids: filterForm.category_tag_ids || undefined,
-      craft_tag_ids: filterForm.craft_tag_ids || undefined,
-      link_status: filterForm.link_status || undefined
+      keyword: filterForm.keyword || undefined
     }
     const res = await getInspirations(params)
     tableData.value = res.data?.list || []
@@ -198,7 +131,7 @@ async function loadData() {
 
 function handleTabChange() { pagination.page = 1; loadData() }
 function handleFilter() { pagination.page = 1; loadData() }
-function handleReset() { filterForm.keyword=''; filterForm.category_tag_ids=null; filterForm.craft_tag_ids=null; filterForm.source_type=null; filterForm.collection_status=null; filterForm.link_status=null; pagination.page=1; loadData() }
+function handleReset() { filterForm.keyword=''; pagination.page=1; loadData() }
 function handleSizeChange(s) { pagination.pageSize=s; pagination.page=1; loadData() }
 function handlePageChange(p) { pagination.page=p; loadData() }
 function handleAdd() { formMode.value='add'; currentInspiration.value=null; formDialogVisible.value=true }
@@ -243,7 +176,7 @@ function handleFormSuccess() {
 async function handleCheckLinks() {
   try {
     await ElMessageBox.confirm(
-      `将逐条访问当前「${activeTab.value==='craft'?'工艺':'周边制品'}灵感」的外部链接并更新失效状态，可能需要一点时间。是否继续？`,
+      `将逐条访问当前「${tabLabelMap[activeTab.value]||''}」的外部链接并更新失效状态，可能需要一点时间。是否继续？`,
       '检测失效链接',
       { confirmButtonText: '开始检测', cancelButtonText: '取消', type: 'info' }
     )
@@ -299,15 +232,11 @@ onMounted(() => {
   if (route.query.keyword) {
     filterForm.keyword = String(route.query.keyword)
   }
-  // 首页搜索「工艺灵感」携带的灵感类型
+  // 携带的灵感分类
   if (route.query.inspiration_type) {
     activeTab.value = String(route.query.inspiration_type)
   }
-  // 从品类详情页跳转携带的筛选
-  if (route.query.category_tag_ids) {
-    filterForm.category_tag_ids = String(route.query.category_tag_ids)
-  }
-  loadOptions(); loadData()
+  loadData()
 })
 </script>
 
@@ -323,6 +252,7 @@ onMounted(() => {
 .inspiration-tabs :deep(.el-tabs__header) { margin-bottom:0; }
 .inspiration-tabs :deep(.el-tabs__item) { font-size:15px; font-weight:600; }
 
+.keyword-row { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
 .filter-card { margin-bottom:16px; border-radius:16px !important; }
 .filter-item { width:100%; }
 

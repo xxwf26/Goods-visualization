@@ -33,6 +33,18 @@
           </el-form-item>
         </el-col>
 
+        <!-- 分类 -->
+        <el-col :span="12">
+          <el-form-item label="分类" prop="inspiration_type">
+            <el-select v-model="formData.inspiration_type" placeholder="选择分类" style="width:100%">
+              <el-option label="包装结构" value="packaging" />
+              <el-option label="周边品类灵感" value="peripheral" />
+              <el-option label="效果与特殊工艺" value="effect" />
+              <el-option label="印刷与生产攻略" value="production" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+
         <!-- 来源平台（根据链接自动识别） -->
         <el-col :span="12">
           <el-form-item label="来源平台" prop="source_type">
@@ -233,7 +245,7 @@ const props = defineProps({
   },
   inspirationType: {
     type: String,
-    default: 'product'
+    default: 'peripheral'
   }
 })
 
@@ -284,6 +296,7 @@ async function loadTagOptions() {
 // 表单数据（字段名与后端对齐）
 const formData = reactive({
   title: '',
+  inspiration_type: '',
   source_url: '',
   source_type: '',
   author: '',
@@ -393,6 +406,7 @@ async function fetchMeta() {
 
 function resetForm() {
   formData.title = ''
+  formData.inspiration_type = props.inspirationType || 'peripheral'
   formData.source_url = ''
   formData.source_type = ''
   formData.author = ''
@@ -415,7 +429,7 @@ function buildPayload() {
     source_url: formData.source_url,
     source_type: formData.source_type,
     author: formData.author || null,
-    inspiration_type: props.inspirationType || 'product',
+    inspiration_type: formData.inspiration_type || props.inspirationType || 'peripheral',
     category_tag_ids: formData.category_tag_ids || null,
     craft_tag_ids: formData.craft_tag_ids || null,
     ip_tag_ids: formData.ip_tag_ids || null,
