@@ -232,7 +232,7 @@ class InspirationController {
 
       const {
         title,
-        inspiration_type = 'peripheral',
+        inspiration_type = 'product',
         source_type,
         source_name,
         source_url,

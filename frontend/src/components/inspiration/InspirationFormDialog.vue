@@ -33,15 +33,6 @@
           </el-form-item>
         </el-col>
 
-        <!-- 分类 -->
-        <el-col :span="12">
-          <el-form-item label="分类" prop="inspiration_type">
-            <el-select v-model="formData.inspiration_type" placeholder="选择分类" style="width:100%">
-              <el-option v-for="c in categories" :key="c.value" :label="c.label" :value="c.value" />
-            </el-select>
-          </el-form-item>
-        </el-col>
-
         <!-- 来源平台（根据链接自动识别） -->
         <el-col :span="12">
           <el-form-item label="来源平台" prop="source_type">
@@ -225,7 +216,6 @@
 import { ref, reactive, watch, computed, onMounted } from 'vue'
 import { Upload } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { INSPIRATION_CATEGORIES } from '@/constants/inspirationCategory'
 import { request } from '@/api'
 import { getTagsByType } from '@/api/tags'
 import { createInspiration, updateInspiration } from '@/api/inspirations'
@@ -243,13 +233,12 @@ const props = defineProps({
   },
   inspirationType: {
     type: String,
-    default: 'peripheral'
+    default: 'product'
   }
 })
 
 const emit = defineEmits(['update:modelValue', 'success'])
 
-const categories = INSPIRATION_CATEGORIES
 const formRef = ref(null)
 const submitting = ref(false)
 const fileList = ref([])
@@ -295,7 +284,6 @@ async function loadTagOptions() {
 // 表单数据（字段名与后端对齐）
 const formData = reactive({
   title: '',
-  inspiration_type: '',
   source_url: '',
   source_type: '',
   author: '',
@@ -405,7 +393,6 @@ async function fetchMeta() {
 
 function resetForm() {
   formData.title = ''
-  formData.inspiration_type = props.inspirationType || 'peripheral'
   formData.source_url = ''
   formData.source_type = ''
   formData.author = ''
@@ -428,7 +415,7 @@ function buildPayload() {
     source_url: formData.source_url,
     source_type: formData.source_type,
     author: formData.author || null,
-    inspiration_type: formData.inspiration_type || props.inspirationType || 'peripheral',
+    inspiration_type: props.inspirationType || 'product',
     category_tag_ids: formData.category_tag_ids || null,
     craft_tag_ids: formData.craft_tag_ids || null,
     ip_tag_ids: formData.ip_tag_ids || null,

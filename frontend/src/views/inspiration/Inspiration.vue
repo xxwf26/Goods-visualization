@@ -15,14 +15,27 @@
       </div>
     </div>
 
+    <!-- 类型切换 Tab -->
+    <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="inspiration-tabs">
+      <el-tab-pane label="周边制品灵感" name="product" />
+      <el-tab-pane label="工艺灵感" name="craft" />
+    </el-tabs>
+
     <!-- 筛选区域 -->
     <el-card class="filter-card">
       <el-form :model="filterForm" inline>
         <el-row :gutter="16">
           <el-col :xs="24" :sm="12" :md="8" :lg="6">
-            <el-form-item label="分类" class="filter-item">
-              <el-select v-model="filterForm.inspiration_type" placeholder="选择分类" clearable filterable style="width:100%">
-                <el-option v-for="c in categories" :key="c.value" :label="c.label" :value="c.value" />
+            <el-form-item label="品类" class="filter-item">
+              <el-select v-model="filterForm.category_tag_ids" placeholder="选择品类" clearable filterable style="width:100%">
+                <el-option v-for="cat in categoryOptions" :key="cat.id" :label="cat.tag_name" :value="cat.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="12" :md="8" :lg="6">
+            <el-form-item label="工艺" class="filter-item">
+              <el-select v-model="filterForm.craft_tag_ids" placeholder="选择工艺" clearable filterable style="width:100%">
+                <el-option v-for="craft in craftOptions" :key="craft.id" :label="craft.tag_name" :value="craft.id" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -60,7 +73,7 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :xs="24" :sm="24" :md="24" :lg="24">
+          <el-col :xs="24" :sm="24" :md="24" :lg="18">
             <el-form-item label="关键词" class="filter-item">
               <el-input v-model="filterForm.keyword" placeholder="搜索标题、描述等" clearable style="width:240px">
                 <template #prefix><el-icon><Search /></el-icon></template>
@@ -81,7 +94,7 @@
           <el-image v-if="item.cover_image" :src="toImageUrl(item.cover_image)" fit="cover" :preview-src-list="getImageUrls(item.images)" preview-teleported />
           <div v-else class="no-image"><el-icon :size="32"><Picture /></el-icon><span>暂无截图</span></div>
           <div class="type-badge">
-            <el-tag size="small" type="primary">{{ getCategoryLabel(item.inspiration_type) }}</el-tag>
+            <el-tag size="small" :type="activeTab==='craft'?'warning':'primary'">{{ activeTab==='craft'?'工艺':'制品' }}</el-tag>
           </div>
           <div class="source-badge">
             <el-tag size="small" type="info">{{ getSourceLabel(item.source_type) }}</el-tag>
@@ -125,7 +138,7 @@
       <el-pagination v-model:current-page="pagination.page" v-model:page-size="pagination.pageSize" :page-sizes="[12,24,36,48]" :total="total" layout="total,sizes,prev,pager,next" @size-change="handleSizeChange" @current-change="handlePageChange" />
     </div>
 
-    <InspirationFormDialog v-model="formDialogVisible" :mode="formMode" :inspiration-data="currentInspiration" :inspiration-type="filterForm.inspiration_type" @success="handleFormSuccess" />
+    <InspirationFormDialog v-model="formDialogVisible" :mode="formMode" :inspiration-data="currentInspiration" :inspiration-type="activeTab" @success="handleFormSuccess" />
     <InspirationDetailDialog v-model="detailDialogVisible" :inspiration="currentInspiration" @analyzed="handleAnalyzed" @deleted="handleDeleted" />
   </div>
 </template>
@@ -136,8 +149,8 @@ import { useRoute } from 'vue-router'
 import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock, Link } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { getTagsByType } from '@/api/tags'
 import { getInspirations, checkInspirationLinks, getInspirationDetail, deleteInspiration } from '@/api/inspirations'
-import { INSPIRATION_CATEGORIES, getCategoryLabel } from '@/constants/inspirationCategory'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import InspirationFormDialog from '@/components/inspiration/InspirationFormDialog.vue'
 import InspirationDetailDialog from '@/components/inspiration/InspirationDetailDialog.vue'
@@ -146,23 +159,34 @@ const userStore = useUserStore()
 const canEdit = computed(() => userStore.hasPermission('inspiration:edit') || userStore.hasPermission('inspiration:create'))
 const canDelete = computed(() => userStore.role === 'admin' || userStore.role === 'super_admin')
 
-const categories = INSPIRATION_CATEGORIES
-const filterForm = reactive({ inspiration_type: null, keyword: '', source_type: null, collection_status: null, link_status: null })
+const activeTab = ref('product')
+const filterForm = reactive({ keyword: '', category_tag_ids: null, craft_tag_ids: null, source_type: null, collection_status: null, link_status: null })
+const categoryOptions = ref([]), craftOptions = ref([])
 const loading = ref(false), tableData = ref([]), total = ref(0)
 const checking = ref(false)
 const pagination = reactive({ page: 1, pageSize: 24 })
 const formDialogVisible = ref(false), detailDialogVisible = ref(false), formMode = ref('add'), currentInspiration = ref(null)
 let refreshTimer = null
 
+async function loadOptions() {
+  try {
+    const [catR, craftR] = await Promise.all([getTagsByType('category'), getTagsByType('craft')])
+    categoryOptions.value = catR.data?.list || catR.data || []
+    craftOptions.value = craftR.data?.list || craftR.data || []
+  } catch(e) { console.error(e) }
+}
+
 async function loadData() {
   loading.value = true
   try {
     const params = {
       page: pagination.page, pageSize: pagination.pageSize,
-      inspiration_type: filterForm.inspiration_type || undefined,
+      inspiration_type: activeTab.value,
       keyword: filterForm.keyword || undefined,
       source_type: filterForm.source_type || undefined,
       collection_status: filterForm.collection_status || undefined,
+      category_tag_ids: filterForm.category_tag_ids || undefined,
+      craft_tag_ids: filterForm.craft_tag_ids || undefined,
       link_status: filterForm.link_status || undefined
     }
     const res = await getInspirations(params)
@@ -172,8 +196,9 @@ async function loadData() {
   finally { loading.value = false }
 }
 
+function handleTabChange() { pagination.page = 1; loadData() }
 function handleFilter() { pagination.page = 1; loadData() }
-function handleReset() { filterForm.inspiration_type=null; filterForm.keyword=''; filterForm.source_type=null; filterForm.collection_status=null; filterForm.link_status=null; pagination.page=1; loadData() }
+function handleReset() { filterForm.keyword=''; filterForm.category_tag_ids=null; filterForm.craft_tag_ids=null; filterForm.source_type=null; filterForm.collection_status=null; filterForm.link_status=null; pagination.page=1; loadData() }
 function handleSizeChange(s) { pagination.pageSize=s; pagination.page=1; loadData() }
 function handlePageChange(p) { pagination.page=p; loadData() }
 function handleAdd() { formMode.value='add'; currentInspiration.value=null; formDialogVisible.value=true }
@@ -218,14 +243,14 @@ function handleFormSuccess() {
 async function handleCheckLinks() {
   try {
     await ElMessageBox.confirm(
-      `将逐条访问灵感的外部链接并更新失效状态，可能需要一点时间。是否继续？`,
+      `将逐条访问当前「${activeTab.value==='craft'?'工艺':'周边制品'}灵感」的外部链接并更新失效状态，可能需要一点时间。是否继续？`,
       '检测失效链接',
       { confirmButtonText: '开始检测', cancelButtonText: '取消', type: 'info' }
     )
   } catch { return }
   checking.value = true
   try {
-    const res = await checkInspirationLinks({ inspiration_type: filterForm.inspiration_type || undefined })
+    const res = await checkInspirationLinks({ inspiration_type: activeTab.value })
     const d = res.data || {}
     ElMessage({
       type: d.dead > 0 ? 'warning' : 'success',
@@ -270,15 +295,19 @@ function formatDate(d) { if(!d) return '-'; return d.split('T')[0] }
 
 onMounted(() => {
   const route = useRoute()
-  // 从检索跳转携带的关键词
+  // 从全局检索/首页搜索跳转携带的关键词
   if (route.query.keyword) {
     filterForm.keyword = String(route.query.keyword)
   }
-  // 携带的灵感分类
+  // 首页搜索「工艺灵感」携带的灵感类型
   if (route.query.inspiration_type) {
-    filterForm.inspiration_type = String(route.query.inspiration_type)
+    activeTab.value = String(route.query.inspiration_type)
   }
-  loadData()
+  // 从品类详情页跳转携带的筛选
+  if (route.query.category_tag_ids) {
+    filterForm.category_tag_ids = String(route.query.category_tag_ids)
+  }
+  loadOptions(); loadData()
 })
 </script>
 
@@ -289,6 +318,10 @@ onMounted(() => {
 .page-title h2 { margin:0; font-size:22px; font-weight:700; color:var(--text-primary); }
 .data-count { color:#A8A29E; font-size:14px; }
 .page-actions { display:flex; gap:12px; }
+
+.inspiration-tabs { margin-bottom:12px; }
+.inspiration-tabs :deep(.el-tabs__header) { margin-bottom:0; }
+.inspiration-tabs :deep(.el-tabs__item) { font-size:15px; font-weight:600; }
 
 .filter-card { margin-bottom:16px; border-radius:16px !important; }
 .filter-item { width:100%; }
