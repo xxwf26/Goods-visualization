@@ -49,7 +49,7 @@
       <div class="content-section">
         <div class="sec-label">
           <el-icon><MagicStick /></el-icon> AI 图片分析
-          <el-button v-if="!editing" link type="primary" size="small" :loading="analyzing" @click="handleAnalyze" style="margin-left:auto;">
+          <el-button v-if="!editing && canEdit" link type="primary" size="small" :loading="analyzing" @click="handleAnalyze" style="margin-left:auto;">
             {{ inspiration.content_summary ? '重新分析' : 'AI 分析图片内容' }}
           </el-button>
         </div>
