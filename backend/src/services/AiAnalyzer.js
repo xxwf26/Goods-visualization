@@ -59,7 +59,7 @@ class AiAnalyzer {
         { type: 'image_url', image_url: { url: imageUrl } },
         { type: 'text', text: '识别这张图片里的全部文字内容，保持原有排版和层级，原样输出。只输出识别到的文字，不要解释。' }
       ]
-    }], 1500)
+    }], 2000)
     return content.trim()
   }
 
@@ -80,7 +80,7 @@ class AiAnalyzer {
         { type: 'image_url', image_url: { url: b64 } },
         { type: 'text', text: '识别这张图片里的全部文字内容，保持原有排版和层级，原样输出。只输出识别到的文字，不要解释。' }
       ]
-    }], 1500)
+    }], 2000)
     return content.trim()
   }
 
@@ -141,12 +141,12 @@ ${ocrText || '(无)'}
 
 请按以下格式输出（不要输出多余解释）：
 【标题】一句话概括帖子主题
-【内容总结】150-300字，把图片和正文里的核心信息整理成连贯说明
+【内容总结】把图片和正文里的核心信息尽量完整地整理成连贯说明，不要省略重要细节，上限2000字
 【关键要点】列出3-8条要点（工艺/参数/适用场景等，每条一行）
 【适用场景】这条内容适合用在什么产品/场景`
 
     try {
-      return await chatCompletion(CFG.textModel, [{ role: 'user', content: summaryPrompt }], 3000)
+      return await chatCompletion(CFG.textModel, [{ role: 'user', content: summaryPrompt }], 4000)
     } catch (e) {
       return '总结生成失败，以下为各图片识别文字：\n\n' + ocrText
     }
