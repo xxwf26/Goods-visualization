@@ -179,7 +179,9 @@ async function getRecommendation() {
   thinkingText.value = ''
   try {
     const token = localStorage.getItem('token')
-    const resp = await fetch('/api/search/recommend', {
+    // 直连后端3000端口，绕过Vite代理对SSE的缓冲
+    const baseUrl = `http://${window.location.hostname}:3000`
+    const resp = await fetch(`${baseUrl}/api/search/recommend`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ q: searched.value, groups: groups.value })
