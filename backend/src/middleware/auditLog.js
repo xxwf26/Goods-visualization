@@ -69,6 +69,20 @@ const auditLog = (req, res, next) => {
     return next()
   }
 
+  // 非数据写入的 POST 接口不记录（AI分析/链接检测/元数据抓取/搜索推荐等）
+  const SKIP_URLS = [
+    '/api/search/recommend',      // AI工作流推荐
+    '/api/inspirations/fetch-meta', // 链接元数据抓取
+    '/api/inspirations/check-links', // 批量链接检测
+    '/api/upload/image',            // 图片上传(单独审计意义不大)
+    '/api/upload/images',
+    '/api/upload/base64',
+  ]
+  const urlPath = req.originalUrl.split('?')[0]
+  if (SKIP_URLS.some(u => urlPath === u) || /\/api\/inspirations\/\d+\/(check-link|analyze|refresh-snapshot)$/.test(urlPath)) {
+    return next()
+  }
+
   // 捕获响应体（沿用项目 {code,message,data} 约定）
   const originalJson = res.json.bind(res)
   res.json = (body) => {
