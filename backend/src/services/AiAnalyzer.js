@@ -187,13 +187,23 @@ ${(content || '').substring(0, 1200)}
    * @returns {Promise<string>} AI 生成的推荐文本
    */
   static async recommendWorkflow(keyword, groups) {
+    // 从数据库读取管理员配置的系统提示词
+    let systemPrompt = '你是周边物料采购顾问，擅长包装印刷、亚克力制品、纸品、徽章等周边商品的设计与采购。回答要专业、简洁、实用，给出可执行的建议。'
+    try {
+      const db = require('../config/database')
+      const [row] = await db.query('SELECT setting_value FROM system_setting WHERE setting_key = ?', ['ai_system_prompt'])
+      if (row && row.setting_value) systemPrompt = row.setting_value
+    } catch {}
+
     // 构建搜索结果摘要
     const summary = groups.map(g => {
       const titles = (g.items || []).slice(0, 3).map(it => it.title).join('、')
       return `${g.label}: ${g.total}条${titles ? `（${titles}）` : ''}`
     }).join('\n')
 
-    const prompt = `你是周边物料采购顾问。用户搜索了「${keyword}」，以下是系统中的搜索结果摘要：
+    const prompt = `${systemPrompt}
+
+用户搜索了「${keyword}」，以下是系统中的搜索结果摘要：
 
 ${summary}
 

@@ -16,6 +16,7 @@ const routePermissionConfig = {
     '/system/permission',
     '/system/logs',
     '/system/traffic',
+    '/system/settings',
     '/import'
   ],
   // 需要编辑或管理员权限的路由

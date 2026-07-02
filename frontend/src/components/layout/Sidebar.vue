@@ -71,6 +71,10 @@
           <el-icon><DataLine /></el-icon>
           <template #title>流量监控</template>
         </el-menu-item>
+        <el-menu-item index="/system/settings">
+          <el-icon><MagicStick /></el-icon>
+          <template #title>AI配置</template>
+        </el-menu-item>
       </el-sub-menu>
     </el-menu>
 
@@ -98,7 +102,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { HomeFilled, Monitor, FolderOpened, Money, Coin, Sunny, WarningFilled, Shop, Setting, Upload, Collection, Lock, Tickets, DataAnalysis, DataLine } from '@element-plus/icons-vue'
+import { HomeFilled, Monitor, FolderOpened, Money, Coin, Sunny, WarningFilled, Shop, Setting, Upload, Collection, Lock, Tickets, DataAnalysis, DataLine, MagicStick } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
 defineProps({

@@ -57,6 +57,7 @@ const priceRecordRoutes = require('./routes/priceRecord')
 const designNoteRoutes = require('./routes/designNote')
 const logRoutes = require('./routes/log')
 const searchRoutes = require('./routes/search')
+const settingRoutes = require('./routes/setting')
 
 // 操作审计：对写操作自动记录到 log 表（须在业务路由之前挂载）
 const auditLog = require('./middleware/auditLog')
@@ -75,6 +76,7 @@ app.use('/api/price-records', priceRecordRoutes)
 app.use('/api/design-notes', designNoteRoutes)
 app.use('/api/logs', logRoutes)
 app.use('/api/search', searchRoutes)
+app.use('/api/settings', settingRoutes)
 
 // 健康检查
 app.get('/api', (req, res) => {

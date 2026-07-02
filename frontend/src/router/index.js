@@ -100,6 +100,12 @@ const routes = [
         meta: { requiresAuth: true, title: '流量监控' }
       },
       {
+        path: 'system/settings',
+        name: 'SystemSettings',
+        component: () => import('@/views/system/Settings.vue'),
+        meta: { requiresAuth: true, title: 'AI配置' }
+      },
+      {
         path: 'category/:id',
         name: 'CategoryDetail',
         component: () => import('@/views/category/CategoryDetail.vue'),

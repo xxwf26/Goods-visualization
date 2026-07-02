@@ -85,7 +85,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, Close, Loading, ArrowRight, SwitchButton, MagicStick } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
@@ -110,7 +110,17 @@ const groups = ref([])
 const recommendation = ref('')
 const recommending = ref(false)
 let timer = null
-const hotWords = ['拍立得', '烫金', '抱枕', '立牌', '徽章', '明信片']
+const hotWords = ref(['拍立得', '烫金', '抱枕', '立牌', '徽章', '明信片'])
+
+// 从系统配置加载热门词
+onMounted(async () => {
+  try {
+    const res = await request.get('/settings/visitor_hot_words')
+    if (res.code === 200 && res.data) {
+      hotWords.value = String(res.data).split(',').map(s => s.trim()).filter(Boolean)
+    }
+  } catch {}
+})
 
 // 详情弹窗
 const detailVisible = ref(false)
