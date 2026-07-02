@@ -31,6 +31,25 @@
       <div v-if="loading" class="loading"><el-icon class="is-loading"><Loading /></el-icon> 检索中…</div>
       <template v-else>
         <div v-if="groups.length === 0" class="empty">没有找到「{{ searched }}」相关内容，换个关键词试试</div>
+        <template v-else>
+        <!-- 工作流推荐 -->
+        <div class="recommend-card">
+          <div class="recommend-header">
+            <el-icon><MagicStick /></el-icon>
+            <span>智能工作流推荐</span>
+          </div>
+          <div v-if="!recommendation" class="recommend-trigger">
+            <p>基于「{{ searched }}」的搜索结果，AI 为你生成从设计到采购的决策建议</p>
+            <el-button type="primary" size="small" :loading="recommending" @click="getRecommendation">
+              <el-icon><MagicStick /></el-icon> 获取工作流推荐
+            </el-button>
+          </div>
+          <div v-else class="recommend-content">
+            <pre class="recommend-text">{{ recommendation }}</pre>
+            <el-button link size="small" @click="recommendation = ''">收起</el-button>
+          </div>
+        </div>
+        </template>
         <div v-for="g in groups" :key="g.type" class="group">
           <div class="group-header">
             <span class="group-label">{{ g.label }}</span>
@@ -68,7 +87,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Close, Loading, ArrowRight, SwitchButton } from '@element-plus/icons-vue'
+import { Search, Close, Loading, ArrowRight, SwitchButton, MagicStick } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
 import { getInspirationDetail } from '@/api/inspirations'
@@ -88,6 +107,8 @@ const keyword = ref('')
 const searched = ref('')
 const loading = ref(false)
 const groups = ref([])
+const recommendation = ref('')
+const recommending = ref(false)
 let timer = null
 const hotWords = ['拍立得', '烫金', '抱枕', '立牌', '徽章', '明信片']
 
@@ -128,6 +149,7 @@ async function doSearch() {
   if (!q) return
   loading.value = true
   searched.value = q
+  recommendation.value = ''
   try {
     const res = await request.get('/search', { params: { q } })
     if (res.code === 200) groups.value = res.data?.groups || []
@@ -136,7 +158,17 @@ async function doSearch() {
   finally { loading.value = false }
 }
 
-function clear() { keyword.value = ''; searched.value = ''; groups.value = [] }
+async function getRecommendation() {
+  recommending.value = true
+  try {
+    const res = await request.post('/search/recommend', { q: searched.value, groups: groups.value }, { timeout: 120000 })
+    if (res.code === 200) recommendation.value = res.data?.recommendation || ''
+    else recommendation.value = '推荐生成失败，请稍后重试'
+  } catch { recommendation.value = '推荐生成失败，请稍后重试' }
+  finally { recommending.value = false }
+}
+
+function clear() { keyword.value = ''; searched.value = ''; groups.value = []; recommendation.value = '' }
 function logout() { userStore.logout(); router.push('/login') }
 </script>
 
@@ -185,6 +217,24 @@ function logout() { userStore.logout(); router.push('/login') }
 .result-section { max-width: 860px; margin: 0 auto; padding: 20px 20px 60px; }
 .loading { text-align: center; color: #8B5CF6; padding: 40px; }
 .empty { text-align: center; color: #94A3B8; padding: 60px 0; font-size: 15px; }
+
+/* 工作流推荐 */
+.recommend-card {
+  background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%);
+  border-radius: 16px; padding: 20px 22px; margin-bottom: 20px;
+  border: 1px solid #DDD6FE;
+}
+.recommend-header { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; color: #7C3AED; margin-bottom: 12px; }
+.recommend-trigger { text-align: center; padding: 8px 0; }
+.recommend-trigger p { font-size: 13px; color: #64748B; margin: 0 0 12px; }
+.recommend-content { position: relative; }
+.recommend-text {
+  font-family: inherit; font-size: 14px; line-height: 1.8; color: #334155;
+  white-space: pre-wrap; word-break: break-word; margin: 0; padding: 14px 16px;
+  background: rgba(255,255,255,0.7); border-radius: 10px;
+}
+.recommend-content .el-button { position: absolute; top: 8px; right: 8px; }
+
 .group { background: #fff; border-radius: 16px; padding: 18px 22px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(139,92,246,0.06); border: 1px solid #EDE9FE; }
 .group-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #F5F3FF; }
 .group-label { font-size: 16px; font-weight: 700; color: #7C3AED; }

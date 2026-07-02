@@ -181,6 +181,43 @@ ${(content || '').substring(0, 1200)}
   }
 
   /**
+   * 根据搜索结果生成工作流推荐
+   * @param {string} keyword 搜索关键词
+   * @param {Array} groups 搜索结果分组 [{type,label,total,items:[{title,subtitle}]}]
+   * @returns {Promise<string>} AI 生成的推荐文本
+   */
+  static async recommendWorkflow(keyword, groups) {
+    // 构建搜索结果摘要
+    const summary = groups.map(g => {
+      const titles = (g.items || []).slice(0, 3).map(it => it.title).join('、')
+      return `${g.label}: ${g.total}条${titles ? `（${titles}）` : ''}`
+    }).join('\n')
+
+    const prompt = `你是周边物料采购顾问。用户搜索了「${keyword}」，以下是系统中的搜索结果摘要：
+
+${summary}
+
+请根据搜索结果，生成一个从设计到采购的工作流推荐，帮助用户决策。严格按以下格式输出：
+
+【推荐流程】
+1. [步骤标题] 具体说明（关联：灵感库/价格/供应商/设计要求/项目）
+2. [步骤标题] 具体说明（关联：...）
+3. ...（3-6步）
+
+【预算参考】
+如有价格数据，给出预算区间参考；无数据则说明"暂无价格数据"
+
+【风险提示】
+1-3条注意事项，如工艺难点、供应商选择建议、设计避坑等`
+
+    try {
+      return await chatCompletion(CFG.textModel, [{ role: 'user', content: prompt }], 3000)
+    } catch (e) {
+      return '推荐生成失败，请稍后重试'
+    }
+  }
+
+  /**
    * 从内容中提取价值说明 + 匹配标签库
    * @param {string} content 正文+图片OCR文字
    * @param {Object} tagsByType { ip:[{id,name}], category:[...], craft:[...], scene:[...] }

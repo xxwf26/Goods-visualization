@@ -70,6 +70,24 @@ class SearchController {
     }
   }
 
+  /**
+   * 工作流推荐（根据搜索结果让 AI 生成采购决策建议）
+   * POST /api/search/recommend
+   */
+  async recommend(req, res, next) {
+    try {
+      const { q, groups } = req.body || {}
+      if (!q || !groups || !groups.length) {
+        return res.status(400).json(Response.badRequest('缺少搜索关键词或结果'))
+      }
+      const AiAnalyzer = require('../services/AiAnalyzer')
+      const recommendation = await AiAnalyzer.recommendWorkflow(q, groups)
+      res.json(Response.success({ recommendation }, '推荐生成完成'))
+    } catch (error) {
+      next(error)
+    }
+  }
+
   async _searchProject(like) {
     const where = `WHERE is_delete = 0 AND (product_name LIKE ? OR project_name LIKE ?
       OR purchase_order_no LIKE ? OR requester LIKE ? OR region LIKE ?)`

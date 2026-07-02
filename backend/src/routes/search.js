@@ -9,5 +9,6 @@ const { authMiddleware } = require('../middleware/auth')
 router.use(authMiddleware)
 
 router.get('/', searchController.search.bind(searchController))
+router.post('/recommend', searchController.recommend.bind(searchController))
 
 module.exports = router
