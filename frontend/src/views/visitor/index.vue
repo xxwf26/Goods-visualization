@@ -197,8 +197,7 @@ async function getRecommendation() {
   thinkingText.value = '🔍 正在检索「' + searched.value + '」的相关数据，准备生成工作流推荐…'
   try {
     const token = localStorage.getItem('token')
-    const baseUrl = `http://${window.location.hostname}:3000`
-    const resp = await fetch(`${baseUrl}/api/search/recommend`, {
+    const resp = await fetch('/api/search/recommend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ q: searched.value, groups: groups.value }),
