@@ -11,11 +11,16 @@ const createPool = () => {
       user: process.env.DB_USER || 'root',
       password: process.env.DB_PASSWORD || '',
       charset: 'utf8mb4',
+      collation: 'utf8mb4_unicode_ci',
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
       enableKeepAlive: true,
       keepAliveInitialDelay: 0
+    })
+    // 每个新连接强制 SET NAMES，确保中文不乱码
+    pool.on('connection', (conn) => {
+      conn.query('SET NAMES utf8mb4')
     })
   }
   return pool
