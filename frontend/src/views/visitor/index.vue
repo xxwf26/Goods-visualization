@@ -45,6 +45,9 @@
               @click="canOpenDetail(g.type) && openDetail(g.type, it.id)"
             >
               <div class="item-title">{{ it.title }}<el-icon v-if="canOpenDetail(g.type)" class="item-arrow"><ArrowRight /></el-icon></div>
+              <div class="item-tags" v-if="g.type === 'inspiration' && it.categories">
+                <el-tag v-for="c in parseCategories(it.categories)" :key="c" size="small" effect="plain" type="primary">{{ c }}</el-tag>
+              </div>
               <div class="item-sub" v-if="it.subtitle">{{ it.subtitle }}</div>
             </div>
             <div v-if="g.total > g.items.length" class="item-more">仅显示前 {{ g.items.length }} 条，共 {{ g.total }} 条</div>
@@ -96,6 +99,11 @@ const currentDetail = ref(null)
 // 哪些类型可打开详情（tag 无详情页）
 const detailableTypes = ['inspiration', 'project', 'price', 'supplier', 'designNote']
 function canOpenDetail(type) { return detailableTypes.includes(type) }
+
+const categoryMap = { packaging: '包装结构', peripheral: '周边品类灵感', effect: '效果与特殊工艺', production: '印刷与生产攻略' }
+function parseCategories(cats) {
+  return String(cats).split(',').map(s => s.trim()).filter(Boolean).map(v => categoryMap[v] || v)
+}
 
 async function openDetail(type, id) {
   currentDetail.value = null
@@ -188,6 +196,7 @@ function logout() { userStore.logout(); router.push('/login') }
 .item-title { font-size: 14px; font-weight: 600; color: #1E293B; display: flex; justify-content: space-between; align-items: center; }
 .item-arrow { color: #CBD5E1; }
 .item.clickable:hover .item-arrow { color: #8B5CF6; }
+.item-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .item-sub { font-size: 12px; color: #94A3B8; margin-top: 4px; line-height: 1.5; }
 .item-more { font-size: 12px; color: #CBD5E1; padding-top: 6px; }
 </style>

@@ -453,53 +453,6 @@ class InspirationController {
   }
 
   /**
-   * 收藏灵感
-   * POST /api/inspirations/:id/collect
-   */
-  async collect(req, res, next) {
-    try {
-      const { id } = req.params
-      const { folder_id } = req.body
-
-      const result = await db.query(
-        'UPDATE inspiration SET collection_status = "collected", folder_id = ?, update_time = NOW() WHERE id = ? AND is_delete = 0',
-        [folder_id, id]
-      )
-
-      if (result.affectedRows === 0) {
-        return res.status(404).json(Response.notFound('灵感不存在'))
-      }
-
-      res.json(Response.success(null, '收藏成功'))
-    } catch (error) {
-      next(error)
-    }
-  }
-
-  /**
-   * 取消收藏
-   * POST /api/inspirations/:id/uncollect
-   */
-  async uncollect(req, res, next) {
-    try {
-      const { id } = req.params
-
-      const result = await db.query(
-        'UPDATE inspiration SET collection_status = "uncollected", folder_id = NULL, update_time = NOW() WHERE id = ? AND is_delete = 0',
-        [id]
-      )
-
-      if (result.affectedRows === 0) {
-        return res.status(404).json(Response.notFound('灵感不存在'))
-      }
-
-      res.json(Response.success(null, '已取消收藏'))
-    } catch (error) {
-      next(error)
-    }
-  }
-
-  /**
    * 检测单条灵感的链接是否失效
    * POST /api/inspirations/:id/check-link
    */
@@ -552,29 +505,6 @@ class InspirationController {
       // 没有链接可检测的条目记为跳过
       summary.skipped = rows.length - items.length
       res.json(Response.success(summary, `检测完成：失效 ${summary.dead}，无法验证 ${summary.error}，正常 ${summary.ok}`))
-    } catch (error) {
-      next(error)
-    }
-  }
-
-  /**
-   * 收藏夹列表
-   * GET /api/inspiration-folders
-   */
-  async folders(req, res, next) {
-    try {
-      const sql = `
-        SELECT f.*,
-               COUNT(i.id) as inspiration_count
-        FROM inspiration_folder f
-        LEFT JOIN inspiration i ON f.id = i.folder_id AND i.is_delete = 0
-        WHERE f.is_delete = 0
-        GROUP BY f.id
-        ORDER BY f.sort ASC, f.id ASC
-      `
-      const list = await db.query(sql)
-
-      res.json(Response.success(list))
     } catch (error) {
       next(error)
     }
@@ -793,30 +723,8 @@ class InspirationController {
       next(error)
     }
   }
-
-  /**
-   * 新增收藏夹
-   * POST /api/inspiration-folders
-   */
-  async createFolder(req, res, next) {
-    try {
-      const { folder_name, folder_type = 'personal', parent_id = 0, description, sort = 0, is_public = 0 } = req.body
-
-      if (!folder_name) {
-        return res.status(400).json(Response.badRequest('收藏夹名称不能为空'))
-      }
-
-      const sql = `
-        INSERT INTO inspiration_folder (folder_name, folder_type, parent_id, description, sort, is_public, create_user_id, create_time, update_time, is_delete)
-        VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), 0)
-      `
-      const result = await db.query(sql, [folder_name, folder_type, parent_id, description, sort, is_public, req.user?.id])
-
-      res.json(Response.success({ id: result.insertId }, '创建成功'))
-    } catch (error) {
-      next(error)
-    }
-  }
 }
+
+module.exports = new InspirationController()
 
 module.exports = new InspirationController()
