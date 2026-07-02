@@ -90,8 +90,6 @@ function chatCompletionStream(model, messages, maxTokens, onChunk) {
     req.end()
   })
 }
-  })
-}
 
 class AiAnalyzer {
   /**
