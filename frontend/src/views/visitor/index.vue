@@ -38,9 +38,9 @@
             <el-icon><MagicStick /></el-icon>
             <span>智能工作流推荐</span>
           </div>
-          <div v-if="!recommendation" class="recommend-trigger">
+          <div v-if="!recommendation && !recommending && !thinkingText" class="recommend-trigger">
             <p>基于「{{ searched }}」的搜索结果，AI 为你生成从设计到采购的决策建议</p>
-            <el-button type="primary" size="small" :loading="recommending" @click="getRecommendation">
+            <el-button type="primary" size="small" @click="getRecommendation">
               <el-icon><MagicStick /></el-icon> 获取工作流推荐
             </el-button>
           </div>
@@ -50,7 +50,7 @@
               <div class="thinking-text">{{ thinkingText }}</div>
             </div>
             <pre v-if="recommendation" class="recommend-text">{{ recommendation }}</pre>
-            <el-button link size="small" @click="recommendation = ''; thinkingText = ''">收起</el-button>
+            <el-button v-if="recommendation && !recommending" link size="small" @click="recommendation = ''; thinkingText = ''">收起</el-button>
           </div>
         </div>
         </template>
