@@ -170,10 +170,34 @@ async function doSearch() {
 
 async function getRecommendation() {
   recommending.value = true
+  recommendation.value = ''
   try {
-    const res = await request.post('/search/recommend', { q: searched.value, groups: groups.value }, { timeout: 120000 })
-    if (res.code === 200) recommendation.value = res.data?.recommendation || ''
-    else recommendation.value = '推荐生成失败，请稍后重试'
+    const token = localStorage.getItem('token')
+    const resp = await fetch('/api/search/recommend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ q: searched.value, groups: groups.value })
+    })
+    if (!resp.ok) { recommendation.value = '推荐生成失败，请稍后重试'; return }
+
+    const reader = resp.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop()
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        try {
+          const data = JSON.parse(line.slice(6))
+          if (data.delta) recommendation.value += data.delta
+          if (data.error) { recommendation.value = '推荐生成失败：' + data.error; break }
+        } catch {}
+      }
+    }
   } catch { recommendation.value = '推荐生成失败，请稍后重试' }
   finally { recommending.value = false }
 }

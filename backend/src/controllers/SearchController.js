@@ -71,7 +71,7 @@ class SearchController {
   }
 
   /**
-   * 工作流推荐（根据搜索结果让 AI 生成采购决策建议）
+   * 工作流推荐（SSE 流式输出）
    * POST /api/search/recommend
    */
   async recommend(req, res, next) {
@@ -80,11 +80,21 @@ class SearchController {
       if (!q || !groups || !groups.length) {
         return res.status(400).json(Response.badRequest('缺少搜索关键词或结果'))
       }
+      // SSE 流式响应
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-cache')
+      res.setHeader('Connection', 'keep-alive')
+      res.flushHeaders()
+
       const AiAnalyzer = require('../services/AiAnalyzer')
-      const recommendation = await AiAnalyzer.recommendWorkflow(q, groups)
-      res.json(Response.success({ recommendation }, '推荐生成完成'))
+      await AiAnalyzer.recommendWorkflowStream(q, groups, (delta) => {
+        res.write(`data: ${JSON.stringify({ delta })}\n\n`)
+      })
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`)
+      res.end()
     } catch (error) {
-      next(error)
+      res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`)
+      res.end()
     }
   }
 
