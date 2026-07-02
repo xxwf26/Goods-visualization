@@ -47,7 +47,7 @@
           <div v-else class="recommend-content">
             <div v-if="thinkingText" class="thinking-box">
               <div class="thinking-label"><el-icon class="is-loading"><Loading /></el-icon> AI 思考中…</div>
-              <div class="thinking-text">{{ thinkingText }}</div>
+              <div ref="thinkingRef" class="thinking-text">{{ thinkingText }}</div>
             </div>
             <pre v-if="recommendation" class="recommend-text">{{ recommendation }}</pre>
             <el-button v-if="recommendation && !recommending" link size="small" @click="recommendation = ''; thinkingText = ''">收起</el-button>
@@ -79,17 +79,22 @@
       </template>
     </div>
 
-    <!-- 只读详情弹窗（按类型渲染） -->
-    <InspirationDetailDialog v-if="detailType==='inspiration'" v-model="detailVisible" :inspiration="currentDetail" />
-    <ProjectDetailDialog v-if="detailType==='project'" v-model="detailVisible" :project="currentDetail" />
-    <PriceRecordDetailDialog v-if="detailType==='price'" v-model="detailVisible" :record="currentDetail" />
-    <DesignNoteDetailDialog v-if="detailType==='designNote'" v-model="detailVisible" :record="currentDetail" />
-    <SupplierDetailDialog v-if="detailType==='supplier'" v-model="detailVisible" :supplier="currentDetail" />
+    <!-- 详情弹窗 -->
+    <el-dialog v-model="detailVisible" title="详情" width="700px" destroy-on-close class="visitor-detail-dialog">
+      <div v-if="detailLoading" v-loading="true" style="min-height:200px"></div>
+      <template v-else>
+        <InspirationDetailDialog v-if="detailType==='inspiration'" :model-value="true" :inspiration="currentDetail" @update:model-value="detailVisible = $event" />
+        <ProjectDetailDialog v-if="detailType==='project'" :model-value="true" :project="currentDetail" @update:model-value="detailVisible = $event" />
+        <PriceRecordDetailDialog v-if="detailType==='price'" :model-value="true" :record="currentDetail" @update:model-value="detailVisible = $event" />
+        <DesignNoteDetailDialog v-if="detailType==='designNote'" :model-value="true" :record="currentDetail" @update:model-value="detailVisible = $event" />
+        <SupplierDetailDialog v-if="detailType==='supplier'" :model-value="true" :supplier="currentDetail" @update:model-value="detailVisible = $event" />
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, Close, Loading, ArrowRight, SwitchButton, MagicStick } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
@@ -131,6 +136,7 @@ onMounted(async () => {
 const detailVisible = ref(false)
 const detailType = ref('')
 const currentDetail = ref(null)
+const detailLoading = ref(false)
 
 // 哪些类型可打开详情（tag 无详情页）
 const detailableTypes = ['inspiration', 'project', 'price', 'supplier', 'designNote']
@@ -143,6 +149,7 @@ function parseCategories(cats) {
 
 async function openDetail(type, id) {
   currentDetail.value = null
+  detailLoading.value = true
   detailType.value = type
   detailVisible.value = true
   try {
@@ -150,21 +157,26 @@ async function openDetail(type, id) {
     const res = await fn(id)
     if (res.code === 200) currentDetail.value = res.data
   } catch { /* 忽略 */ }
+  finally { detailLoading.value = false }
 }
 
 function onInput() {
   clearTimeout(timer)
   const q = keyword.value.trim()
-  if (!q) { searched.value = ''; groups.value = []; return }
+  if (!q) { searched.value = ''; groups.value = []; recommendation.value = ''; thinkingText.value = ''; return }
   timer = setTimeout(() => doSearch(), 500)
 }
 
 async function doSearch() {
   const q = keyword.value.trim()
   if (!q) return
+  // 取消正在进行的推荐
+  if (abortController) { abortController.abort(); abortController = null }
+  recommending.value = false
+  thinkingText.value = ''
+  recommendation.value = ''
   loading.value = true
   searched.value = q
-  recommendation.value = ''
   try {
     const res = await request.get('/search', { params: { q } })
     if (res.code === 200) groups.value = res.data?.groups || []
@@ -173,10 +185,15 @@ async function doSearch() {
   finally { loading.value = false }
 }
 
+let abortController = null
 async function getRecommendation() {
+  // 取消上一个推荐请求
+  if (abortController) { abortController.abort() }
+  abortController = new AbortController()
+  const myController = abortController
+
   recommending.value = true
   recommendation.value = ''
-  // 立即给反馈，0秒等待
   thinkingText.value = '🔍 正在检索「' + searched.value + '」的相关数据，准备生成工作流推荐…'
   try {
     const token = localStorage.getItem('token')
@@ -184,16 +201,17 @@ async function getRecommendation() {
     const resp = await fetch(`${baseUrl}/api/search/recommend`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ q: searched.value, groups: groups.value })
+      body: JSON.stringify({ q: searched.value, groups: groups.value }),
+      signal: myController.signal
     })
-    if (!resp.ok) { recommendation.value = '推荐生成失败，请稍后重试'; return }
+    if (!resp.ok) { if (!myController.signal.aborted) recommendation.value = '推荐生成失败，请稍后重试'; return }
 
     const reader = resp.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
     while (true) {
       const { done, value } = await reader.read()
-      if (done) break
+      if (done || myController.signal.aborted) break
       buffer += decoder.decode(value, { stream: true })
       const lines = buffer.split('\n')
       buffer = lines.pop()
@@ -201,21 +219,40 @@ async function getRecommendation() {
         if (!line.startsWith('data: ')) continue
         try {
           const data = JSON.parse(line.slice(6))
-          if (data.type === 'start') { thinkingText.value = '🤔 AI 正在分析搜索结果，请稍候…' }
-          else if (data.type === 'thinking_start') { thinkingText.value = '' }
-          else if (data.type === 'thinking') { thinkingText.value = (thinkingText.value || '') + data.delta }
-          else if (data.type === 'thinking_end') { thinkingText.value = '✅ 分析完成，正在生成推荐…' }
-          else if (data.type === 'content') { recommendation.value += data.delta }
-          else if (data.type === 'done') { thinkingText.value = '' }
-          else if (data.error) { recommendation.value = '推荐生成失败：' + data.error; break }
+          if (data.type === 'start') { if (!myController.signal.aborted) thinkingText.value = '🤔 AI 正在分析搜索结果，请稍候…' }
+          else if (data.type === 'thinking_start') { if (!myController.signal.aborted) thinkingText.value = '' }
+          else if (data.type === 'thinking') { if (!myController.signal.aborted) thinkingText.value = (thinkingText.value || '') + data.delta; scrollThinking() }
+          else if (data.type === 'thinking_end') { if (!myController.signal.aborted) thinkingText.value = '✅ 分析完成，正在生成推荐…' }
+          else if (data.type === 'content') { if (!myController.signal.aborted) recommendation.value += data.delta }
+          else if (data.type === 'done') { break }
+          else if (data.error) { if (!myController.signal.aborted) recommendation.value = '推荐生成失败：' + data.error; break }
         } catch {}
       }
     }
-  } catch { recommendation.value = '推荐生成失败，请稍后重试' }
-  finally { recommending.value = false; thinkingText.value = '' }
+  } catch (e) {
+    if (e.name !== 'AbortError' && !myController.signal.aborted) {
+      recommendation.value = '推荐生成失败，请稍后重试'
+    }
+  } finally {
+    if (myController === abortController) { abortController = null }
+    if (!myController.signal.aborted) { recommending.value = false; thinkingText.value = '' }
+  }
 }
 
-function clear() { keyword.value = ''; searched.value = ''; groups.value = []; recommendation.value = '' }
+// 思考框自动滚动到底部
+const thinkingRef = ref(null)
+function scrollThinking() {
+  nextTick(() => {
+    const el = thinkingRef.value
+    if (el) el.scrollTop = el.scrollHeight
+  })
+}
+
+function clear() {
+  if (abortController) { abortController.abort(); abortController = null }
+  keyword.value = ''; searched.value = ''; groups.value = []
+  recommendation.value = ''; thinkingText.value = ''; recommending.value = false
+}
 function logout() { userStore.logout(); router.push('/login') }
 </script>
 
@@ -299,4 +336,14 @@ function logout() { userStore.logout(); router.push('/login') }
 .item-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .item-sub { font-size: 12px; color: #94A3B8; margin-top: 4px; line-height: 1.5; }
 .item-more { font-size: 12px; color: #CBD5E1; padding-top: 6px; }
+
+@media (max-width: 640px) {
+  .search-section { padding: 32px 16px 20px; }
+  .title { font-size: 24px; }
+  .search-input { font-size: 15px; }
+  .result-section { padding: 16px 12px 40px; }
+  .group { padding: 14px 16px; }
+  .recommend-card { padding: 16px; }
+  .visitor-detail-dialog { max-width: 95vw !important; }
+}
 </style>
