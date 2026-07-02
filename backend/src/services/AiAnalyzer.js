@@ -66,6 +66,7 @@ function chatCompletionStream(model, messages, maxTokens, onChunk) {
       }
       let buffer = ''
       let fullText = ''
+      let inThinking = false
       res.on('data', chunk => {
         buffer += chunk.toString()
         const lines = buffer.split('\n')
@@ -77,8 +78,19 @@ function chatCompletionStream(model, messages, maxTokens, onChunk) {
           if (data === '[DONE]') continue
           try {
             const j = JSON.parse(data)
-            const delta = j.choices?.[0]?.delta?.content
-            if (delta) { fullText += delta; onChunk(delta) }
+            const delta = j.choices?.[0]?.delta
+            // 推理模型先输出 reasoning_content（思考过程），再输出 content（正式回答）
+            const reasoning = delta?.reasoning_content
+            const content = delta?.content
+            if (reasoning) {
+              if (!inThinking) { inThinking = true; onChunk({ type: 'thinking_start' }) }
+              onChunk({ type: 'thinking', delta: reasoning })
+            }
+            if (content) {
+              if (inThinking) { inThinking = false; onChunk({ type: 'thinking_end' }) }
+              fullText += content
+              onChunk({ type: 'content', delta: content })
+            }
           } catch {}
         }
       })

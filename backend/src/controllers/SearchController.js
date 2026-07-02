@@ -87,10 +87,12 @@ class SearchController {
       res.flushHeaders()
 
       const AiAnalyzer = require('../services/AiAnalyzer')
-      await AiAnalyzer.recommendWorkflowStream(q, groups, (delta) => {
-        res.write(`data: ${JSON.stringify({ delta })}\n\n`)
+      // 立即发一个开始信号，让访客马上看到反馈
+      res.write(`data: ${JSON.stringify({ type: 'start' })}\n\n`)
+      await AiAnalyzer.recommendWorkflowStream(q, groups, (chunk) => {
+        res.write(`data: ${JSON.stringify(chunk)}\n\n`)
       })
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`)
+      res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`)
       res.end()
     } catch (error) {
       res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`)

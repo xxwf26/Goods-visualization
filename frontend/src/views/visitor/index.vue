@@ -45,8 +45,12 @@
             </el-button>
           </div>
           <div v-else class="recommend-content">
-            <pre class="recommend-text">{{ recommendation }}</pre>
-            <el-button link size="small" @click="recommendation = ''">收起</el-button>
+            <div v-if="thinkingText" class="thinking-box">
+              <div class="thinking-label"><el-icon class="is-loading"><Loading /></el-icon> AI 思考中…</div>
+              <div class="thinking-text">{{ thinkingText }}</div>
+            </div>
+            <pre v-if="recommendation" class="recommend-text">{{ recommendation }}</pre>
+            <el-button link size="small" @click="recommendation = ''; thinkingText = ''">收起</el-button>
           </div>
         </div>
         </template>
@@ -108,6 +112,7 @@ const searched = ref('')
 const loading = ref(false)
 const groups = ref([])
 const recommendation = ref('')
+const thinkingText = ref('')
 const recommending = ref(false)
 let timer = null
 const hotWords = ref(['拍立得', '烫金', '抱枕', '立牌', '徽章', '明信片'])
@@ -171,6 +176,7 @@ async function doSearch() {
 async function getRecommendation() {
   recommending.value = true
   recommendation.value = ''
+  thinkingText.value = ''
   try {
     const token = localStorage.getItem('token')
     const resp = await fetch('/api/search/recommend', {
@@ -193,13 +199,18 @@ async function getRecommendation() {
         if (!line.startsWith('data: ')) continue
         try {
           const data = JSON.parse(line.slice(6))
-          if (data.delta) recommendation.value += data.delta
-          if (data.error) { recommendation.value = '推荐生成失败：' + data.error; break }
+          if (data.type === 'start') { thinkingText.value = '正在分析搜索结果…' }
+          else if (data.type === 'thinking_start') { thinkingText.value = '' }
+          else if (data.type === 'thinking') { thinkingText.value += data.delta }
+          else if (data.type === 'thinking_end') { thinkingText.value = '' }
+          else if (data.type === 'content') { recommendation.value += data.delta }
+          else if (data.type === 'done') { thinkingText.value = '' }
+          else if (data.error) { recommendation.value = '推荐生成失败：' + data.error; break }
         } catch {}
       }
     }
   } catch { recommendation.value = '推荐生成失败，请稍后重试' }
-  finally { recommending.value = false }
+  finally { recommending.value = false; thinkingText.value = '' }
 }
 
 function clear() { keyword.value = ''; searched.value = ''; groups.value = []; recommendation.value = '' }
@@ -262,6 +273,9 @@ function logout() { userStore.logout(); router.push('/login') }
 .recommend-trigger { text-align: center; padding: 8px 0; }
 .recommend-trigger p { font-size: 13px; color: #64748B; margin: 0 0 12px; }
 .recommend-content { position: relative; }
+.thinking-box { margin-bottom: 10px; padding: 12px 14px; background: rgba(139,92,246,0.06); border-radius: 10px; border-left: 3px solid #A78BFA; }
+.thinking-label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #8B5CF6; margin-bottom: 6px; }
+.thinking-text { font-size: 12px; color: #94A3B8; line-height: 1.6; white-space: pre-wrap; max-height: 120px; overflow-y: auto; }
 .recommend-text {
   font-family: inherit; font-size: 14px; line-height: 1.8; color: #334155;
   white-space: pre-wrap; word-break: break-word; margin: 0; padding: 14px 16px;
