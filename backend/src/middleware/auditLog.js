@@ -90,6 +90,12 @@ const auditLog = (req, res, next) => {
     return originalJson(body)
   }
 
+  // 在请求还在活跃时提前捕获 IP 和 UA，避免 finish 后 socket 已销毁
+  const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString().slice(0, 50)
+  const userAgent = (req.headers['user-agent'] || '').slice(0, 500)
+  const userId = req.user?.id || null
+  const username = req.user?.username || null
+
   res.on('finish', () => {
     // 异步写日志，绝不影响主请求
     setImmediate(async () => {
@@ -106,14 +112,14 @@ const auditLog = (req, res, next) => {
             (user_id, username, operation, module, method, url, ip, user_agent, params, result, status, error_msg, create_time)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
           [
-            req.user?.id || null,
-            req.user?.username || null,
+            userId,
+            username,
             targetId ? `${operation} #${targetId}` : operation,
             moduleName,
             method,
             url.slice(0, 500),
-            (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString().slice(0, 50),
-            (req.headers['user-agent'] || '').slice(0, 500),
+            clientIp,
+            userAgent,
             sanitizeParams(req.body),
             success ? null : (typeof body.message === 'string' ? body.message.slice(0, 500) : null),
             success ? 1 : 0,
