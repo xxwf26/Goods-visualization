@@ -176,10 +176,10 @@ async function doSearch() {
 async function getRecommendation() {
   recommending.value = true
   recommendation.value = ''
-  thinkingText.value = ''
+  // 立即给反馈，0秒等待
+  thinkingText.value = '🔍 正在检索「' + searched.value + '」的相关数据，准备生成工作流推荐…'
   try {
     const token = localStorage.getItem('token')
-    // 直连后端3000端口，绕过Vite代理对SSE的缓冲
     const baseUrl = `http://${window.location.hostname}:3000`
     const resp = await fetch(`${baseUrl}/api/search/recommend`, {
       method: 'POST',
@@ -201,10 +201,10 @@ async function getRecommendation() {
         if (!line.startsWith('data: ')) continue
         try {
           const data = JSON.parse(line.slice(6))
-          if (data.type === 'start') { thinkingText.value = '正在分析搜索结果…' }
+          if (data.type === 'start') { thinkingText.value = '🤔 AI 正在分析搜索结果，请稍候…' }
           else if (data.type === 'thinking_start') { thinkingText.value = '' }
-          else if (data.type === 'thinking') { thinkingText.value += data.delta }
-          else if (data.type === 'thinking_end') { thinkingText.value = '' }
+          else if (data.type === 'thinking') { thinkingText.value = (thinkingText.value || '') + data.delta }
+          else if (data.type === 'thinking_end') { thinkingText.value = '✅ 分析完成，正在生成推荐…' }
           else if (data.type === 'content') { recommendation.value += data.delta }
           else if (data.type === 'done') { thinkingText.value = '' }
           else if (data.error) { recommendation.value = '推荐生成失败：' + data.error; break }
