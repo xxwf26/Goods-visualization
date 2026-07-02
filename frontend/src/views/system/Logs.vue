@@ -167,7 +167,11 @@ function methodType(m) {
 }
 function formatTime(t) {
   if (!t) return '-'
-  return String(t).replace('T', ' ').slice(0, 19)
+  // 后端返回 ISO 8601 UTC 时间(带Z)，需转本地时区
+  const d = new Date(t)
+  if (isNaN(d)) return String(t).replace('T', ' ').slice(0, 19)
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 function prettyParams(p) {
   if (!p) return '(无)'
