@@ -27,6 +27,8 @@ class InspirationController {
     if (!data.author && meta.author) data.author = meta.author
     // 内容快照(description)= 帖子正文引言，单独存储(2000字)；价值说明(reference_value)由用户填写，不自动填充；AI总结(content_summary)由分析接口生成
     if (!data.description && meta.description) data.description = meta.description.substring(0, 2000)
+    // 保存帖子原始标签(话题tag)，用于后续直接匹配IP/品类/工艺/场景
+    if (!data.post_tags && meta.tags?.length) data.post_tags = meta.tags.join(',')
     if (!data.cover_image && meta.image) {
       // 封面下载到本地，避免 CDN 链接过期/防盗链导致卡片封面无法显示
       const localFile = await downloadImage(meta.image, 'cover')
@@ -270,6 +272,7 @@ class InspirationController {
         source_type: source_type || null,
         description: description || null,
         reference_value: reference_value || null,
+        post_tags: null,
         content_summary: content_summary || null,
         cover_image: cover_image || null,
         images: images || null
@@ -282,17 +285,17 @@ class InspirationController {
         INSERT INTO inspiration (
           title, inspiration_type, categories, source_type, source_platform, source_name, source_url, link, author, author_url,
           ip_tag_ids, category_tag_ids, craft_tag_ids, scene_tag_ids,
-          description, reference_value, content_summary, notes, application_scenario,
+          description, reference_value, post_tags, content_summary, notes, application_scenario,
           cover_image, images, video_url, thumbnail,
           collect_time, is_adopted, collection_status, folder_id, is_featured, is_pinned,
           related_project_ids, create_user_id, create_time, update_time, is_delete
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), 0)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), 0)
       `
 
       const result = await db.query(sql, [
         snap.title, inspiration_type, categories || null, snap.source_type, snap.source_platform, snap.source_name, source_url, source_url, snap.author, author_url,
         ip_tag_ids, category_tag_ids, craft_tag_ids, scene_tag_ids,
-        snap.description, snap.reference_value, snap.content_summary, notes, application_scenario,
+        snap.description, snap.reference_value, snap.post_tags, snap.content_summary, notes, application_scenario,
         snap.cover_image, snap.images, video_url, thumbnail,
         collect_time || new Date(), is_adopted, collection_status, folder_id, is_featured, is_pinned,
         related_project_ids, req.user?.id
@@ -599,9 +602,31 @@ class InspirationController {
       for (const t of tags) {
         if (tagsByType[t.tag_type]) tagsByType[t.tag_type].push({ id: t.id, name: t.tag_name })
       }
-      const meta = await AiAnalyzer.extractMeta((insp.description || '') + '\n' + ocrText, tagsByType)
+
+      // 1. 先用帖子原始标签直接匹配（最准确）
+      const postTags = insp.post_tags ? insp.post_tags.split(',').map(s => s.trim()).filter(Boolean) : []
+      const directMatched = { ip: new Set(), category: new Set(), craft: new Set(), scene: new Set() }
+      for (const pt of postTags) {
+        for (const [type, list] of Object.entries(tagsByType)) {
+          const found = list.find(t => t.name === pt || pt.includes(t.name) || t.name.includes(pt))
+          if (found) directMatched[type].add(found.id)
+        }
+      }
+      // 转为数组
+      for (const type of Object.keys(directMatched)) {
+        directMatched[type] = [...directMatched[type]]
+      }
+
+      // 2. AI 提取补充（对直接匹配没覆盖的标签）
+      const contentWithTags = (insp.description || '') + '\n' + ocrText + (postTags.length ? '\n帖子标签: ' + postTags.join('、') : '')
+      const meta = await AiAnalyzer.extractMeta(contentWithTags, tagsByType)
+
+      // 3. 合并：直接匹配优先，AI 补充
+      for (const type of ['ip', 'category', 'craft', 'scene']) {
+        const combined = new Set([...(directMatched[type] || []), ...(meta.tagIds[type] || [])])
+        tagUpdates[type] = [...combined]
+      }
       referenceValue = meta.reference_value
-      tagUpdates = meta.tagIds
     } catch (e) { /* 标签提取失败不影响主流程 */ }
 
     // AI 多分类（可属于多个分类），失败时兜底用已有 inspiration_type
