@@ -196,19 +196,19 @@ class ProjectController {
         INSERT INTO project (
           project_name, project_code, project_type, status, priority,
           ip_tag_ids, category_tag_ids, craft_tag_ids, scene_tag_ids,
-          supplier_name, product_name, total_amount,
+          supplier_id, buyer_id, product_name, total_amount,
           project_year, person_days, quotation_file, requirement_type,
           purchase_order_no, project_start_date, project_end_date,
           requester, project_leader, remark, file_storage, parent_record,
           region,
           create_user_id, create_time, update_time, is_delete
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), 0)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), 0)
       `
 
       const result = await db.query(sql, [
         project_name, project_code, project_type, status, priority,
         ip_tag_ids, category_tag_ids, craft_tag_ids, scene_tag_ids,
-        supplier_id, buyer_id || req.user?.id, product_name, total_amount,
+        supplier_id || null, buyer_id || null, product_name, total_amount,
         project_year, person_days, quotation_file, requirement_type,
         purchase_order_no, project_start_date, project_end_date,
         requester, project_leader, remark, file_storage, parent_record,

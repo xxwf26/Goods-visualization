@@ -223,7 +223,7 @@ class AuthController {
       const userId = req.user.id
 
       const sql = `
-        SELECT DISTINCT p.permission_code
+        SELECT DISTINCT p.permission_code, p.id
         FROM sys_permission p
         JOIN sys_role_permission rp ON p.id = rp.permission_id
         JOIN sys_role r ON rp.role_id = r.id

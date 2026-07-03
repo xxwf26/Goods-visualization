@@ -82,7 +82,7 @@ class TagController {
       const list = await db.query(sql, tag_type ? [tag_type] : [])
 
       // 构建树形结构
-      const tree = this.buildTree(list)
+      const tree = TagController.buildTree(list)
 
       res.json(Response.success(tree))
     } catch (error) {
@@ -93,12 +93,12 @@ class TagController {
   /**
    * 构建树形结构
    */
-  buildTree(list, parentId = 0) {
+  static buildTree(list, parentId = 0) {
     return list
       .filter(item => item.parent_id === parentId)
       .map(item => ({
         ...item,
-        children: this.buildTree(list, item.id)
+        children: TagController.buildTree(list, item.id)
       }))
   }
 
@@ -238,8 +238,8 @@ class TagController {
       }
 
       // 检查是否有子标签
-      const [children] = await db.query('SELECT id FROM tag WHERE parent_id = ? AND is_delete = 0', [id])
-      if (children.length > 0) {
+      const children = await db.query('SELECT id FROM tag WHERE parent_id = ? AND is_delete = 0', [id])
+      if (children && children.length > 0) {
         return res.status(400).json(Response.badRequest('请先删除子标签'))
       }
 
