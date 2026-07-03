@@ -338,6 +338,7 @@ ${summary}
     const prompt = `你是包装印刷/周边物料领域的助理。根据帖子内容完成两件事：
 1. 价值说明：用一句话(50字内)说明这条灵感对周边物料采购/设计的参考价值
 2. 标签匹配：从标签库里选出与本帖内容确实相关的标签(宁少勿多，不确定就不选)
+3. IP识别：如果帖子涉及某个IP(游戏/动漫/小说等)，但标签库里没有，直接在ip数组里写出该IP名（会自动创建新标签）
 
 帖子内容：
 ${(content || '').substring(0, 1500)}
@@ -349,7 +350,7 @@ IP类: ${tagLib.ip.join('、') || '(无)'}
 场景类: ${tagLib.scene.join('、') || '(无)'}
 
 只输出JSON，不要解释：
-{"reference_value":"价值说明","ip":["标签名"],"category":["标签名"],"craft":["标签名"],"scene":["标签名"]}`
+{"reference_value":"价值说明","ip":["标签名或新IP名"],"category":["标签名"],"craft":["标签名"],"scene":["标签名"]}`
 
     let resp = ''
     try {
@@ -365,10 +366,35 @@ IP类: ${tagLib.ip.join('、') || '(无)'}
 
     // 标签名匹配回ID
     const tagIds = {}
-    for (const t of ['ip', 'category', 'craft', 'scene']) {
+    for (const t of ['category', 'craft', 'scene']) {
       const names = obj[t] || []
       tagIds[t] = (tagsByType[t] || []).filter(x => names.includes(x.name)).map(x => x.id)
     }
+    // IP特殊处理：匹配已有的 + 自动创建不存在的
+    const ipNames = obj.ip || []
+    const ipIds = []
+    const existingIps = tagsByType.ip || []
+    for (const name of ipNames) {
+      const found = existingIps.find(x => x.name === name)
+      if (found) {
+        ipIds.push(found.id)
+      } else {
+        // 标签库里没有，自动创建新IP标签
+        try {
+          const db = require('../config/database')
+          const result = await db.query(
+            "INSERT INTO tag (tag_name, tag_code, tag_type, sort, status, create_time, update_time, is_delete) VALUES (?, ?, 'ip', 99, 1, NOW(), NOW(), 0) ON DUPLICATE KEY UPDATE id=id",
+            [name, name.replace(/\s/g, '_').toLowerCase().substring(0, 50)]
+          )
+          if (result.insertId) {
+            ipIds.push(result.insertId)
+            // 加入内存缓存避免重复创建
+            existingIps.push({ id: result.insertId, name })
+          }
+        } catch {}
+      }
+    }
+    tagIds.ip = ipIds
     return { reference_value: obj.reference_value || '', tagIds }
   }
 
