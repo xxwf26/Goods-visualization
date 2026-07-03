@@ -5,10 +5,11 @@ const express = require('express')
 const router = express.Router()
 const searchController = require('../controllers/SearchController')
 const { authMiddleware } = require('../middleware/auth')
+const { rateLimit } = require('../middleware/rateLimit')
 
 router.use(authMiddleware)
 
 router.get('/', searchController.search.bind(searchController))
-router.post('/recommend', searchController.recommend.bind(searchController))
+router.post('/recommend', rateLimit({ windowMs: 60000, max: 5 }), searchController.recommend.bind(searchController))
 
 module.exports = router

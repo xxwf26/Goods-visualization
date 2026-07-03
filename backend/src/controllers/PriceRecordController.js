@@ -370,13 +370,14 @@ class PriceRecordController {
    */
   async options(req, res, next) {
     try {
+      const ALLOWED_COLS = ['category', 'supplier_name', 'ip', 'project_name']
       const pick = async (col) => {
+        if (!ALLOWED_COLS.includes(col)) throw new Error('非法列名')
         const rows = await db.query(
-          `SELECT DISTINCT ${col} as v FROM price_record WHERE is_delete = 0 AND ${col} IS NOT NULL AND ${col} <> '' ORDER BY v`
+          `SELECT DISTINCT \`${col}\` as v FROM price_record WHERE is_delete = 0 AND \`${col}\` IS NOT NULL AND \`${col}\` <> '' ORDER BY v`
         )
         return rows.map(r => r.v)
       }
-      // 列名为固定常量，无注入风险
       const [categories, suppliers, ips, projects] = await Promise.all([
         pick('category'), pick('supplier_name'), pick('ip'), pick('project_name')
       ])

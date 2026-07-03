@@ -12,13 +12,6 @@ export function login(data) {
 }
 
 /**
- * 获取当前用户信息
- */
-export function getCurrentUser() {
-  return request.get('/auth/current')
-}
-
-/**
  * 获取用户菜单权限
  */
 export function getMenus() {
@@ -30,14 +23,6 @@ export function getMenus() {
  */
 export function getPermissions() {
   return request.get('/auth/permissions')
-}
-
-/**
- * 修改密码
- * @param {Object} data - { oldPassword, newPassword }
- */
-export function changePassword(data) {
-  return request.post('/auth/change-password', data)
 }
 
 /**
@@ -75,10 +60,8 @@ export function deleteUser(id) {
 
 export default {
   login,
-  getCurrentUser,
   getMenus,
   getPermissions,
-  changePassword,
   getUsers,
   createUser,
   updateUser,

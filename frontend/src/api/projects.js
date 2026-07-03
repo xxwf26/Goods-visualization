@@ -45,14 +45,6 @@ export function deleteProject(id) {
 }
 
 /**
- * 批量导入项目
- * @param {Array} projects - 项目列表
- */
-export function importProjects(projects) {
-  return request.post('/projects/import', { projects })
-}
-
-/**
  * 导出项目
  * @param {Object} params - 导出参数
  */
@@ -73,7 +65,6 @@ export default {
   createProject,
   updateProject,
   deleteProject,
-  importProjects,
   exportProjects,
   getProjectOptions
 }

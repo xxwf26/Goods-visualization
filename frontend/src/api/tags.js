@@ -14,26 +14,11 @@ export function getTags(params) {
 }
 
 /**
- * 获取所有标签（按类型分组）
- */
-export function getAllTags() {
-  return request.get('/tags')
-}
-
-/**
  * 获取指定类型的标签
  * @param {string} type - 标签类型: ip, category, craft, scene
  */
 export function getTagsByType(type) {
   return request.get('/tags', { params: { tag_type: type } })
-}
-
-/**
- * 获取标签详情
- * @param {number} id - 标签ID
- */
-export function getTagDetail(id) {
-  return request.get(`/tags/${id}`)
 }
 
 /**
@@ -63,9 +48,7 @@ export function deleteTag(id) {
 
 export default {
   getTags,
-  getAllTags,
   getTagsByType,
-  getTagDetail,
   createTag,
   updateTag,
   deleteTag

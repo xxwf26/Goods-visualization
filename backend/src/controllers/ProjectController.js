@@ -454,9 +454,11 @@ class ProjectController {
    */
   async options(req, res, next) {
     try {
+      const ALLOWED_COLS = ['ip_tag_ids', 'project_year', 'requirement_type']
       const pick = async (col) => {
+        if (!ALLOWED_COLS.includes(col)) throw new Error('非法列名')
         const rows = await db.query(
-          `SELECT DISTINCT ${col} as v FROM project WHERE is_delete = 0 AND ${col} IS NOT NULL AND ${col} <> '' ORDER BY v`
+          `SELECT DISTINCT \`${col}\` as v FROM project WHERE is_delete = 0 AND \`${col}\` IS NOT NULL AND \`${col}\` <> '' ORDER BY v`
         )
         return rows.map(r => r.v)
       }
