@@ -282,7 +282,8 @@ import { useRoute } from 'vue-router'
 import { Plus, Download, Search, Refresh } from '@element-plus/icons-vue'
 import { Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getProjects, getProjectOptions, deleteProject, exportProjects } from '@/api/projects'
+import { getProjects, getProjectOptions, deleteProject } from '@/api/projects'
+import { exportToCsv } from '@/utils/exportCsv'
 import { getTagsByType, getSuppliers } from '@/api'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import ProjectFormDialog from '@/components/project/ProjectFormDialog.vue'
@@ -536,18 +537,28 @@ function handlePreviewImages(row) {
   previewVisible.value = true
 }
 
-async function handleExport() {
-  if (selectedRows.value.length === 0) {
-    ElMessage.warning('请选择要导出的数据')
-    return
-  }
-  try {
-    const ids = selectedRows.value.map(r => r.id).join(',')
-    const res = await exportProjects({ ids })
-    ElMessage.success('导出成功')
-  } catch (error) {
-    console.error('导出失败:', error)
-  }
+// 批量导出列定义（key 对应行字段，label 为 CSV 表头）
+const exportColumns = [
+  { key: 'product_name', label: '单品' },
+  { key: 'project_name', label: '项目' },
+  { key: 'project_year', label: '年份' },
+  { key: 'ip_tag_ids', label: 'IP' },
+  { key: 'supplier_name', label: '供应商' },
+  { key: 'project_leader', label: '主要负责人' },
+  { key: 'requester', label: '需求人' },
+  { key: 'region', label: '区服' },
+  { key: 'requirement_type', label: '需求种类' },
+  { key: 'purchase_order_no', label: '相关请购需求单' },
+  { key: 'remark', label: '备注' },
+  { key: 'parent_record', label: '父记录' }
+]
+
+function handleExport() {
+  if (!selectedRows.value.length) { ElMessage.warning('请选择要导出的数据'); return }
+  const ts = new Date().toISOString().slice(0, 10)
+  const ok = exportToCsv(`项目记录_${ts}.csv`, selectedRows.value, exportColumns)
+  if (ok) ElMessage.success(`已导出 ${selectedRows.value.length} 条`)
+  else ElMessage.warning('导出失败：无可用数据')
 }
 
 function handleFormSuccess() {

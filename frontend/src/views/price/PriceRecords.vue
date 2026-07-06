@@ -91,7 +91,9 @@
         style="width: 100%"
         max-height="calc(100vh - 340px)"
         @row-click="handleView"
+        @selection-change="handleSelectionChange"
       >
+        <el-table-column type="selection" width="40" fixed />
         <el-table-column label="#" width="55" align="center" fixed>
           <template #header>
             <div style="display:flex;align-items:center;gap:4px;">
@@ -224,6 +226,16 @@
         </template>
       </el-table>
 
+      <!-- 批量操作栏（勾选行后出现） -->
+      <transition name="el-zoom-in-bottom">
+        <div v-if="selectedRows.length > 0" class="batch-bar">
+          <span class="batch-count">已选 {{ selectedRows.length }} 条</span>
+          <el-button v-permission="'price:delete'" type="danger" size="small" @click="handleBatchDelete">批量删除</el-button>
+          <el-button v-permission="'price:view'" type="success" size="small" @click="handleExport">批量导出</el-button>
+          <el-button link size="small" @click="clearSelection">取消选择</el-button>
+        </div>
+      </transition>
+
       <!-- 分页 -->
       <div class="pagination-wrapper">
         <el-pagination
@@ -260,6 +272,7 @@ import { useRoute } from 'vue-router'
 import { Search, Refresh, PictureFilled, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getPriceRecords, getPriceRecordOptions, deletePriceRecord } from '@/api/priceRecords'
+import { exportToCsv } from '@/utils/exportCsv'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import PriceRecordFormDialog from '@/components/priceRecord/PriceRecordFormDialog.vue'
 import PriceRecordDetailDialog from '@/components/priceRecord/PriceRecordDetailDialog.vue'
@@ -424,6 +437,56 @@ async function handleDelete(row) {
   }
 }
 
+// 批量勾选
+const selectedRows = ref([])
+function handleSelectionChange(sel) { selectedRows.value = sel }
+function clearSelection() { tableRef.value?.clearSelection() }
+
+// 批量导出列定义（key 对应行字段，label 为 CSV 表头）
+const exportColumns = [
+  { key: 'product_name', label: '单品' },
+  { key: 'category', label: '品类' },
+  { key: 'supplier_name', label: '供应商' },
+  { key: 'ip', label: 'IP' },
+  { key: 'project_name', label: '项目' },
+  { key: 'sample_days', label: '打样(天)' },
+  { key: 'mass_production_days', label: '大货(天)' },
+  { key: 'style_count', label: '款式' },
+  { key: 'single_quantity', label: '单款数量' },
+  { key: 'design_fee', label: '设计费' },
+  { key: 'sample_fee', label: '打样费' },
+  { key: 'unit_price', label: '单价' },
+  { key: 'total_quantity', label: '总数量' },
+  { key: 'other_fee', label: '其他费用' },
+  { key: 'total_price', label: '总价' },
+  { key: 'production_info', label: '生产信息' },
+  { key: 'remark1', label: '备注1' },
+  { key: 'remark2', label: '备注2' }
+]
+
+async function handleBatchDelete() {
+  try {
+    await ElMessageBox.confirm(`确定删除选中的 ${selectedRows.value.length} 条价格记录吗？删除后无法恢复。`, '批量删除', {
+      confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'warning'
+    })
+    let okCount = 0
+    for (const row of selectedRows.value) {
+      try { await deletePriceRecord(row.id); okCount++ } catch {}
+    }
+    ElMessage.success(`成功删除 ${okCount} 条`)
+    selectedRows.value = []
+    loadData()
+  } catch (e) { /* 用户取消 */ }
+}
+
+function handleExport() {
+  if (!selectedRows.value.length) { ElMessage.warning('请选择要导出的数据'); return }
+  const ts = new Date().toISOString().slice(0, 10)
+  const ok = exportToCsv(`价格记录_${ts}.csv`, selectedRows.value, exportColumns)
+  if (ok) ElMessage.success(`已导出 ${selectedRows.value.length} 条`)
+  else ElMessage.warning('导出失败：无可用数据')
+}
+
 function handleFormSuccess() {
   loadData()
   loadOptions()
@@ -513,6 +576,13 @@ watch(columnVisible, () => saveColumns(), { deep: true })
 
 .price-text { color: var(--accent); font-weight: 600; }
 .total-text { color: #7C3AED; font-weight: 600; }
+.batch-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; margin-top: 8px;
+  background: linear-gradient(135deg, #EDE9FE, #F5F3FF);
+  border-radius: 10px; border: 1px solid #DDD6FE;
+}
+.batch-count { font-size: 14px; font-weight: 600; color: #7C3AED; }
 
 @media (max-width: 768px) {
   .page-header {
