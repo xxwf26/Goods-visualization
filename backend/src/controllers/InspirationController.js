@@ -771,6 +771,28 @@ class InspirationController {
       next(error)
     }
   }
+
+  /**
+   * 更新灵感链接（source_url + link 同步更新）
+   * PUT /api/inspirations/:id/link
+   * body: { link: '新链接URL' }
+   */
+  async updateLink(req, res, next) {
+    try {
+      const { id } = req.params
+      const { link } = req.body
+      if (!link || !link.startsWith('http')) {
+        return res.status(400).json(Response.badRequest('请提供有效的链接URL'))
+      }
+      await db.query(
+        'UPDATE inspiration SET source_url = ?, link = ?, link_status = ?, link_checked_at = NOW(), update_time = NOW() WHERE id = ? AND is_delete = 0',
+        [link, link, 'unknown', id]
+      )
+      res.json(Response.success(null, '链接已更新，状态重置为未检测'))
+    } catch (error) {
+      next(error)
+    }
+  }
 }
 
 module.exports = new InspirationController()

@@ -62,6 +62,15 @@ export function setLinkStatus(id, status) {
 }
 
 /**
+ * 更新灵感链接
+ * @param {number} id - 灵感ID
+ * @param {string} link - 新链接URL
+ */
+export function updateInspirationLink(id, link) {
+  return request.put(`/inspirations/${id}/link`, { link })
+}
+
+/**
  * 批量检测灵感链接失效
  * @param {Object} data - { inspiration_type? } 可选按类型限定
  */

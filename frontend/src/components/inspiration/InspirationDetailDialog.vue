@@ -36,7 +36,7 @@
                   <el-dropdown-item command="dead">❌ 标记为已失效</el-dropdown-item>
                   <el-dropdown-item command="unknown">⚪ 重置为未检测</el-dropdown-item>
                   <el-dropdown-item command="recheck" divided>🔄 重新检测</el-dropdown-item>
-                </el-dropdown-menu>
+                  <el-dropdown-item command="editlink" divided>✏️ 更新链接</el-dropdown-item>
               </template>
             </el-dropdown>
           </div>
@@ -157,7 +157,8 @@ import { computed, ref, reactive, watch, onMounted } from 'vue'
 import { getTagsByType } from '@/api/tags'
 import { Link, User, Document, Star, MagicStick, Picture, Plus, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { analyzeInspirationImages, updateInspirationDetail, deleteInspiration, refreshInspirationSnapshot, setLinkStatus, checkInspirationLink } from '@/api/inspirations'
+import { ElMessageBox as ElMsgBox } from 'element-plus'
+import { analyzeInspirationImages, updateInspirationDetail, deleteInspiration, refreshInspirationSnapshot, setLinkStatus, checkInspirationLink, updateInspirationLink } from '@/api/inspirations'
 import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
 import { usePasteUpload } from '@/composables/usePasteUpload'
@@ -377,6 +378,21 @@ async function handleSetLinkStatus(cmd) {
         emit('analyzed', props.inspiration.id)
       }
     } catch (e) { ElMessage.error('检测失败') }
+  } else if (cmd === 'editlink') {
+    try {
+      const currentLink = props.inspiration.link || props.inspiration.source_url || ''
+      const { value } = await ElMsgBox.prompt('请输入新的链接URL', '更新链接', {
+        confirmButtonText: '确定', cancelButtonText: '取消',
+        inputValue: currentLink,
+        inputPlaceholder: '粘贴小红书/淘宝/1688链接',
+        inputValidator: (v) => (v && v.startsWith('http')) || '请输入有效的URL（以http开头）'
+      })
+      const res = await updateInspirationLink(props.inspiration.id, value)
+      if (res.code === 200) {
+        ElMessage.success('链接已更新，状态重置为未检测')
+        emit('analyzed', props.inspiration.id)
+      }
+    } catch (e) { /* 用户取消 */ }
   } else {
     try {
       const res = await setLinkStatus(props.inspiration.id, cmd)
