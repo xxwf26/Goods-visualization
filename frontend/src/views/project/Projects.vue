@@ -81,6 +81,7 @@
     <!-- 数据表格 -->
     <el-card class="table-card">
       <el-table
+        ref="tableRef"
         v-loading="loading"
         :data="tableData"
         stripe
@@ -90,7 +91,20 @@
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="40" fixed />
-        <el-table-column label="#" width="55" align="center">
+        <el-table-column label="#" width="55" align="center" fixed>
+          <template #header>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <span>#</span>
+              <el-popover trigger="click" placement="bottom" :width="200">
+                <template #reference>
+                  <el-button link size="small" style="padding:0;"><el-icon><Setting /></el-icon></el-button>
+                </template>
+                <div style="font-size:13px;font-weight:600;margin-bottom:8px;">显示列</div>
+                <el-checkbox v-for="key in columnKeys" :key="key" v-model="columnVisible[key]" style="display:block;margin-bottom:4px;">{{ columnLabels[key] }}</el-checkbox>
+                <el-button size="small" link @click="resetColumns" style="margin-top:4px;">重置</el-button>
+              </el-popover>
+            </div>
+          </template>
           <template #default="{ $index }">
             {{ (pagination.page - 1) * pagination.pageSize + $index + 1 }}
           </template>
@@ -98,52 +112,52 @@
         <!-- 1. 文本 -->
         <el-table-column prop="product_name" label="文本" min-width="160" show-overflow-tooltip fixed />
         <!-- 2. IP -->
-        <el-table-column prop="ip_tag_ids" label="IP" width="90">
+        <el-table-column v-if="columnVisible.ip" prop="ip_tag_ids" label="IP" width="90">
           <template #default="{ row }"><span>{{ row.ip_tag_ids || '-' }}</span></template>
         </el-table-column>
         <!-- 3. 年份 -->
-        <el-table-column prop="project_year" label="年份" width="65" align="center">
+        <el-table-column v-if="columnVisible.year" prop="project_year" label="年份" width="65" align="center">
           <template #default="{ row }"><span>{{ row.project_year || '-' }}</span></template>
         </el-table-column>
         <!-- 4. 项目 -->
-        <el-table-column prop="project_name" label="项目" min-width="130" show-overflow-tooltip />
+        <el-table-column v-if="columnVisible.project" prop="project_name" label="项目" min-width="130" show-overflow-tooltip />
         <!-- 5. 相关请购需求单 -->
-        <el-table-column prop="purchase_order_no" label="相关请购需求单" width="160" show-overflow-tooltip>
+        <el-table-column v-if="columnVisible.orderNo" prop="purchase_order_no" label="相关请购需求单" width="160" show-overflow-tooltip>
           <template #default="{ row }"><span>{{ row.purchase_order_no || '-' }}</span></template>
         </el-table-column>
         <!-- 6. 项目总价 -->
-        <el-table-column label="项目总价" width="110" align="right">
+        <el-table-column v-if="columnVisible.amount" label="项目总价" width="110" align="right">
           <template #default="{ row }">
             <span v-if="row.total_amount" class="price-text">¥{{ Number(row.total_amount).toFixed(2) }}</span>
             <span v-else>-</span>
           </template>
         </el-table-column>
         <!-- 7. 投入人天 -->
-        <el-table-column label="投入人天" width="85" align="center">
+        <el-table-column v-if="columnVisible.days" label="投入人天" width="85" align="center">
           <template #default="{ row }"><span>{{ row.person_days ?? '-' }}</span></template>
         </el-table-column>
         <!-- 8. 需求人 -->
-        <el-table-column prop="requester" label="需求人" width="80" show-overflow-tooltip>
+        <el-table-column v-if="columnVisible.requester" prop="requester" label="需求人" width="80" show-overflow-tooltip>
           <template #default="{ row }"><span>{{ row.requester || '-' }}</span></template>
         </el-table-column>
         <!-- 9. 区服 -->
-        <el-table-column prop="region" label="区服" width="70" />
+        <el-table-column v-if="columnVisible.region" prop="region" label="区服" width="70" />
         <!-- 10. 供应商 -->
-        <el-table-column prop="supplier_name" label="供应商" width="130" show-overflow-tooltip />
+        <el-table-column v-if="columnVisible.supplier" prop="supplier_name" label="供应商" width="130" show-overflow-tooltip />
         <!-- 11. 开始日期 -->
-        <el-table-column label="开始日期" width="105">
+        <el-table-column v-if="columnVisible.startDate" label="开始日期" width="105">
           <template #default="{ row }">{{ formatDate(row.project_start_date) }}</template>
         </el-table-column>
         <!-- 12. 结束日期 -->
-        <el-table-column label="结束日期" width="105">
+        <el-table-column v-if="columnVisible.endDate" label="结束日期" width="105">
           <template #default="{ row }">{{ formatDate(row.project_end_date) }}</template>
         </el-table-column>
         <!-- 13. 主要负责人 -->
-        <el-table-column prop="project_leader" label="主要负责人" width="110" show-overflow-tooltip>
+        <el-table-column v-if="columnVisible.leader" prop="project_leader" label="主要负责人" width="110" show-overflow-tooltip>
           <template #default="{ row }"><span>{{ row.project_leader || '-' }}</span></template>
         </el-table-column>
         <!-- 14. 报价单 -->
-        <el-table-column label="报价单" width="80" align="center">
+        <el-table-column v-if="columnVisible.quotation" label="报价单" width="80" align="center">
           <template #default="{ row }">
             <div v-if="getFirstImageUrl(row.quotation_file)" style="position:relative;display:inline-block;">
               <el-image
@@ -164,21 +178,21 @@
           </template>
         </el-table-column>
         <!-- 15. 需求种类 -->
-        <el-table-column prop="requirement_type" label="需求种类" width="85" align="center">
+        <el-table-column v-if="columnVisible.reqType" prop="requirement_type" label="需求种类" width="85" align="center">
           <template #default="{ row }"><span>{{ row.requirement_type || '-' }}</span></template>
         </el-table-column>
         <!-- 16. 备注 -->
-        <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip>
+        <el-table-column v-if="columnVisible.remark" prop="remark" label="备注" min-width="140" show-overflow-tooltip>
           <template #default="{ row }"><span>{{ row.remark || '-' }}</span></template>
         </el-table-column>
         <!-- 17. 文件存储地址 -->
-        <el-table-column label="文件存储地址" width="80" align="center">
+        <el-table-column v-if="columnVisible.fileStorage" label="文件存储地址" width="80" align="center">
           <template #default="{ row }">
             <span v-if="row.file_storage">📁</span><span v-else style="color:#c0c4cc">-</span>
           </template>
         </el-table-column>
         <!-- 18. 父记录 -->
-        <el-table-column prop="parent_record" label="父记录" width="90" show-overflow-tooltip>
+        <el-table-column v-if="columnVisible.parentRecord" prop="parent_record" label="父记录" width="90" show-overflow-tooltip>
           <template #default="{ row }"><span>{{ row.parent_record || '-' }}</span></template>
         </el-table-column>
         <el-table-column label="操作" width="160" fixed="right" align="center">
@@ -207,6 +221,16 @@
           </template>
         </el-table-column>
       </el-table>
+
+      <!-- 批量操作栏 -->
+      <transition name="el-zoom-in-bottom">
+        <div v-if="selectedRows.length > 0" class="batch-bar">
+          <span class="batch-count">已选 {{ selectedRows.length }} 条</span>
+          <el-button v-permission="'project:delete'" type="danger" size="small" @click="handleBatchDelete">批量删除</el-button>
+          <el-button v-permission="'project:export'" type="success" size="small" @click="handleExport">批量导出</el-button>
+          <el-button link size="small" @click="clearSelection">取消选择</el-button>
+        </div>
+      </transition>
 
       <!-- 分页 -->
       <div class="pagination-wrapper">
@@ -246,9 +270,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Plus, Download, Search, Refresh } from '@element-plus/icons-vue'
+import { Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getProjects, getProjectOptions, deleteProject, exportProjects } from '@/api/projects'
 import { getTagsByType, getSuppliers } from '@/api'
@@ -277,6 +302,23 @@ const loading = ref(false)
 const tableData = ref([])
 const selectedRows = ref([])
 const total = ref(0)
+
+// 列显示控制
+const columnKeys = ['ip', 'year', 'project', 'orderNo', 'amount', 'days', 'requester', 'region', 'supplier', 'startDate', 'endDate', 'leader', 'quotation', 'reqType', 'remark', 'fileStorage', 'parentRecord']
+const columnLabels = { ip: 'IP', year: '年份', project: '项目', orderNo: '请购需求单', amount: '项目总价', days: '投入人天', requester: '需求人', region: '区服', supplier: '供应商', startDate: '开始日期', endDate: '结束日期', leader: '主要负责人', quotation: '报价单', reqType: '需求种类', remark: '备注', fileStorage: '文件存储', parentRecord: '父记录' }
+const columnVisible = reactive({})
+function initColumns() {
+  const saved = localStorage.getItem('project_column_settings')
+  if (saved) {
+    try { Object.assign(columnVisible, JSON.parse(saved)) } catch { resetColumns() }
+  } else { resetColumns() }
+}
+function resetColumns() {
+  columnKeys.forEach(k => { columnVisible[k] = true })
+}
+function saveColumns() {
+  localStorage.setItem('project_column_settings', JSON.stringify(columnVisible))
+}
 const pagination = reactive({
   page: 1,
   pageSize: 20
@@ -423,8 +465,27 @@ function handlePageChange(page) {
 }
 
 // 表格操作
+const tableRef = ref(null)
 function handleSelectionChange(selection) {
   selectedRows.value = selection
+}
+function clearSelection() {
+  selectedRows.value = []
+  tableRef.value?.clearSelection()
+}
+async function handleBatchDelete() {
+  try {
+    await ElMessageBox.confirm(`确定删除选中的 ${selectedRows.value.length} 条项目吗？删除后无法恢复。`, '批量删除', {
+      confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'warning'
+    })
+    let okCount = 0
+    for (const row of selectedRows.value) {
+      try { await deleteProject(row.id); okCount++ } catch {}
+    }
+    ElMessage.success(`成功删除 ${okCount} 条`)
+    selectedRows.value = []
+    loadData()
+  } catch (e) { /* 用户取消 */ }
 }
 
 function handleView(row) {
@@ -488,13 +549,15 @@ function handleFormSuccess() {
 
 onMounted(() => {
   const route = useRoute()
-  // 从品类详情页跳转携带的关键词
+  initColumns()
   if (route.query.keyword) {
     filterForm.keyword = String(route.query.keyword)
   }
   loadOptions()
   loadData()
 })
+
+watch(columnVisible, () => saveColumns(), { deep: true })
 </script>
 
 <style scoped>
@@ -584,6 +647,14 @@ onMounted(() => {
   justify-content: flex-end;
   margin-top: 16px;
 }
+
+.batch-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; margin-top: 8px;
+  background: linear-gradient(135deg, #EDE9FE, #F5F3FF);
+  border-radius: 10px; border: 1px solid #DDD6FE;
+}
+.batch-count { font-size: 14px; font-weight: 600; color: #7C3AED; }
 
 .price-text { color: var(--accent); font-weight: 600; }
 .total-text { color: #7C3AED; font-weight: 600; }

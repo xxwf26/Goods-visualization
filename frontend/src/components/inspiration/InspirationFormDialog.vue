@@ -18,11 +18,12 @@
         <!-- 原始链接（放在最前面，最重要的字段） -->
         <el-col :span="24">
           <el-form-item label="🔗 链接" prop="source_url">
-            <el-input v-model="formData.source_url" placeholder="粘贴小红书/淘宝/1688链接，自动抓取标题和封面" size="large" @blur="fetchMeta">
+            <el-input v-model="formData.source_url" placeholder="粘贴小红书/淘宝/1688链接，自动抓取标题和封面" size="large" @input="onUrlInput">
               <template #append>
                 <el-button @click="openUrl" :disabled="!formData.source_url" type="primary">打开</el-button>
               </template>
             </el-input>
+            <div v-if="urlHint" class="url-hint" :class="urlHintType">{{ urlHint }}</div>
           </el-form-item>
         </el-col>
 
@@ -385,12 +386,50 @@ function openUrl() {
   }
 }
 
+// 链接格式即时验证
+const urlHint = ref('')
+const urlHintType = ref('')
+let urlCheckTimer = null
+
+function onUrlInput() {
+  clearTimeout(urlCheckTimer)
+  const url = formData.source_url?.trim()
+  if (!url) { urlHint.value = ''; return }
+
+  urlCheckTimer = setTimeout(() => {
+    if (url.includes('xiaohongshu.com') || url.includes('xhslink.com')) {
+      if (url.includes('/explore/') && url.includes('xsec_token')) {
+        urlHint.value = '✅ 小红书链接格式正确，将自动抓取内容'
+        urlHintType.value = 'hint-ok'
+        fetchMeta()
+      } else if (url.includes('/discovery/item/')) {
+        urlHint.value = '⚠️ discovery 格式可能无法抓取，建议用 /explore/ 格式（分享→复制链接）'
+        urlHintType.value = 'hint-error'
+      } else if (!url.includes('xsec_token')) {
+        urlHint.value = '⚠️ 链接缺少 xsec_token，可能无法抓取内容'
+        urlHintType.value = 'hint-warn'
+      } else {
+        urlHint.value = '✅ 小红书链接，将尝试抓取'
+        urlHintType.value = 'hint-ok'
+        fetchMeta()
+      }
+    } else if (url.includes('taobao.com') || url.includes('1688.com') || url.includes('tmall.com')) {
+      urlHint.value = '✅ 淘宝/1688链接，登录墙平台需手动上传截图'
+      urlHintType.value = 'hint-ok'
+    } else if (url.startsWith('http')) {
+      urlHint.value = '将尝试抓取此链接的内容'
+      urlHintType.value = 'hint-warn'
+    } else {
+      urlHint.value = ''
+    }
+  }, 400)
+}
+
 // 粘贴链接后自动抓取标题、封面、平台
 let fetchingTimer = null
 async function fetchMeta() {
   const url = formData.source_url?.trim()
   if (!url || !url.startsWith('http')) return
-  // 如果已有标题，说明已手动填写，不覆盖
   if (formData.title) return
 
   clearTimeout(fetchingTimer)
@@ -499,6 +538,11 @@ onMounted(loadTagOptions)
 .inspiration-form {
   padding-right: 20px;
 }
+
+.url-hint { font-size: 12px; margin-top: 6px; padding: 4px 8px; border-radius: 6px; }
+.hint-ok { color: #67c23a; background: #f0f9eb; }
+.hint-warn { color: #e6a23c; background: #fdf6ec; }
+.hint-error { color: #f56c6c; background: #fef0f0; }
 
 .upload-tip {
   font-size: 12px;
