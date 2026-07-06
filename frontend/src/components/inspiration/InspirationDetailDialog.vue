@@ -37,6 +37,7 @@
                   <el-dropdown-item command="unknown">⚪ 重置为未检测</el-dropdown-item>
                   <el-dropdown-item command="recheck" divided>🔄 重新检测</el-dropdown-item>
                   <el-dropdown-item command="editlink" divided>✏️ 更新链接</el-dropdown-item>
+                </el-dropdown-menu>
               </template>
             </el-dropdown>
           </div>
