@@ -20,6 +20,9 @@
             <el-tag size="small" type="primary">{{ inspiration.source_platform || '其他' }}</el-tag>
             <el-input v-model="form.author" placeholder="作者" size="small" style="width:160px" />
           </div>
+          <el-input v-model="form.link" placeholder="帖子链接（修改后链接状态重置为未检测）" size="small" class="d-link-input" clearable>
+            <template #prefix><el-icon><Link /></el-icon></template>
+          </el-input>
         </template>
         <template v-else>
           <h3 class="d-title">{{ inspiration.title || '无标题' }}</h3>
@@ -28,6 +31,25 @@
             <span v-if="inspiration.author" class="d-author"><el-icon><User /></el-icon>{{ inspiration.author }}</span>
             <span v-if="inspiration.link_status==='dead'" class="d-dead">链接已失效</span>
             <span v-else-if="inspiration.link_status==='error'" class="d-err">链接无法验证</span>
+            <!-- 链接失效/抓不到内容的常见原因（留给后人排查参考） -->
+            <el-popover v-if="!editing" placement="bottom" :width="360" trigger="click">
+              <template #reference>
+                <el-button link size="small" type="info" class="link-reason-btn">
+                  <el-icon><InfoFilled /></el-icon>链接失效原因
+                </el-button>
+              </template>
+              <div class="link-reason-tip">
+                <div class="lr-title">链接失效 / 抓不到内容的常见原因</div>
+                <ol>
+                  <li><b>笔记被删或设为私密 / 仅粉丝可见</b>：小红书对未登录的服务端请求返回 404，浏览器登录态能看，后端抓不到（最常见）。</li>
+                  <li><b>分享令牌 xsec_token 过期</b>：小红书分享链接带时效，失效后需重新「分享 → 复制链接」并更新。</li>
+                  <li><b>平台风控 / 限流</b>：同一笔记匿名请求被暂时拦截，可稍后重试。</li>
+                  <li><b>登录墙平台</b>：1688 / 淘宝等需登录才能查看，请直接上传截图后点「AI 分析图片内容」。</li>
+                  <li><b>链接已下架</b>：商品下架或原帖被删。</li>
+                </ol>
+                <div class="lr-foot">补救：在详情里上传截图 + 点「AI 分析图片内容」补全；或重新复制链接后用「链接状态 → 更新链接」。</div>
+              </div>
+            </el-popover>
             <el-dropdown v-if="!editing && canEdit" trigger="click" size="small" @command="handleSetLinkStatus">
               <el-button link size="small" type="primary">链接状态<el-icon><ArrowDown /></el-icon></el-button>
               <template #dropdown>
@@ -156,7 +178,7 @@
 <script setup>
 import { computed, ref, reactive, watch, onMounted } from 'vue'
 import { getTagsByType } from '@/api/tags'
-import { Link, User, Document, Star, MagicStick, Picture, Plus, ArrowDown } from '@element-plus/icons-vue'
+import { Link, User, Document, Star, MagicStick, Picture, Plus, ArrowDown, InfoFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ElMessageBox as ElMsgBox } from 'element-plus'
 import { analyzeInspirationImages, updateInspirationDetail, deleteInspiration, refreshInspirationSnapshot, setLinkStatus, checkInspirationLink, updateInspirationLink } from '@/api/inspirations'
@@ -198,7 +220,7 @@ const refreshing = ref(false)
 const editing = ref(false)
 
 const form = reactive({
-  title: '', author: '', description: '', content_summary: '',
+  title: '', author: '', description: '', content_summary: '', link: '',
   imageTexts: []  // [{file, text}]
 })
 
@@ -245,6 +267,7 @@ function startEdit() {
   form.author = props.inspiration?.author || ''
   form.description = props.inspiration?.description || ''
   form.content_summary = props.inspiration?.content_summary || ''
+  form.link = props.inspiration?.link || props.inspiration?.source_url || ''
   form.imageTexts = parsedImageTexts.value.map(x => ({ file: x.file || null, text: x.text || '' }))
   editing.value = true
 }
@@ -255,8 +278,19 @@ function cancelEdit() {
 
 async function saveEdit() {
   if (!props.inspiration?.id) return
+  // 链接校验：留空或合法 http(s) 才放行
+  if (form.link && !/^https?:\/\//i.test(form.link)) {
+    ElMessage.error('链接需以 http:// 或 https:// 开头')
+    return
+  }
   saving.value = true
   try {
+    const origLink = props.inspiration?.link || props.inspiration?.source_url || ''
+    // 链接有变更：走专门的更新链接接口（会同步 source_url/link 并重置状态为未检测）
+    if (form.link && form.link !== origLink) {
+      const lr = await updateInspirationLink(props.inspiration.id, form.link)
+      if (lr.code !== 200) { ElMessage.error(lr.message || '链接更新失败'); return }
+    }
     const res = await updateInspirationDetail(props.inspiration.id, {
       title: form.title,
       author: form.author,
@@ -363,7 +397,7 @@ async function handleRefresh() {
       ElMessage.error(res.message || '抓取失败')
     }
   } catch (e) {
-    ElMessage.error('抓取失败：' + (e?.message || '链接可能已失效'))
+    ElMessage.error('抓取失败：' + (e?.message || '链接可能已失效') + '（点「链接失效原因」查看说明）')
   } finally {
     refreshing.value = false
   }
@@ -431,8 +465,15 @@ watch(() => props.modelValue, (v) => { if (!v) editing.value = false })
 .d-title-input { margin-bottom: 8px; }
 .d-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .d-author { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: #64748B; }
+.d-link-input { margin-top: 8px; }
 .d-dead { font-size: 12px; color: #EF4444; font-weight: 600; }
 .d-err { font-size: 12px; color: #F59E0B; font-weight: 600; }
+.link-reason-btn { font-size: 12px; color: #909399; }
+.link-reason-tip { font-size: 13px; line-height: 1.6; color: #303133; }
+.link-reason-tip .lr-title { font-weight: 600; margin-bottom: 8px; }
+.link-reason-tip ol { padding-left: 18px; margin: 0 0 8px; }
+.link-reason-tip ol li { margin-bottom: 6px; }
+.link-reason-tip .lr-foot { color: #909399; font-size: 12px; border-top: 1px solid #EBEEF5; padding-top: 8px; }
 
 .content-section { margin-bottom: 16px; }
 .sec-label {
