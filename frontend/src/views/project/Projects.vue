@@ -89,6 +89,7 @@
         style="width: 100%"
         max-height="calc(100vh - 340px)"
         @selection-change="handleSelectionChange"
+        @row-click="handleView"
       >
         <el-table-column type="selection" width="40" fixed />
         <el-table-column label="#" width="55" align="center" fixed>
@@ -220,6 +221,12 @@
             </el-button>
           </template>
         </el-table-column>
+        <template #empty>
+          <div style="padding:40px 0;color:#94A3B8;">
+            <p style="font-size:15px;margin:0 0 12px;">未找到匹配的项目</p>
+            <el-button size="small" @click="handleReset">清空筛选条件</el-button>
+          </div>
+        </template>
       </el-table>
 
       <!-- 批量操作栏 -->

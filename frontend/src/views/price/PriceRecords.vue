@@ -83,14 +83,29 @@
     <!-- 数据表格 -->
     <el-card class="table-card">
       <el-table
+        ref="tableRef"
         v-loading="loading"
         :data="tableData"
         stripe
         border
         style="width: 100%"
         max-height="calc(100vh - 340px)"
+        @row-click="handleView"
       >
-        <el-table-column label="#" width="55" align="center">
+        <el-table-column label="#" width="55" align="center" fixed>
+          <template #header>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <span>#</span>
+              <el-popover trigger="click" placement="bottom" :width="200">
+                <template #reference>
+                  <el-button link size="small" style="padding:0;"><el-icon><Setting /></el-icon></el-button>
+                </template>
+                <div style="font-size:13px;font-weight:600;margin-bottom:8px;">显示列</div>
+                <el-checkbox v-for="key in columnKeys" :key="key" v-model="columnVisible[key]" style="display:block;margin-bottom:4px;">{{ columnLabels[key] }}</el-checkbox>
+                <el-button size="small" link @click="resetColumns" style="margin-top:4px;">重置</el-button>
+              </el-popover>
+            </div>
+          </template>
           <template #default="{ $index }">
             {{ (pagination.page - 1) * pagination.pageSize + $index + 1 }}
           </template>
@@ -98,11 +113,11 @@
         <!-- 1. 单品 -->
         <el-table-column prop="product_name" label="单品" min-width="160" show-overflow-tooltip fixed />
         <!-- 2. 品类 -->
-        <el-table-column prop="category" label="品类" width="100" />
+        <el-table-column v-if="columnVisible.category" prop="category" label="品类" width="100" />
         <!-- 3. 供应商 -->
-        <el-table-column prop="supplier_name" label="供应商" width="140" show-overflow-tooltip />
+        <el-table-column v-if="columnVisible.supplier" prop="supplier_name" label="供应商" width="140" show-overflow-tooltip />
         <!-- 4. IP -->
-        <el-table-column prop="ip" label="IP" width="100" />
+        <el-table-column v-if="columnVisible.ip" prop="ip" label="IP" width="100" />
         <!-- 5. 图片 -->
         <el-table-column label="图片" width="80" align="center">
           <template #default="{ row }">
@@ -125,73 +140,73 @@
           </template>
         </el-table-column>
         <!-- 6. 项目 -->
-        <el-table-column prop="project_name" label="项目" min-width="140" show-overflow-tooltip />
+        <el-table-column v-if="columnVisible.project" prop="project_name" label="项目" min-width="140" show-overflow-tooltip />
         <!-- 7. 打样（天） -->
-        <el-table-column prop="sample_days" label="打样(天)" width="85" align="center">
+        <el-table-column v-if="columnVisible.sampleDays" prop="sample_days" label="打样(天)" width="85" align="center">
           <template #default="{ row }"><span>{{ row.sample_days ?? '-' }}</span></template>
         </el-table-column>
         <!-- 8. 大货（天） -->
-        <el-table-column prop="mass_production_days" label="大货(天)" width="85" align="center">
+        <el-table-column v-if="columnVisible.massDays" prop="mass_production_days" label="大货(天)" width="85" align="center">
           <template #default="{ row }"><span>{{ row.mass_production_days ?? '-' }}</span></template>
         </el-table-column>
         <!-- 9. 款式 -->
-        <el-table-column prop="style_count" label="款式" width="70" align="center">
+        <el-table-column v-if="columnVisible.styleCount" prop="style_count" label="款式" width="70" align="center">
           <template #default="{ row }"><span>{{ row.style_count ?? '-' }}</span></template>
         </el-table-column>
         <!-- 10. 单款数量 -->
-        <el-table-column prop="single_quantity" label="单款数量" width="95" align="right">
+        <el-table-column v-if="columnVisible.singleQty" prop="single_quantity" label="单款数量" width="95" align="right">
           <template #default="{ row }">
             <span>{{ row.single_quantity?.toLocaleString() || '-' }}</span>
           </template>
         </el-table-column>
         <!-- 11. 设计费 -->
-        <el-table-column label="设计费" width="90" align="right">
+        <el-table-column v-if="columnVisible.designFee" label="设计费" width="90" align="right">
           <template #default="{ row }">
             <span v-if="row.design_fee">¥{{ Number(row.design_fee).toFixed(0) }}</span><span v-else>-</span>
           </template>
         </el-table-column>
         <!-- 12. 打样费 -->
-        <el-table-column label="打样费" width="90" align="right">
+        <el-table-column v-if="columnVisible.sampleFee" label="打样费" width="90" align="right">
           <template #default="{ row }">
             <span v-if="row.sample_fee">¥{{ Number(row.sample_fee).toFixed(0) }}</span><span v-else>-</span>
           </template>
         </el-table-column>
         <!-- 13. 单价 -->
-        <el-table-column label="单价" width="90" align="right">
+        <el-table-column v-if="columnVisible.unitPrice" label="单价" width="90" align="right">
           <template #default="{ row }">
             <span v-if="row.unit_price" class="price-text">¥{{ Number(row.unit_price).toFixed(2) }}</span>
             <span v-else>-</span>
           </template>
         </el-table-column>
         <!-- 14. 总数量 -->
-        <el-table-column prop="total_quantity" label="总数量" width="95" align="right">
+        <el-table-column v-if="columnVisible.totalQty" prop="total_quantity" label="总数量" width="95" align="right">
           <template #default="{ row }">
             <span>{{ row.total_quantity?.toLocaleString() || '-' }}</span>
           </template>
         </el-table-column>
         <!-- 15. 其他费用 -->
-        <el-table-column label="其他费用" width="90" align="right">
+        <el-table-column v-if="columnVisible.otherFee" label="其他费用" width="90" align="right">
           <template #default="{ row }">
             <span v-if="row.other_fee">¥{{ Number(row.other_fee).toFixed(0) }}</span><span v-else>-</span>
           </template>
         </el-table-column>
         <!-- 16. 总价 -->
-        <el-table-column label="总价" width="100" align="right">
+        <el-table-column v-if="columnVisible.totalPrice" label="总价" width="100" align="right">
           <template #default="{ row }">
             <span v-if="row.total_price" class="total-text">¥{{ Number(row.total_price).toFixed(2) }}</span>
             <span v-else>-</span>
           </template>
         </el-table-column>
         <!-- 17. 生产信息 -->
-        <el-table-column prop="production_info" label="生产信息" min-width="140" show-overflow-tooltip>
+        <el-table-column v-if="columnVisible.productionInfo" prop="production_info" label="生产信息" min-width="140" show-overflow-tooltip>
           <template #default="{ row }"><span>{{ row.production_info || '-' }}</span></template>
         </el-table-column>
         <!-- 18. 备注1 -->
-        <el-table-column prop="remark1" label="备注1" min-width="120" show-overflow-tooltip>
+        <el-table-column v-if="columnVisible.remark1" prop="remark1" label="备注1" min-width="120" show-overflow-tooltip>
           <template #default="{ row }"><span>{{ row.remark1 || '-' }}</span></template>
         </el-table-column>
         <!-- 19. 备注2 -->
-        <el-table-column prop="remark2" label="备注2" min-width="120" show-overflow-tooltip>
+        <el-table-column v-if="columnVisible.remark2" prop="remark2" label="备注2" min-width="120" show-overflow-tooltip>
           <template #default="{ row }"><span>{{ row.remark2 || '-' }}</span></template>
         </el-table-column>
         <el-table-column label="操作" width="150" fixed="right" align="center">
@@ -201,6 +216,12 @@
             <el-button v-permission="'price:delete'" link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
+        <template #empty>
+          <div style="padding:40px 0;color:#94A3B8;">
+            <p style="font-size:15px;margin:0 0 12px;">未找到匹配的价格记录</p>
+            <el-button size="small" @click="handleReset">清空筛选条件</el-button>
+          </div>
+        </template>
       </el-table>
 
       <!-- 分页 -->
@@ -234,9 +255,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Refresh, PictureFilled } from '@element-plus/icons-vue'
+import { Search, Refresh, PictureFilled, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getPriceRecords, getPriceRecordOptions, deletePriceRecord } from '@/api/priceRecords'
 import PermissionButton from '@/components/common/PermissionButton.vue'
@@ -356,10 +377,23 @@ function handlePageChange(page) {
 }
 
 // 操作
+const tableRef = ref(null)
 function handleView(row) {
   currentRecord.value = { ...row }
   detailDialogVisible.value = true
 }
+
+// 列显示控制
+const columnKeys = ['category','supplier','ip','project','sampleDays','massDays','styleCount','singleQty','designFee','sampleFee','unitPrice','totalQty','otherFee','totalPrice','productionInfo','remark1','remark2']
+const columnLabels = { category:'品类', supplier:'供应商', ip:'IP', project:'项目', sampleDays:'打样(天)', massDays:'大货(天)', styleCount:'款式', singleQty:'单款数量', designFee:'设计费', sampleFee:'打样费', unitPrice:'单价', totalQty:'总数量', otherFee:'其他费用', totalPrice:'总价', productionInfo:'生产信息', remark1:'备注1', remark2:'备注2' }
+const columnVisible = reactive({})
+function initColumns() {
+  const saved = localStorage.getItem('priceRecord_column_settings')
+  if (saved) { try { Object.assign(columnVisible, JSON.parse(saved)) } catch { resetColumns() } }
+  else { resetColumns() }
+}
+function resetColumns() { columnKeys.forEach(k => { columnVisible[k] = true }) }
+function saveColumns() { localStorage.setItem('priceRecord_column_settings', JSON.stringify(columnVisible)) }
 
 function handleAdd() {
   formMode.value = 'add'
@@ -397,13 +431,15 @@ function handleFormSuccess() {
 
 onMounted(() => {
   const route = useRoute()
-  // 从全局检索跳转携带的关键词
+  initColumns()
   if (route.query.keyword) {
     filterForm.keyword = String(route.query.keyword)
   }
   loadOptions()
   loadData()
 })
+
+watch(columnVisible, () => saveColumns(), { deep: true })
 </script>
 
 <style scoped>

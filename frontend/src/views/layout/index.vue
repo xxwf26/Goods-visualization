@@ -17,10 +17,11 @@ import Sidebar from '@/components/layout/Sidebar.vue'
 import Header from '@/components/layout/Header.vue'
 import GlobalSearch from '@/components/layout/GlobalSearch.vue'
 
-const isCollapsed = ref(false)
+const isCollapsed = ref(localStorage.getItem('sidebar_collapsed') === 'true')
 
 const toggleSidebar = () => {
   isCollapsed.value = !isCollapsed.value
+  localStorage.setItem('sidebar_collapsed', String(isCollapsed.value))
 }
 
 // 全局检索面板（Ctrl/Cmd + K 唤起，Header 按钮也可打开）
