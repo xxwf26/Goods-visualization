@@ -7,6 +7,7 @@ const MetaFetcher = require('../services/MetaFetcher')
 const AiAnalyzer = require('../services/AiAnalyzer')
 const { downloadImage } = require('../utils/imageDownload')
 const { validate } = require('../utils/validator')
+const { isSensitiveSource } = require('../utils/urlSafety')
 const LinkChecker = require('../services/LinkChecker')
 
 class InspirationController {
@@ -20,6 +21,8 @@ class InspirationController {
     let meta
     try { meta = await MetaFetcher.fetch(url) } catch { return } // 抓取失败静默跳过，保留用户手填内容
     if (!meta) return
+    // 敏感来源(github/gitee 等代码仓库)：不抓取封面/图片，避免仓库预览图与地址暴露到灵感库卡片
+    const sensitive = isSensitiveSource(url)
     if (!data.title && meta.title) data.title = meta.title.substring(0, 200)
     if (!data.source_name && (meta.site_name || meta.author)) data.source_name = meta.author || meta.site_name
     if (!data.source_platform && meta.platform) data.source_platform = meta.platform
@@ -29,12 +32,12 @@ class InspirationController {
     if (!data.description && meta.description) data.description = meta.description.substring(0, 2000)
     // 保存帖子原始标签(话题tag)，用于后续直接匹配IP/品类/工艺/场景
     if (!data.post_tags && meta.tags?.length) data.post_tags = meta.tags.join(',')
-    if (!data.cover_image && meta.image) {
+    if (!data.cover_image && meta.image && !sensitive) {
       // 封面下载到本地，避免 CDN 链接过期/防盗链导致卡片封面无法显示
       const localFile = await downloadImage(meta.image, 'cover')
       data.cover_image = localFile || null  // 下载失败不存远程链接（浏览器加载不了）
     }
-    if (!data.images && meta.allImages?.length) data.images = meta.allImages.join(',')
+    if (!data.images && meta.allImages?.length && !sensitive) data.images = meta.allImages.join(',')
   }
 
   /**
@@ -540,11 +543,13 @@ class InspirationController {
 
     let imageUrls = []
     const url = insp.link || insp.source_url
+    const sensitive = isSensitiveSource(url)
     if (url) {
       try {
         const meta = await MetaFetcher.fetch(url)
-        imageUrls = meta.allImages || []
-        if (imageUrls.length && meta.image) {
+        // 敏感来源(github/gitee)：不取其图片/封面，避免仓库预览图入库
+        imageUrls = sensitive ? [] : (meta.allImages || [])
+        if (imageUrls.length && meta.image && !sensitive) {
           // 封面下载到本地（不存远程链接，避免防盗链/过期导致加载失败）
           const localCover = insp.cover_image && !String(insp.cover_image).startsWith('http') ? insp.cover_image : (await downloadImage(meta.image, 'cover'))
           if (localCover) {

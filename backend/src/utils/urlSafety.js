@@ -52,4 +52,14 @@ async function assertSafeUrl(url) {
   }
 }
 
-module.exports = { isBlockedIp, assertSafeUrl }
+// 来源域名黑名单：代码仓库等敏感站点。命中时不自动抓取封面/图片，
+// 防止仓库预览图(og:image)或仓库地址暴露到灵感库卡片上。
+const SENSITIVE_SOURCE_HOSTS = ['github.com', 'gitee.com']
+function isSensitiveSource(url) {
+  try {
+    const h = new URL(url).hostname.toLowerCase()
+    return SENSITIVE_SOURCE_HOSTS.some(s => h === s || h.endsWith('.' + s))
+  } catch { return false }
+}
+
+module.exports = { isBlockedIp, assertSafeUrl, isSensitiveSource }
