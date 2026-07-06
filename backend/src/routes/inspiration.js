@@ -34,6 +34,7 @@ router.post('/:id/check-link', requireRole('editor'), inspirationController.chec
 router.post('/:id/analyze', requireRole('editor'), rateLimit({ windowMs: 60000, max: 3 }), inspirationController.analyzeImages)
 router.post('/:id/refresh-snapshot', requireRole('editor'), inspirationController.refreshSnapshot)
 router.put('/:id/detail', requireRole('editor'), inspirationController.updateDetail)
+router.put('/:id/link-status', requireRole('editor'), inspirationController.setLinkStatus)
 router.put('/:id', requireRole('editor'), inspirationController.update)
 
 // 删除: admin+

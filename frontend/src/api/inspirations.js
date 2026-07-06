@@ -53,6 +53,15 @@ export function checkInspirationLink(id) {
 }
 
 /**
+ * 手动设置链接状态
+ * @param {number} id - 灵感ID
+ * @param {string} status - ok|dead|error|unknown
+ */
+export function setLinkStatus(id, status) {
+  return request.put(`/inspirations/${id}/link-status`, { status })
+}
+
+/**
  * 批量检测灵感链接失效
  * @param {Object} data - { inspiration_type? } 可选按类型限定
  */

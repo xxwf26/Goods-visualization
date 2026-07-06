@@ -748,8 +748,29 @@ class InspirationController {
       next(error)
     }
   }
-}
 
-module.exports = new InspirationController()
+  /**
+   * 手动设置链接状态（覆盖自动检测结果）
+   * PUT /api/inspirations/:id/link-status
+   * body: { status: 'ok'|'dead'|'error'|'unknown' }
+   */
+  async setLinkStatus(req, res, next) {
+    try {
+      const { id } = req.params
+      const { status } = req.body
+      const valid = ['ok', 'dead', 'error', 'unknown']
+      if (!valid.includes(status)) {
+        return res.status(400).json(Response.badRequest('无效的状态值'))
+      }
+      await db.query(
+        'UPDATE inspiration SET link_status = ?, link_checked_at = NOW(), update_time = NOW() WHERE id = ? AND is_delete = 0',
+        [status, id]
+      )
+      res.json(Response.success(null, '链接状态已更新'))
+    } catch (error) {
+      next(error)
+    }
+  }
+}
 
 module.exports = new InspirationController()

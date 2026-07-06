@@ -28,6 +28,17 @@
             <span v-if="inspiration.author" class="d-author"><el-icon><User /></el-icon>{{ inspiration.author }}</span>
             <span v-if="inspiration.link_status==='dead'" class="d-dead">链接已失效</span>
             <span v-else-if="inspiration.link_status==='error'" class="d-err">链接无法验证</span>
+            <el-dropdown v-if="!editing && canEdit" trigger="click" size="small" @command="handleSetLinkStatus">
+              <el-button link size="small" type="primary">链接状态<el-icon><ArrowDown /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="ok">✅ 标记为正常</el-dropdown-item>
+                  <el-dropdown-item command="dead">❌ 标记为已失效</el-dropdown-item>
+                  <el-dropdown-item command="unknown">⚪ 重置为未检测</el-dropdown-item>
+                  <el-dropdown-item command="recheck" divided>🔄 重新检测</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </template>
       </div>
@@ -144,9 +155,9 @@
 <script setup>
 import { computed, ref, reactive, watch, onMounted } from 'vue'
 import { getTagsByType } from '@/api/tags'
-import { Link, User, Document, Star, MagicStick, Picture, Plus } from '@element-plus/icons-vue'
+import { Link, User, Document, Star, MagicStick, Picture, Plus, ArrowDown } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { analyzeInspirationImages, updateInspirationDetail, deleteInspiration, refreshInspirationSnapshot } from '@/api/inspirations'
+import { analyzeInspirationImages, updateInspirationDetail, deleteInspiration, refreshInspirationSnapshot, setLinkStatus, checkInspirationLink } from '@/api/inspirations'
 import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
 import { usePasteUpload } from '@/composables/usePasteUpload'
@@ -353,6 +364,27 @@ async function handleRefresh() {
     ElMessage.error('抓取失败：' + (e?.message || '链接可能已失效'))
   } finally {
     refreshing.value = false
+  }
+}
+
+async function handleSetLinkStatus(cmd) {
+  if (!props.inspiration?.id) return
+  if (cmd === 'recheck') {
+    try {
+      const res = await checkInspirationLink(props.inspiration.id)
+      if (res.code === 200) {
+        ElMessage.success(`检测完成：${res.data.status === 'ok' ? '正常' : res.data.status === 'dead' ? '已失效' : '无法验证'}`)
+        emit('analyzed', props.inspiration.id)
+      }
+    } catch (e) { ElMessage.error('检测失败') }
+  } else {
+    try {
+      const res = await setLinkStatus(props.inspiration.id, cmd)
+      if (res.code === 200) {
+        ElMessage.success('链接状态已更新')
+        emit('analyzed', props.inspiration.id)
+      }
+    } catch (e) { ElMessage.error('更新失败') }
   }
 }
 
