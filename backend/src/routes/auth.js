@@ -5,9 +5,10 @@ const express = require('express')
 const router = express.Router()
 const authController = require('../controllers/AuthController')
 const { authMiddleware, requireRole } = require('../middleware/auth')
+const loginLimiter = require('../middleware/loginLimiter')
 
-// 用户登录（公开）
-router.post('/login', authController.login)
+// 用户登录（公开，加 IP 限流防爆破）
+router.post('/login', loginLimiter, authController.login)
 
 // 获取当前用户信息（需认证）
 router.get('/current', authMiddleware, authController.current)

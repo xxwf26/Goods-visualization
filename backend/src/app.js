@@ -8,11 +8,15 @@ dotenv.config()
 const config = require('./config')
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler')
 const trafficMonitor = require('./middleware/trafficMonitor')
+const securityHeaders = require('./middleware/securityHeaders')
 
 const app = express()
 
 // CORS 跨域配置
 app.use(cors(config.cors))
+
+// 安全响应头（nosniff/frame- guard/referrer/HSTS），轻量替代 helmet
+app.use(securityHeaders)
 
 // 流量监控（在所有路由前，记录每个请求字节数）
 app.use(trafficMonitor.middleware)

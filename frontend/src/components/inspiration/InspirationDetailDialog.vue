@@ -148,7 +148,7 @@
         <el-descriptions-item label="收藏状态">{{ collectionStatusText }}</el-descriptions-item>
         <el-descriptions-item label="收藏时间" :span="2">{{ formatDate(inspiration.collect_time) }}</el-descriptions-item>
         <el-descriptions-item label="原始链接" :span="2">
-          <a v-if="canViewLink" :href="linkUrl" target="_blank" rel="noopener noreferrer" class="d-link">
+          <a v-if="canViewLink" :href="safeHref" target="_blank" rel="noopener noreferrer" class="d-link">
             {{ linkUrl.substring(0, 60) }}...
           </a>
           <span v-else-if="sensitiveLink" class="d-link-muted">(来源已隐藏)</span>
@@ -167,7 +167,7 @@
           <el-button v-if="canDelete" type="danger" plain @click="handleDelete">删除</el-button>
           <el-button @click="$emit('update:modelValue', false)">关闭</el-button>
           <el-button v-if="canEdit" type="warning" plain @click="startEdit">编辑</el-button>
-          <a v-if="canViewLink" :href="linkUrl" target="_blank" rel="noopener noreferrer" class="jump-primary-btn">
+          <a v-if="canViewLink" :href="safeHref" target="_blank" rel="noopener noreferrer" class="jump-primary-btn">
             <el-icon><Link /></el-icon> 跳转原始链接
           </a>
         </template>
@@ -184,6 +184,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ElMessageBox as ElMsgBox } from 'element-plus'
 import { analyzeInspirationImages, updateInspirationDetail, deleteInspiration, refreshInspirationSnapshot, setLinkStatus, checkInspirationLink, updateInspirationLink } from '@/api/inspirations'
 import { isSensitiveSource } from '@/utils/sourcePolicy'
+import { safeUrl } from '@/utils/safeUrl'
 import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
 import { usePasteUpload } from '@/composables/usePasteUpload'
@@ -193,9 +194,10 @@ const canEdit = computed(() => userStore.hasPermission('inspiration:edit') || us
 const canDelete = computed(() => userStore.role === 'admin' || userStore.role === 'super_admin')
 // 当前链接及其敏感标记（github/gitee 等代码仓库）：非编辑者不展示，避免源码地址泄露
 const linkUrl = computed(() => props.inspiration?.link || props.inspiration?.source_url || '')
+const safeHref = computed(() => safeUrl(linkUrl.value)) // 仅 http/https，防 javascript: 注入
 const sensitiveLink = computed(() => isSensitiveSource(linkUrl.value))
-// 非编辑者对敏感来源不可见链接
-const canViewLink = computed(() => !!linkUrl.value && (!sensitiveLink.value || canEdit.value))
+// 非编辑者对敏感来源不可见链接；协议非法(javascript:/data:等)一律不渲染
+const canViewLink = computed(() => !!safeHref.value && (!sensitiveLink.value || canEdit.value))
 
 const props = defineProps({
   modelValue: Boolean,

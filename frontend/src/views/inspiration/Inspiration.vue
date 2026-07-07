@@ -70,8 +70,8 @@
         <div class="card-actions">
           <el-button v-if="canEdit" link type="primary" size="small" @click.stop="handleEdit(item)">编辑</el-button>
           <a
-            v-if="(item.link || item.source_url) && !isSensitiveSource(item.link || item.source_url)"
-            :href="item.link || item.source_url"
+            v-if="safeUrl(item.link || item.source_url) && !isSensitiveSource(item.link || item.source_url)"
+            :href="safeUrl(item.link || item.source_url)"
             target="_blank"
             rel="noopener noreferrer"
             class="card-jump-link"
@@ -101,6 +101,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getInspirations, checkInspirationLinks, getInspirationDetail, deleteInspiration } from '@/api/inspirations'
 import { isSensitiveSource } from '@/utils/sourcePolicy'
+import { safeUrl } from '@/utils/safeUrl'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import InspirationFormDialog from '@/components/inspiration/InspirationFormDialog.vue'
 import InspirationDetailDialog from '@/components/inspiration/InspirationDetailDialog.vue'
