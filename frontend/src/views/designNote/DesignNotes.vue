@@ -21,6 +21,25 @@
       <el-form :model="filterForm" inline>
         <el-row :gutter="16">
           <el-col :xs="24" :sm="12" :md="8" :lg="6">
+            <el-form-item label="严重程度" class="filter-item">
+              <el-select v-model="filterForm.severity" clearable style="width:100%" placeholder="全部">
+                <el-option label="致命坑" value="fatal" />
+                <el-option label="重要" value="important" />
+                <el-option label="建议" value="suggestion" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="12" :md="8" :lg="6">
+            <el-form-item label="适用阶段" class="filter-item">
+              <el-select v-model="filterForm.stage" clearable style="width:100%" placeholder="全部">
+                <el-option label="设计" value="design" />
+                <el-option label="打样" value="sample" />
+                <el-option label="大货" value="mass" />
+                <el-option label="包装" value="package" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="12" :md="8" :lg="6">
             <el-form-item label="品类" class="filter-item">
               <el-input v-model="filterForm.category" placeholder="品类" clearable style="width:100%" />
             </el-form-item>
@@ -32,7 +51,7 @@
           </el-col>
           <el-col :xs="24" :sm="24" :md="16" :lg="18">
             <el-form-item label="关键词" class="filter-item filter-keyword">
-              <el-input v-model="filterForm.keyword" placeholder="搜索标题、内容" clearable style="width:60%">
+              <el-input v-model="filterForm.keyword" placeholder="搜索标题、问题描述、正确做法" clearable style="width:55%">
                 <template #prefix><el-icon><Search /></el-icon></template>
               </el-input>
               <el-button type="primary" :icon="Search" @click="handleFilter">搜索</el-button>
@@ -50,15 +69,29 @@
           <template #default="{ $index }">{{ (pagination.page-1)*pagination.pageSize+$index+1 }}</template>
         </el-table-column>
         <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip fixed />
+        <el-table-column label="严重程度" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.severity==='fatal'" type="danger" effect="dark" size="small">致命坑</el-tag>
+            <el-tag v-else-if="row.severity==='important'" type="warning" size="small">重要</el-tag>
+            <el-tag v-else-if="row.severity==='suggestion'" type="info" size="small">建议</el-tag>
+            <span v-else style="color:#c0c4cc">-</span>
+          </template>
+        </el-table-column>
         <el-table-column label="类型" width="90" align="center">
           <template #default="{ row }">
             <el-tag size="small" :type="row.note_type==='design'?'warning':'primary'">{{ row.note_type==='design'?'设计注意':'生产注意' }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="适用阶段" width="130" align="center">
+          <template #default="{ row }">
+            <el-tag v-for="s in stageLabels(row.stage)" :key="s" size="small" effect="plain" style="margin:1px;">{{ s }}</el-tag>
+            <span v-if="!row.stage" style="color:#c0c4cc">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="category" label="品类" width="100" />
         <el-table-column prop="craft" label="工艺" width="100" />
         <el-table-column prop="ip" label="IP" width="90" />
-        <el-table-column label="内容" min-width="250" show-overflow-tooltip>
+        <el-table-column label="问题描述" min-width="220" show-overflow-tooltip>
           <template #default="{ row }">{{ row.content || '-' }}</template>
         </el-table-column>
         <el-table-column label="图片" width="60" align="center">
@@ -97,15 +130,25 @@ import DesignNoteFormDialog from '@/components/designNote/DesignNoteFormDialog.v
 import DesignNoteDetailDialog from '@/components/designNote/DesignNoteDetailDialog.vue'
 
 const activeTab = ref('production')
-const filterForm = reactive({ keyword: '', category: '', craft: '' })
+const filterForm = reactive({ keyword: '', category: '', craft: '', severity: '', stage: '' })
 const loading = ref(false), tableData = ref([]), total = ref(0)
 const pagination = reactive({ page:1, pageSize:20 })
 const formDialogVisible = ref(false), detailDialogVisible = ref(false), formMode = ref('add'), currentRecord = ref(null)
 
+const STAGE_LABELS = { design: '设计', sample: '打样', mass: '大货', package: '包装' }
+function stageLabels(stage) {
+  if (!stage) return []
+  return String(stage).split(',').map(s => s.trim()).filter(Boolean).map(s => STAGE_LABELS[s] || s)
+}
+
 async function loadData() {
   loading.value = true
   try {
-    const p = { page:pagination.page, pageSize:pagination.pageSize, note_type:activeTab.value, keyword:filterForm.keyword||undefined, category:filterForm.category||undefined, craft:filterForm.craft||undefined }
+    const p = {
+      page:pagination.page, pageSize:pagination.pageSize, note_type:activeTab.value,
+      keyword:filterForm.keyword||undefined, category:filterForm.category||undefined, craft:filterForm.craft||undefined,
+      severity:filterForm.severity||undefined, stage:filterForm.stage||undefined
+    }
     const r = await getDesignNotes(p)
     tableData.value = r.data?.list||[]; total.value = r.data?.pagination?.total||0
   } catch(e) { console.error(e) }
@@ -114,7 +157,7 @@ async function loadData() {
 
 function handleTabChange() { pagination.page=1; loadData() }
 function handleFilter() { pagination.page=1; loadData() }
-function handleReset() { filterForm.keyword=''; filterForm.category=''; filterForm.craft=''; pagination.page=1; loadData() }
+function handleReset() { filterForm.keyword=''; filterForm.category=''; filterForm.craft=''; filterForm.severity=''; filterForm.stage=''; pagination.page=1; loadData() }
 function handleSizeChange(s) { pagination.pageSize=s; pagination.page=1; loadData() }
 function handlePageChange(p) { pagination.page=p; loadData() }
 function handleView(row) { currentRecord.value={...row}; detailDialogVisible.value=true }

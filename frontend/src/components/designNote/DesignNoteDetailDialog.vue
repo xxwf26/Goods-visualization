@@ -3,18 +3,30 @@
     <div v-if="record" class="detail-container">
       <div class="info-cards">
         <div class="info-card"><div class="info-label">标题</div><div class="info-value">{{ record.title||'-' }}</div></div>
+        <div class="info-card"><div class="info-label">严重程度</div><div class="info-value">
+          <el-tag v-if="record.severity==='fatal'" type="danger" effect="dark" size="small">致命坑</el-tag>
+          <el-tag v-else-if="record.severity==='important'" type="warning" size="small">重要</el-tag>
+          <el-tag v-else-if="record.severity==='suggestion'" type="info" size="small">建议</el-tag>
+          <span v-else>-</span>
+        </div></div>
         <div class="info-card"><div class="info-label">类型</div><div class="info-value"><el-tag size="small" :type="record.note_type==='design'?'warning':'primary'">{{ record.note_type==='design'?'设计注意':'生产注意' }}</el-tag></div></div>
+        <div class="info-card"><div class="info-label">适用阶段</div><div class="info-value">
+          <el-tag v-for="s in stageLabels(record.stage)" :key="s" size="small" effect="plain" style="margin:1px;">{{ s }}</el-tag>
+          <span v-if="!record.stage">-</span>
+        </div></div>
         <div class="info-card"><div class="info-label">品类</div><div class="info-value">{{ record.category||'-' }}</div></div>
         <div class="info-card"><div class="info-label">工艺</div><div class="info-value">{{ record.craft||'-' }}</div></div>
+        <div class="info-card"><div class="info-label">IP</div><div class="info-value">{{ record.ip||'-' }}</div></div>
+        <div class="info-card"><div class="info-label">关联项目</div><div class="info-value">{{ record.project_name||'-' }}</div></div>
       </div>
       <div class="detail-fields">
-        <div class="field-row"><span class="field-label">IP</span><span class="field-value">{{ record.ip||'-' }}</span></div>
-        <div class="field-row"><span class="field-label">内容</span><span class="field-value pre-wrap">{{ record.content||'-' }}</span></div>
+        <div class="field-row"><span class="field-label">问题描述</span><span class="field-value pre-wrap">{{ record.content||'-' }}</span></div>
+        <div class="field-row" v-if="record.correct_practice"><span class="field-label">正确做法</span><span class="field-value pre-wrap">{{ record.correct_practice }}</span></div>
         <div class="field-row" v-if="record.remark"><span class="field-label">备注</span><span class="field-value">{{ record.remark }}</span></div>
       </div>
       <!-- 图片区域 -->
       <div class="image-section" v-if="imageList.length">
-        <div class="section-label"><el-icon><PictureFilled /></el-icon><span>图片</span></div>
+        <div class="section-label"><el-icon><PictureFilled /></el-icon><span>配图</span></div>
         <div class="image-grid">
           <el-image v-for="(img,i) in imageList" :key="i" :src="img" fit="cover" :preview-src-list="imageList" :initial-index="i" preview-teleported class="case-image" />
         </div>
@@ -29,9 +41,19 @@ import { computed } from 'vue'
 import { PictureFilled } from '@element-plus/icons-vue'
 const props = defineProps({ modelValue:Boolean, record:{type:Object,default:null} })
 defineEmits(['update:modelValue'])
+const STAGE_LABELS = { design: '设计', sample: '打样', mass: '大货', package: '包装' }
+function stageLabels(stage) {
+  if (!stage) return []
+  return String(stage).split(',').map(s => s.trim()).filter(Boolean).map(s => STAGE_LABELS[s] || s)
+}
+// images 存逗号分隔本地文件名；兼容历史 JSON/URL 数据
 const imageList = computed(() => {
   if (!props.record?.images) return []
-  try { const p = typeof props.record.images==='string'?JSON.parse(props.record.images):props.record.images; return Array.isArray(p)?p:[] } catch { return [] }
+  const raw = props.record.images
+  let arr = []
+  try { const p = typeof raw === 'string' ? JSON.parse(raw) : raw; if (Array.isArray(p)) arr = p; else arr = String(raw).split(',').map(s=>s.trim()).filter(Boolean) }
+  catch { arr = String(raw).split(',').map(s=>s.trim()).filter(Boolean) }
+  return arr.map(s => s.startsWith('http') || s.startsWith('/uploads') ? s : `/uploads/${s}`)
 })
 </script>
 
