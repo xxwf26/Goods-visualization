@@ -11,5 +11,6 @@ router.use(requireRole('admin'))
 
 router.get('/', controller.list)
 router.get('/modules', controller.modules)
+router.post('/:id/undo', controller.undo)
 
 module.exports = router

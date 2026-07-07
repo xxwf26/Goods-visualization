@@ -68,9 +68,15 @@
           </template>
         </el-table-column>
         <el-table-column prop="ip" label="IP" width="130" show-overflow-tooltip />
-        <el-table-column label="详情" width="70" align="center">
+        <el-table-column label="操作" width="130" align="center" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="showDetail(row)">查看</el-button>
+            <el-button
+              v-if="canUndo(row)"
+              link type="warning" size="small" :loading="undoingId === row.id"
+              @click="handleUndo(row)"
+            >回撤</el-button>
+            <el-tag v-else-if="row.undone" size="small" type="info">已回撤</el-tag>
           </template>
         </el-table-column>
       </el-table>
@@ -112,7 +118,8 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { Search, Refresh } from '@element-plus/icons-vue'
-import { getLogs, getLogModules } from '@/api/logs'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getLogs, getLogModules, undoLog } from '@/api/logs'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -121,6 +128,7 @@ const moduleOptions = ref([])
 const dateRange = ref(null)
 const detailVisible = ref(false)
 const current = ref(null)
+const undoingId = ref(null)
 
 const filterForm = reactive({ module: null, username: '', status: null, keyword: '' })
 const pagination = reactive({ page: 1, pageSize: 20 })
@@ -161,6 +169,37 @@ function handleSizeChange(s) { pagination.pageSize = s; pagination.page = 1; loa
 function handlePageChange(p) { pagination.page = p; loadData() }
 
 function showDetail(row) { current.value = row; detailVisible.value = true }
+
+// 可回撤：成功的 POST/PUT/PATCH/DELETE，且记录了资源定位，且未回撤
+function canUndo(row) {
+  if (row.undone || row.status !== 1) return false
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(row.method)) return false
+  return !!(row.resource_table && row.resource_id)
+}
+
+async function handleUndo(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确定回撤该操作吗？\n${row.operation}（${row.method} ${row.url}）\n回撤将按逆操作还原数据，可能覆盖其后的改动。`,
+      '操作回撤',
+      { confirmButtonText: '确定回撤', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch { return /* 用户取消 */ }
+  undoingId.value = row.id
+  try {
+    const res = await undoLog(row.id)
+    if (res.code === 200) {
+      ElMessage.success(res.message || '回撤成功')
+      loadData()
+    } else {
+      ElMessage.error(res.message || '回撤失败')
+    }
+  } catch (e) {
+    ElMessage.error('回撤失败：' + (e?.message || '请重试'))
+  } finally {
+    undoingId.value = null
+  }
+}
 
 function methodType(m) {
   return ({ POST: 'success', PUT: 'warning', PATCH: 'warning', DELETE: 'danger' })[m] || 'info'

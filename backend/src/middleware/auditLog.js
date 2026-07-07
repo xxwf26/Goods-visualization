@@ -2,6 +2,8 @@
  * 操作审计中间件
  * 对写操作（POST/PUT/DELETE）在响应完成后异步记录到 log 表。
  * 设计原则：不阻塞请求、不因日志失败影响主流程（fire-and-forget）。
+ * 回撤支持：PUT/DELETE 操作前捕获整行 before_data，POST 记录创建的 resource_id，
+ *           供 POST /api/logs/:id/undo 做逆操作还原。
  */
 const db = require('../config/database')
 
@@ -20,9 +22,43 @@ const MODULE_MAP = [
   { test: /^\/api\/auth/, name: '账号' }
 ]
 
+// 资源路由 -> 表名（白名单，用于回撤捕获 before_data 与定位资源）
+// 仅这些表支持回撤；表名硬编码不入库用户输入，防 SQL 注入
+const RESOURCE_TABLES = [
+  { test: /^\/api\/projects\/(\d+)/, table: 'project' },
+  { test: /^\/api\/price-records\/(\d+)/, table: 'price_record' },
+  { test: /^\/api\/inspirations\/(\d+)/, table: 'inspiration' },
+  { test: /^\/api\/design-notes\/(\d+)/, table: 'design_note' },
+  { test: /^\/api\/suppliers\/(\d+)/, table: 'supplier' },
+  { test: /^\/api\/tags\/(\d+)/, table: 'tag' }
+]
+
+// POST 创建所属表（用于回撤时软删新建记录）
+const POST_RESOURCE_TABLE = [
+  { test: /^\/api\/projects\/?$/, table: 'project' },
+  { test: /^\/api\/price-records\/?$/, table: 'price_record' },
+  { test: /^\/api\/inspirations\/?$/, table: 'inspiration' },
+  { test: /^\/api\/design-notes\/?$/, table: 'design_note' },
+  { test: /^\/api\/suppliers\/?$/, table: 'supplier' },
+  { test: /^\/api\/tags\/?$/, table: 'tag' }
+]
+
 function resolveModule(url) {
   const hit = MODULE_MAP.find(m => m.test.test(url))
   return hit ? hit.name : '其他'
+}
+
+function matchResource(url) {
+  for (const r of RESOURCE_TABLES) {
+    const m = url.match(r.test)
+    if (m) return { table: r.table, id: parseInt(m[1], 10) }
+  }
+  return null
+}
+
+function matchPostResource(url) {
+  const hit = POST_RESOURCE_TABLE.find(r => r.test.test(url))
+  return hit ? hit.table : null
 }
 
 // 根据方法 + 路径推断操作类型
@@ -46,7 +82,6 @@ function sanitizeParams(body) {
       if (/password|token|secret/i.test(k)) {
         clone[k] = '***'
       } else if (typeof clone[k] === 'string' && clone[k].length > 500) {
-        // base64 图片、长文本等只留长度提示
         clone[k] = `[len:${clone[k].length}]`
       }
     }
@@ -58,46 +93,66 @@ function sanitizeParams(body) {
   }
 }
 
-const auditLog = (req, res, next) => {
+const auditLog = async (req, res, next) => {
   const method = req.method
   // 只审计写操作
   if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
     return next()
   }
-  // 登录接口不记录（无 user 上下文且非数据变更）
+  // 登录接口不记录
   if (req.originalUrl.startsWith('/api/auth/login')) {
     return next()
   }
 
-  // 非数据写入的 POST 接口不记录（AI分析/链接检测/元数据抓取/搜索推荐等）
+  // 非数据写入的 POST 接口不记录
   const SKIP_URLS = [
-    '/api/search/recommend',      // AI工作流推荐
-    '/api/inspirations/fetch-meta', // 链接元数据抓取
-    '/api/inspirations/check-links', // 批量链接检测
-    '/api/upload/image',            // 图片上传(单独审计意义不大)
+    '/api/search/recommend',
+    '/api/inspirations/fetch-meta',
+    '/api/inspirations/check-links',
+    '/api/upload/image',
     '/api/upload/images',
     '/api/upload/base64',
   ]
   const urlPath = req.originalUrl.split('?')[0]
-  if (SKIP_URLS.some(u => urlPath === u) || /\/api\/inspirations\/\d+\/(check-link|analyze|refresh-snapshot)$/.test(urlPath)) {
+  if (SKIP_URLS.some(u => urlPath === u) || /\/api\/inspirations\/\d+\/(check-link|analyze|refresh-snapshot)$/.test(urlPath) || /\/api\/logs\/\d+\/undo$/.test(urlPath)) {
     return next()
   }
 
-  // 捕获响应体（沿用项目 {code,message,data} 约定）
+  // 捕获响应体
   const originalJson = res.json.bind(res)
   res.json = (body) => {
     res.locals._auditBody = body
     return originalJson(body)
   }
 
-  // 在请求还在活跃时提前捕获 IP 和 UA，避免 finish 后 socket 已销毁
   const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString().slice(0, 50)
   const userAgent = (req.headers['user-agent'] || '').slice(0, 500)
   const userId = req.user?.id || null
   const username = req.user?.username || null
 
+  // 回撤支持：PUT/DELETE 操作前捕获整行 before_data（在控制器修改前 SELECT）
+  if (method === 'PUT' || method === 'PATCH' || method === 'DELETE') {
+    const resInfo = matchResource(urlPath)
+    if (resInfo) {
+      try {
+        const [row] = await db.query(
+          `SELECT * FROM \`${resInfo.table}\` WHERE id = ? AND is_delete = 0`,
+          [resInfo.id]
+        )
+        if (row) {
+          res.locals._beforeData = JSON.stringify(row)
+          res.locals._resourceTable = resInfo.table
+          res.locals._resourceId = resInfo.id
+        }
+      } catch { /* 捕获失败不影响主流程 */ }
+    }
+  }
+  // POST 的资源表预记录（resource_id 在响应后从 body.data.id 取）
+  if (method === 'POST') {
+    res.locals._resourceTable = matchPostResource(urlPath) || null
+  }
+
   res.on('finish', () => {
-    // 异步写日志，绝不影响主请求
     setImmediate(async () => {
       try {
         const url = req.originalUrl.split('?')[0]
@@ -107,10 +162,19 @@ const auditLog = (req, res, next) => {
         const operation = resolveOperation(method, url)
         const moduleName = resolveModule(url)
 
+        // POST 成功时落定 resource_id
+        let resourceTable = res.locals._resourceTable || null
+        let resourceId = res.locals._resourceId || null
+        if (method === 'POST' && success && !resourceId) {
+          resourceId = body?.data?.id || null
+        }
+        // 失败的操作不保留 before_data（避免回撤一个没生效的改动）
+        const beforeData = success ? (res.locals._beforeData || null) : null
+
         await db.query(
           `INSERT INTO log
-            (user_id, username, operation, module, method, url, ip, user_agent, params, result, status, error_msg, create_time)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+            (user_id, username, operation, module, method, url, ip, user_agent, params, before_data, resource_table, resource_id, undone, result, status, error_msg, create_time)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, NOW())`,
           [
             userId,
             username,
@@ -121,13 +185,15 @@ const auditLog = (req, res, next) => {
             clientIp,
             userAgent,
             sanitizeParams(req.body),
+            beforeData,
+            resourceTable,
+            resourceId,
             success ? null : (typeof body.message === 'string' ? body.message.slice(0, 500) : null),
             success ? 1 : 0,
             success ? null : (typeof body.message === 'string' ? body.message.slice(0, 500) : null)
           ]
         )
       } catch (e) {
-        // 仅打印，不抛出
         console.error('[auditLog] 写入失败:', e.message)
       }
     })
