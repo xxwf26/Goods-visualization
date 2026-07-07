@@ -31,3 +31,4 @@ backend/uploads/*
 
 # 流量统计运行数据
 traffic_stats.json
+backups/

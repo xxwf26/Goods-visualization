@@ -4,7 +4,7 @@
  * 进程重启清空（够用；多实例部署可换 Redis 版）。
  */
 const WINDOW_MS = 15 * 60 * 1000 // 15 分钟窗口
-const MAX_ATTEMPTS = 10           // 窗口内最多 10 次登录尝试
+const MAX_ATTEMPTS = 20           // 窗口内最多 20 次（留足多人共 IP 登录余量，仍可拦爆破）
 
 const attempts = new Map() // ip -> { count, firstAt }
 

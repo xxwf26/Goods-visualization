@@ -9,6 +9,7 @@ const config = require('./config')
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler')
 const trafficMonitor = require('./middleware/trafficMonitor')
 const securityHeaders = require('./middleware/securityHeaders')
+const writeLimiter = require('./middleware/writeLimiter')
 
 const app = express()
 
@@ -17,6 +18,9 @@ app.use(cors(config.cors))
 
 // 安全响应头（nosniff/frame- guard/referrer/HSTS），轻量替代 helmet
 app.use(securityHeaders)
+
+// 写接口限流（按用户，防脚本刷；只拦 POST/PUT/DELETE/PATCH）
+app.use(writeLimiter)
 
 // 流量监控（在所有路由前，记录每个请求字节数）
 app.use(trafficMonitor.middleware)
