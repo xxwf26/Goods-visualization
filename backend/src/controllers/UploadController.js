@@ -5,6 +5,7 @@ const { Response } = require('../utils/response')
 const path = require('path')
 const fs = require('fs')
 const config = require('../config')
+const { verifyFile, verifyBuffer } = require('../utils/fileSignature')
 
 // 动态导入 sharp (Node.js 原生模块)
 let sharp = null
@@ -27,6 +28,12 @@ class UploadController {
 
       const file = req.file
       const { auto_compress = 'true' } = req.body
+
+      // 文件头魔数校验：防伪造扩展名/MIME 上传，不符则删除并拒绝
+      if (!verifyFile(file.path, file.mimetype)) {
+        try { fs.unlinkSync(file.path) } catch {}
+        return res.status(400).json(Response.badRequest('文件内容与类型不匹配，已拒绝'))
+      }
 
       let resultFile = file
 
@@ -89,6 +96,12 @@ class UploadController {
       const results = []
 
       for (const file of req.files) {
+        // 文件头魔数校验：不符则删除该文件并跳过
+        if (!verifyFile(file.path, file.mimetype)) {
+          try { fs.unlinkSync(file.path) } catch {}
+          continue
+        }
+
         let resultFile = file
 
         // 自动压缩
@@ -129,6 +142,9 @@ class UploadController {
         })
       }
 
+      if (results.length === 0) {
+        return res.status(400).json(Response.badRequest('所有文件内容与类型不匹配，已拒绝'))
+      }
       res.json(Response.success(results, '上传成功'))
     } catch (error) {
       next(error)
@@ -146,6 +162,11 @@ class UploadController {
       }
 
       const file = req.file
+      // 文件头魔数校验
+      if (!verifyFile(file.path, file.mimetype)) {
+        try { fs.unlinkSync(file.path) } catch {}
+        return res.status(400).json(Response.badRequest('文件内容与类型不匹配，已拒绝'))
+      }
       const url = `/uploads/${file.filename}`
 
       res.json(Response.success({
@@ -181,6 +202,11 @@ class UploadController {
       const ext = matches[1].split('/')[1]
       const base64Data = matches[2]
       const buffer = Buffer.from(base64Data, 'base64')
+
+      // 文件头魔数校验（写入前校验内存 buffer）
+      if (!verifyBuffer(buffer, matches[1])) {
+        return res.status(400).json(Response.badRequest('文件内容与类型不匹配，已拒绝'))
+      }
 
       // 生成文件名
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
