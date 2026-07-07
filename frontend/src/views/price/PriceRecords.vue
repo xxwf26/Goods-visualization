@@ -271,7 +271,7 @@ import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Refresh, PictureFilled, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getPriceRecords, getPriceRecordOptions, deletePriceRecord } from '@/api/priceRecords'
+import { getPriceRecords, getPriceRecordOptions, deletePriceRecord, batchDeletePriceRecords } from '@/api/priceRecords'
 import { exportToCsv } from '@/utils/exportCsv'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import PriceRecordFormDialog from '@/components/priceRecord/PriceRecordFormDialog.vue'
@@ -469,13 +469,15 @@ async function handleBatchDelete() {
     await ElMessageBox.confirm(`确定删除选中的 ${selectedRows.value.length} 条价格记录吗？删除后无法恢复。`, '批量删除', {
       confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'warning'
     })
-    let okCount = 0
-    for (const row of selectedRows.value) {
-      try { await deletePriceRecord(row.id); okCount++ } catch {}
+    const ids = selectedRows.value.map(r => r.id)
+    const res = await batchDeletePriceRecords(ids)
+    if (res.code === 200) {
+      ElMessage.success(res.message || `成功删除 ${ids.length} 条`)
+      selectedRows.value = []
+      loadData()
+    } else {
+      ElMessage.error(res.message || '批量删除失败')
     }
-    ElMessage.success(`成功删除 ${okCount} 条`)
-    selectedRows.value = []
-    loadData()
   } catch (e) { /* 用户取消 */ }
 }
 

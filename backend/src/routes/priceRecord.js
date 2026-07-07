@@ -15,6 +15,7 @@ router.get('/options', controller.options)
 router.get('/:id', controller.detail)
 router.post('/', requireRole('editor'), controller.create)
 router.put('/:id', requireRole('editor'), controller.update)
+router.delete('/batch', requireRole('admin'), controller.batchDelete)
 router.delete('/:id', requireRole('admin'), controller.delete)
 
 module.exports = router

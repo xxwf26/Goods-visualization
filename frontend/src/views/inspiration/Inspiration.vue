@@ -70,14 +70,14 @@
         <div class="card-actions">
           <el-button v-if="canEdit" link type="primary" size="small" @click.stop="handleEdit(item)">编辑</el-button>
           <a
-            v-if="item.link || item.source_url"
+            v-if="(item.link || item.source_url) && !isSensitiveSource(item.link || item.source_url)"
             :href="item.link || item.source_url"
             target="_blank"
             rel="noopener noreferrer"
             class="card-jump-link"
             @click.stop
           >跳转链接</a>
-          <el-button v-else link type="primary" size="small" @click.stop="handleJump(item)">跳转链接</el-button>
+          <el-button v-else-if="!(item.link || item.source_url)" link type="primary" size="small" @click.stop="handleJump(item)">跳转链接</el-button>
           <el-button v-if="canDelete" link type="danger" size="small" @click.stop="handleDelete(item)">删除</el-button>
         </div>
       </div>
@@ -100,6 +100,7 @@ import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock, Link, PriceT
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getInspirations, checkInspirationLinks, getInspirationDetail, deleteInspiration } from '@/api/inspirations'
+import { isSensitiveSource } from '@/utils/sourcePolicy'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import InspirationFormDialog from '@/components/inspiration/InspirationFormDialog.vue'
 import InspirationDetailDialog from '@/components/inspiration/InspirationDetailDialog.vue'

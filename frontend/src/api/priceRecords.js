@@ -59,11 +59,20 @@ export function deletePriceRecord(id) {
   return request.delete(`/price-records/${id}`)
 }
 
+/**
+ * 批量删除价格记录
+ * @param {number[]} ids
+ */
+export function batchDeletePriceRecords(ids) {
+  return request.delete('/price-records/batch', { data: { ids } })
+}
+
 export default {
   getPriceRecords,
   queryPriceRecords,
   getPriceRecordDetail,
   createPriceRecord,
   updatePriceRecord,
-  deletePriceRecord
+  deletePriceRecord,
+  batchDeletePriceRecords
 }

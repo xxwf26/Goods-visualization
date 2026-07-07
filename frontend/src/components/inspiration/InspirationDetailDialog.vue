@@ -148,9 +148,10 @@
         <el-descriptions-item label="收藏状态">{{ collectionStatusText }}</el-descriptions-item>
         <el-descriptions-item label="收藏时间" :span="2">{{ formatDate(inspiration.collect_time) }}</el-descriptions-item>
         <el-descriptions-item label="原始链接" :span="2">
-          <a v-if="inspiration.link || inspiration.source_url" :href="inspiration.link || inspiration.source_url" target="_blank" rel="noopener noreferrer" class="d-link">
-            {{ (inspiration.link || inspiration.source_url).substring(0, 60) }}...
+          <a v-if="canViewLink" :href="linkUrl" target="_blank" rel="noopener noreferrer" class="d-link">
+            {{ linkUrl.substring(0, 60) }}...
           </a>
+          <span v-else-if="sensitiveLink" class="d-link-muted">(来源已隐藏)</span>
           <span v-else>-</span>
         </el-descriptions-item>
       </el-descriptions>
@@ -166,7 +167,7 @@
           <el-button v-if="canDelete" type="danger" plain @click="handleDelete">删除</el-button>
           <el-button @click="$emit('update:modelValue', false)">关闭</el-button>
           <el-button v-if="canEdit" type="warning" plain @click="startEdit">编辑</el-button>
-          <a v-if="inspiration && (inspiration.link || inspiration.source_url)" :href="inspiration.link || inspiration.source_url" target="_blank" rel="noopener noreferrer" class="jump-primary-btn">
+          <a v-if="canViewLink" :href="linkUrl" target="_blank" rel="noopener noreferrer" class="jump-primary-btn">
             <el-icon><Link /></el-icon> 跳转原始链接
           </a>
         </template>
@@ -182,6 +183,7 @@ import { Link, User, Document, Star, MagicStick, Picture, Plus, ArrowDown, InfoF
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ElMessageBox as ElMsgBox } from 'element-plus'
 import { analyzeInspirationImages, updateInspirationDetail, deleteInspiration, refreshInspirationSnapshot, setLinkStatus, checkInspirationLink, updateInspirationLink } from '@/api/inspirations'
+import { isSensitiveSource } from '@/utils/sourcePolicy'
 import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
 import { usePasteUpload } from '@/composables/usePasteUpload'
@@ -189,6 +191,11 @@ import { usePasteUpload } from '@/composables/usePasteUpload'
 const userStore = useUserStore()
 const canEdit = computed(() => userStore.hasPermission('inspiration:edit') || userStore.hasPermission('inspiration:create'))
 const canDelete = computed(() => userStore.role === 'admin' || userStore.role === 'super_admin')
+// 当前链接及其敏感标记（github/gitee 等代码仓库）：非编辑者不展示，避免源码地址泄露
+const linkUrl = computed(() => props.inspiration?.link || props.inspiration?.source_url || '')
+const sensitiveLink = computed(() => isSensitiveSource(linkUrl.value))
+// 非编辑者对敏感来源不可见链接
+const canViewLink = computed(() => !!linkUrl.value && (!sensitiveLink.value || canEdit.value))
 
 const props = defineProps({
   modelValue: Boolean,
@@ -508,6 +515,7 @@ watch(() => props.modelValue, (v) => { if (!v) editing.value = false })
 .d-info { margin-top: 4px; }
 .d-link { color: #8B5CF6; text-decoration: none; word-break: break-all; }
 .d-link:hover { text-decoration: underline; }
+.d-link-muted { color: #94A3B8; font-size: 12px; }
 
 .dialog-footer { display: flex; justify-content: flex-end; align-items: center; gap: 10px; flex-wrap: wrap; }
 

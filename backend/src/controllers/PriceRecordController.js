@@ -546,6 +546,36 @@ class PriceRecordController {
       next(error)
     }
   }
+
+  /**
+   * 批量删除价格记录（软删除）
+   * DELETE /api/price-records/batch
+   * body: { ids: [1, 2, 3] }
+   */
+  async batchDelete(req, res, next) {
+    try {
+      if (!req.user?.role_codes?.includes('super_admin') && !req.user?.role_codes?.includes('admin')) {
+        return res.status(403).json(Response.forbidden('仅管理员可删除'))
+      }
+      const { ids } = req.body || {}
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json(Response.badRequest('请提供要删除的 id 列表'))
+      }
+      // 仅允许整数 id，防注入
+      const safeIds = ids.map(Number).filter(n => Number.isInteger(n) && n > 0)
+      if (safeIds.length === 0) {
+        return res.status(400).json(Response.badRequest('id 列表无效'))
+      }
+      const placeholders = safeIds.map(() => '?').join(',')
+      const result = await db.query(
+        `UPDATE price_record SET is_delete = 1, update_time = NOW() WHERE id IN (${placeholders}) AND is_delete = 0`,
+        safeIds
+      )
+      res.json(Response.success({ affected: result.affectedRows }, `批量删除 ${result.affectedRows} 条`))
+    } catch (error) {
+      next(error)
+    }
+  }
 }
 
 module.exports = new PriceRecordController()
