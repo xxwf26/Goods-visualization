@@ -9,6 +9,7 @@ const { downloadImage } = require('../utils/imageDownload')
 const { validate } = require('../utils/validator')
 const { isSensitiveSource } = require('../utils/urlSafety')
 const LinkChecker = require('../services/LinkChecker')
+const { loadTagsByType, matchTagIds } = require('../utils/tagMatcher')
 
 class InspirationController {
   /**
@@ -43,6 +44,17 @@ class InspirationController {
     if (meta.saveCount) data.save_count = meta.saveCount
     if (meta.commentCount) data.comment_count = meta.commentCount
     if (meta.playCount) data.play_count = meta.playCount
+    // 用抓到的话题标签直接匹配库内 IP/品类/工艺/场景标签，新建即自动填（仅当用户未手填）
+    if (meta.tags?.length) {
+      try {
+        const tagsByType = await loadTagsByType(db)
+        const matched = matchTagIds(meta.tags, tagsByType)
+        if (!data.ip_tag_ids && matched.ip.length) data.ip_tag_ids = matched.ip.join(',')
+        if (!data.category_tag_ids && matched.category.length) data.category_tag_ids = matched.category.join(',')
+        if (!data.craft_tag_ids && matched.craft.length) data.craft_tag_ids = matched.craft.join(',')
+        if (!data.scene_tag_ids && matched.scene.length) data.scene_tag_ids = matched.scene.join(',')
+      } catch { /* 标签匹配失败不影响主流程 */ }
+    }
   }
 
   /**
@@ -609,25 +621,11 @@ class InspirationController {
     // 提取价值说明 + 自动匹配标签（IP/品类/工艺/场景）
     let referenceValue = '', tagUpdates = {}
     try {
-      const tags = await db.query("SELECT id, tag_name, tag_type FROM tag WHERE is_delete=0 AND status=1")
-      const tagsByType = { ip: [], category: [], craft: [], scene: [] }
-      for (const t of tags) {
-        if (tagsByType[t.tag_type]) tagsByType[t.tag_type].push({ id: t.id, name: t.tag_name })
-      }
+      const tagsByType = await loadTagsByType(db)
 
       // 1. 先用帖子原始标签直接匹配（最准确）
       const postTags = insp.post_tags ? insp.post_tags.split(',').map(s => s.trim()).filter(Boolean) : []
-      const directMatched = { ip: new Set(), category: new Set(), craft: new Set(), scene: new Set() }
-      for (const pt of postTags) {
-        for (const [type, list] of Object.entries(tagsByType)) {
-          const found = list.find(t => t.name === pt || pt.includes(t.name) || t.name.includes(pt))
-          if (found) directMatched[type].add(found.id)
-        }
-      }
-      // 转为数组
-      for (const type of Object.keys(directMatched)) {
-        directMatched[type] = [...directMatched[type]]
-      }
+      const directMatched = matchTagIds(postTags, tagsByType)
 
       // 2. AI 提取补充（对直接匹配没覆盖的标签）
       const contentWithTags = (insp.description || '') + '\n' + ocrText + (postTags.length ? '\n帖子标签: ' + postTags.join('、') : '')

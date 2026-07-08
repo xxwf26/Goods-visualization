@@ -126,47 +126,62 @@ class MetaFetcher {
    * 调 B 站公开接口获取视频元数据（免登录）。
    * 返回结构与 parseHTML 一致，供 autofillFromUrl 统一消费。
    */
-  static fetchBilibili(bvid) {
-    const api = `https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`
-    return new Promise((resolve, reject) => {
-      const headers = { ...this.BROWSER_HEADERS, 'Accept': 'application/json', 'Referer': 'https://www.bilibili.com/' }
-      const req = https.get(api, { timeout: 12000, headers }, (res) => {
-        let stream = res
-        const enc = (res.headers['content-encoding'] || '').toLowerCase()
-        if (enc.includes('gzip')) stream = res.pipe(require('zlib').createGunzip())
-        else if (enc.includes('deflate')) stream = res.pipe(require('zlib').createInflate())
-        else if (enc.includes('br')) stream = res.pipe(require('zlib').createBrotliDecompress())
-        let data = ''
-        stream.on('data', c => { data += c.toString('utf8') })
-        stream.on('end', () => {
-          try {
-            const j = JSON.parse(data)
-            if (j.code !== 0 || !j.data) { resolve(null); return }
-            const v = j.data
-            const stat = v.stat || {}
-            let image = v.pic || ''
-            if (image.startsWith('http://')) image = 'https://' + image.slice(7) // 统一 https，避免混合内容
-            resolve({
-              title: v.title || '',
-              description: v.desc || '',   // 完整简介，不截断
-              image,
-              platform: 'B站',
-              site_name: 'bilibili',
-              author: v.owner?.name || '',
-              tags: [],
-              allImages: [],
-              likeCount: this.parseCount(stat.like),
-              saveCount: this.parseCount(stat.favorite),
-              commentCount: this.parseCount(stat.reply),
-              playCount: this.parseCount(stat.view)
-            })
-          } catch (e) { resolve(null) }
+  /** 请求一个返回 JSON 的接口，解析失败/出错时 resolve(null)（不 reject，方便并行容错） */
+  static getJson(url) {
+    return new Promise((resolve) => {
+      try {
+        const headers = { ...this.BROWSER_HEADERS, 'Accept': 'application/json', 'Referer': 'https://www.bilibili.com/' }
+        const req = https.get(url, { timeout: 12000, headers }, (res) => {
+          let stream = res
+          const enc = (res.headers['content-encoding'] || '').toLowerCase()
+          if (enc.includes('gzip')) stream = res.pipe(require('zlib').createGunzip())
+          else if (enc.includes('deflate')) stream = res.pipe(require('zlib').createInflate())
+          else if (enc.includes('br')) stream = res.pipe(require('zlib').createBrotliDecompress())
+          let data = ''
+          stream.on('data', c => { data += c.toString('utf8') })
+          stream.on('end', () => { try { resolve(JSON.parse(data)) } catch { resolve(null) } })
+          stream.on('error', () => resolve(null))
         })
-        stream.on('error', () => resolve(null))
-      })
-      req.on('error', reject)
-      req.on('timeout', () => { req.destroy(); reject(new Error('timeout')) })
+        req.on('error', () => resolve(null))
+        req.on('timeout', () => { req.destroy(); resolve(null) })
+      } catch { resolve(null) }
     })
+  }
+
+  /**
+   * 调 B 站公开接口获取视频元数据（免登录）。
+   * view 接口拿标题/封面/互动数据，tag 接口拿话题标签（含 IP），两者并行。
+   * 返回结构与 parseHTML 一致，供 autofillFromUrl 统一消费。
+   */
+  static async fetchBilibili(bvid) {
+    const id = encodeURIComponent(bvid)
+    const [viewJson, tagJson] = await Promise.all([
+      this.getJson(`https://api.bilibili.com/x/web-interface/view?bvid=${id}`),
+      this.getJson(`https://api.bilibili.com/x/tag/archive/tags?bvid=${id}`)
+    ])
+    if (!viewJson || viewJson.code !== 0 || !viewJson.data) return null
+    const v = viewJson.data
+    const stat = v.stat || {}
+    let image = v.pic || ''
+    if (image.startsWith('http://')) image = 'https://' + image.slice(7) // 统一 https，避免混合内容
+    // 话题标签（含 IP）：tag 接口失败则退回空数组，不影响主流程
+    const tags = (tagJson && tagJson.code === 0 && Array.isArray(tagJson.data))
+      ? tagJson.data.map(t => t.tag_name).filter(Boolean)
+      : []
+    return {
+      title: v.title || '',
+      description: v.desc || '',   // 完整简介，不截断
+      image,
+      platform: 'B站',
+      site_name: 'bilibili',
+      author: v.owner?.name || '',
+      tags,
+      allImages: [],               // 只抓封面，不抓后续图
+      likeCount: this.parseCount(stat.like),
+      saveCount: this.parseCount(stat.favorite),
+      commentCount: this.parseCount(stat.reply),
+      playCount: this.parseCount(stat.view)
+    }
   }
 
   /**
