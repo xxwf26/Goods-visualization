@@ -102,6 +102,13 @@ defineEmits(['more-projects', 'more-ideas'])
 
 const router = useRouter()
 
+// 封面图地址：裸文件名前拼 /uploads/，http 全链接原样返回（与 Inspiration.vue 的 toImageUrl 一致）
+function toImageUrl(v) {
+  if (!v) return ''
+  const s = String(v).trim()
+  return s.startsWith('http') ? s : `/uploads/${s}`
+}
+
 // 最近项目数据
 const recentProjects = ref([])
 
@@ -132,7 +139,7 @@ async function loadRecentData() {
         title: i.title,
         category: i.source_platform || i.source_type || '--',
         color: '#f472b6',
-        image: i.cover_image || '',
+        image: toImageUrl(i.cover_image),
         createTime: i.create_time?.split('T')[0] || '--'
       }))
     }
