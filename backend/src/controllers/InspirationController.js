@@ -28,8 +28,8 @@ class InspirationController {
     if (!data.source_platform && meta.platform) data.source_platform = meta.platform
     if (!data.source_type && meta.platform) data.source_type = meta.platform
     if (!data.author && meta.author) data.author = meta.author
-    // 内容快照(description)= 帖子正文引言，单独存储(2000字)；价值说明(reference_value)由用户填写，不自动填充；AI总结(content_summary)由分析接口生成
-    if (!data.description && meta.description) data.description = meta.description.substring(0, 2000)
+    // 内容快照(description)= 帖子/视频正文简介，完整存储（description 为 text 类型，不截断）；价值说明(reference_value)由用户填写，不自动填充；AI总结(content_summary)由分析接口生成
+    if (!data.description && meta.description) data.description = meta.description
     // 保存帖子原始标签(话题tag)，用于后续直接匹配IP/品类/工艺/场景
     if (!data.post_tags && meta.tags?.length) data.post_tags = meta.tags.join(',')
     if (!data.cover_image && meta.image && !sensitive) {
@@ -38,9 +38,11 @@ class InspirationController {
       data.cover_image = localFile || null  // 下载失败不存远程链接（浏览器加载不了）
     }
     if (!data.images && meta.allImages?.length && !sensitive) data.images = meta.allImages.join(',')
-    // 互动数据(点赞/收藏)
+    // 互动数据(点赞/收藏/评论/播放)
     if (meta.likeCount) data.like_count = meta.likeCount
     if (meta.saveCount) data.save_count = meta.saveCount
+    if (meta.commentCount) data.comment_count = meta.commentCount
+    if (meta.playCount) data.play_count = meta.playCount
   }
 
   /**
@@ -147,7 +149,7 @@ class InspirationController {
       }
 
       // 排序
-      const validSortFields = ['create_time', 'update_time', 'like_count', 'view_count', 'save_count']
+      const validSortFields = ['create_time', 'update_time', 'like_count', 'view_count', 'save_count', 'play_count', 'comment_count']
       const sortField = validSortFields.includes(sort_field) ? sort_field : 'create_time'
       const sortOrder = sort_order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'
 

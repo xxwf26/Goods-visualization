@@ -29,6 +29,19 @@ class MetaFetcher {
 
   static async fetch(url, redirectCount = 0) {
     await assertSafeUrl(url)
+    // B站视频：优先走公开接口拿干净的标题/封面/互动数据；失败落回下方通用 HTML 抓取
+    if (redirectCount === 0) {
+      const host = (() => { try { return new URL(url).hostname } catch { return '' } })()
+      if (host.includes('bilibili.com') || host.includes('b23.tv')) {
+        try {
+          const bvid = await this.resolveBvid(url)
+          if (bvid) {
+            const bmeta = await this.fetchBilibili(bvid)
+            if (bmeta) return bmeta
+          }
+        } catch { /* 落回通用 HTML 抓取 */ }
+      }
+    }
     return new Promise((resolve, reject) => {
       const client = url.startsWith('https') ? https : http
       const req = client.get(url, { timeout: 12000, headers: this.BROWSER_HEADERS }, (res) => {
@@ -66,6 +79,90 @@ class MetaFetcher {
           resolve(meta)
         })
         stream.on('error', reject)
+      })
+      req.on('error', reject)
+      req.on('timeout', () => { req.destroy(); reject(new Error('timeout')) })
+    })
+  }
+
+  /**
+   * 从 B 站链接解析出 BV 号。
+   * 支持 /video/BVxxxx、?bvid=BVxxxx；b23.tv 短链先跟随重定向拿真实地址再提取。
+   */
+  static async resolveBvid(url) {
+    const pick = (u) => {
+      const m = String(u).match(/BV[0-9A-Za-z]{8,12}/)
+      return m ? m[0] : null
+    }
+    let bvid = pick(url)
+    if (bvid) return bvid
+    // b23.tv 短链：跟随一次重定向，从 Location 里提取
+    const host = (() => { try { return new URL(url).hostname } catch { return '' } })()
+    if (host.includes('b23.tv')) {
+      const real = await this.resolveRedirect(url)
+      if (real) bvid = pick(real)
+    }
+    return bvid
+  }
+
+  /** 发一次请求，返回 3xx 的 Location 绝对地址（用于短链还原），非重定向返回 null */
+  static resolveRedirect(url) {
+    return new Promise((resolve) => {
+      try {
+        const client = url.startsWith('https') ? https : http
+        const req = client.get(url, { timeout: 10000, headers: this.BROWSER_HEADERS }, (res) => {
+          res.resume()
+          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            try { resolve(new URL(res.headers.location, url).href) } catch { resolve(null) }
+          } else { resolve(null) }
+        })
+        req.on('error', () => resolve(null))
+        req.on('timeout', () => { req.destroy(); resolve(null) })
+      } catch { resolve(null) }
+    })
+  }
+
+  /**
+   * 调 B 站公开接口获取视频元数据（免登录）。
+   * 返回结构与 parseHTML 一致，供 autofillFromUrl 统一消费。
+   */
+  static fetchBilibili(bvid) {
+    const api = `https://api.bilibili.com/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`
+    return new Promise((resolve, reject) => {
+      const headers = { ...this.BROWSER_HEADERS, 'Accept': 'application/json', 'Referer': 'https://www.bilibili.com/' }
+      const req = https.get(api, { timeout: 12000, headers }, (res) => {
+        let stream = res
+        const enc = (res.headers['content-encoding'] || '').toLowerCase()
+        if (enc.includes('gzip')) stream = res.pipe(require('zlib').createGunzip())
+        else if (enc.includes('deflate')) stream = res.pipe(require('zlib').createInflate())
+        else if (enc.includes('br')) stream = res.pipe(require('zlib').createBrotliDecompress())
+        let data = ''
+        stream.on('data', c => { data += c.toString('utf8') })
+        stream.on('end', () => {
+          try {
+            const j = JSON.parse(data)
+            if (j.code !== 0 || !j.data) { resolve(null); return }
+            const v = j.data
+            const stat = v.stat || {}
+            let image = v.pic || ''
+            if (image.startsWith('http://')) image = 'https://' + image.slice(7) // 统一 https，避免混合内容
+            resolve({
+              title: v.title || '',
+              description: v.desc || '',   // 完整简介，不截断
+              image,
+              platform: 'B站',
+              site_name: 'bilibili',
+              author: v.owner?.name || '',
+              tags: [],
+              allImages: [],
+              likeCount: this.parseCount(stat.like),
+              saveCount: this.parseCount(stat.favorite),
+              commentCount: this.parseCount(stat.reply),
+              playCount: this.parseCount(stat.view)
+            })
+          } catch (e) { resolve(null) }
+        })
+        stream.on('error', () => resolve(null))
       })
       req.on('error', reject)
       req.on('timeout', () => { req.destroy(); reject(new Error('timeout')) })
@@ -124,7 +221,7 @@ class MetaFetcher {
     else if (host.includes('bilibili')) platform = 'B站'
 
     // 从 SSR 注入的 __INITIAL_STATE__ 提取真实正文（小红书等 JS 渲染站点正文在此，meta 只有站点通用信息）
-    let ssrTitle = '', ssrDesc = '', ssrAuthor = '', ssrImage = '', ssrTags = [], ssrAllImages = [], ssrLikeCount = 0, ssrSaveCount = 0
+    let ssrTitle = '', ssrDesc = '', ssrAuthor = '', ssrImage = '', ssrTags = [], ssrAllImages = [], ssrLikeCount = 0, ssrSaveCount = 0, ssrCommentCount = 0
     const stateMatch = html.match(/window\.__INITIAL_STATE__\s*=\s*(\{[\s\S]*?\})\s*<\/script>/)
     if (stateMatch) {
       try {
@@ -144,9 +241,10 @@ class MetaFetcher {
           ssrTags = (note.tagList || note.descTags || []).map(t => t.name || t).filter(Boolean)
           // 收集所有图片URL（供 AI 视觉分析用）
           ssrAllImages = (note.imageList || []).map(img => img.urlDefault || img.infoList?.[0]?.url || img.url).filter(Boolean)
-          // 互动数据(点赞/收藏)：小红书返回的是格式化字符串("1.1万"/"10万+"/"1.2k")，需还原成真实整数
+          // 互动数据(点赞/收藏/评论)：小红书返回的是格式化字符串("1.1万"/"10万+"/"1.2k")，需还原成真实整数
           ssrLikeCount = this.parseCount(note.interactInfo?.likedCount)
           ssrSaveCount = this.parseCount(note.interactInfo?.collectedCount)
+          ssrCommentCount = this.parseCount(note.interactInfo?.commentCount)
         }
       } catch { /* SSR 解析失败，回退 meta */ }
     }
@@ -184,7 +282,9 @@ class MetaFetcher {
       tags: ssrTags,
       allImages: ssrAllImages,
       likeCount: ssrLikeCount,
-      saveCount: ssrSaveCount
+      saveCount: ssrSaveCount,
+      commentCount: ssrCommentCount,
+      playCount: 0
     }
   }
 }

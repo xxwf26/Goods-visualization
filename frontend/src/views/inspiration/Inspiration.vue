@@ -25,9 +25,14 @@
       </el-input>
       <el-button type="primary" :icon="Search" @click="handleFilter">搜索</el-button>
       <el-button :icon="Refresh" @click="handleReset">重置</el-button>
-      <el-select v-model="sortBy" placeholder="排序" size="default" style="width:130px;margin-left:auto;" @change="handleFilter">
+      <el-select v-model="filterForm.platform" placeholder="全部平台" size="default" clearable style="width:130px;margin-left:auto;" @change="handleFilter">
+        <el-option label="全部平台" value="" />
+        <el-option v-for="p in platformOptions" :key="p" :label="p" :value="p" />
+      </el-select>
+      <el-select v-model="sortBy" placeholder="排序" size="default" style="width:130px;" @change="handleFilter">
         <el-option label="最新" value="create_time" />
         <el-option label="最热(浏览)" value="view_count" />
+        <el-option label="播放最多" value="play_count" />
         <el-option label="点赞最多" value="like_count" />
         <el-option label="收藏最多" value="save_count" />
       </el-select>
@@ -68,8 +73,9 @@
           </div>
           <div class="card-value" v-if="item.description">{{ item.description }}</div>
           <div class="card-stats">
-            <span v-if="item.like_count"><el-icon><Star /></el-icon>{{ item.like_count }}</span>
-            <span v-if="item.save_count"><el-icon><FolderOpened /></el-icon>{{ item.save_count }}</span>
+            <span v-if="item.play_count"><el-icon><VideoPlay /></el-icon>{{ formatCount(item.play_count) }}</span>
+            <span v-if="item.like_count"><el-icon><Star /></el-icon>{{ formatCount(item.like_count) }}</span>
+            <span v-if="item.save_count"><el-icon><FolderOpened /></el-icon>{{ formatCount(item.save_count) }}</span>
           </div>
           <div class="card-time"><el-icon><Clock /></el-icon>{{ formatDate(item.create_time) }}</div>
         </div>
@@ -102,7 +108,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock, Link, PriceTag } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock, Link, PriceTag, VideoPlay } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getInspirations, checkInspirationLinks, getInspirationDetail, deleteInspiration } from '@/api/inspirations'
@@ -119,7 +125,15 @@ const canDelete = computed(() => userStore.role === 'admin' || userStore.role ==
 
 const activeTab = ref('peripheral')
 const sortBy = ref('create_time')
-const filterForm = reactive({ keyword: '' })
+const filterForm = reactive({ keyword: '', platform: '' })
+// 平台筛选选项（与 MetaFetcher 识别出的平台一致）
+const platformOptions = ['小红书', 'B站', '淘宝', '1688', '站酷', '微博', '抖音', '其他']
+// 大数格式化：10000 → 1.0万，便于卡片展示播放/点赞
+function formatCount(n) {
+  const v = Number(n) || 0
+  if (v >= 10000) return (v / 10000).toFixed(1).replace(/\.0$/, '') + '万'
+  return String(v)
+}
 const loading = ref(false), tableData = ref([]), total = ref(0)
 const checking = ref(false)
 const pagination = reactive({ page: 1, pageSize: 24 })
@@ -136,6 +150,7 @@ async function loadData() {
       page: pagination.page, pageSize: pagination.pageSize,
       inspiration_type: activeTab.value,
       keyword: filterForm.keyword || undefined,
+      source_type: filterForm.platform || undefined,
       sort_field: sortBy.value,
       sort_order: 'DESC'
     }
@@ -148,7 +163,7 @@ async function loadData() {
 
 function handleTabChange() { pagination.page = 1; loadData() }
 function handleFilter() { pagination.page = 1; loadData() }
-function handleReset() { filterForm.keyword=''; pagination.page=1; loadData() }
+function handleReset() { filterForm.keyword=''; filterForm.platform=''; pagination.page=1; loadData() }
 function handleSizeChange(s) { pagination.pageSize=s; pagination.page=1; loadData() }
 function handlePageChange(p) { pagination.page=p; loadData() }
 function handleAdd() { formMode.value='add'; currentInspiration.value=null; formDialogVisible.value=true }
