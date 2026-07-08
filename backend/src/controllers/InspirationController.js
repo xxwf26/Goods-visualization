@@ -38,6 +38,9 @@ class InspirationController {
       data.cover_image = localFile || null  // 下载失败不存远程链接（浏览器加载不了）
     }
     if (!data.images && meta.allImages?.length && !sensitive) data.images = meta.allImages.join(',')
+    // 互动数据(点赞/收藏)
+    if (meta.likeCount) data.like_count = meta.likeCount
+    if (meta.saveCount) data.save_count = meta.saveCount
   }
 
   /**
@@ -276,6 +279,8 @@ class InspirationController {
         description: description || null,
         reference_value: reference_value || null,
         post_tags: null,
+        like_count: 0,
+        save_count: 0,
         content_summary: content_summary || null,
         cover_image: cover_image || null,
         images: images || null
