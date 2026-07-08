@@ -28,22 +28,29 @@
       <div class="image-section" v-if="imageList.length">
         <div class="section-label"><el-icon><PictureFilled /></el-icon><span>配图</span></div>
         <div class="image-grid">
-          <el-image v-for="(img,i) in imageList" :key="`${previewKey}-${i}`" :src="img" fit="cover" :preview-src-list="imageList" :initial-index="i" preview-teleported hide-on-click-modal class="case-image" />
+          <el-image v-for="(img,i) in imageList" :key="i" :src="img" fit="cover" class="case-image" style="cursor:zoom-in" @click="openViewer(imageList, i)" />
         </div>
       </div>
     </div>
     <template #footer><el-button @click="$emit('update:modelValue',false)">关闭</el-button></template>
+
+    <!-- 大图查看器：自控显隐（不 teleport），关弹窗时随组件一起卸载，不会残留 -->
+    <ImagePreview v-model="viewerVisible" :images="viewerImages" :initial-index="viewerIndex" />
   </el-dialog>
 </template>
 
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { PictureFilled } from '@element-plus/icons-vue'
+import ImagePreview from '@/components/common/ImagePreview.vue'
 const props = defineProps({ modelValue:Boolean, record:{type:Object,default:null} })
 defineEmits(['update:modelValue'])
-// 弹窗关闭时改变 key，强制 el-image 重新挂载，销毁残留的（teleport 到 body 的）大图查看器
-const previewKey = ref(0)
-watch(() => props.modelValue, v => { if (!v) previewKey.value++ })
+// 大图查看器状态：点缩略图打开，关弹窗时一并关闭
+const viewerVisible = ref(false)
+const viewerImages = ref([])
+const viewerIndex = ref(0)
+function openViewer(list, i) { viewerImages.value = list; viewerIndex.value = i; viewerVisible.value = true }
+watch(() => props.modelValue, v => { if (!v) viewerVisible.value = false })
 const STAGE_LABELS = { design: '设计', sample: '打样', mass: '大货', package: '包装' }
 function stageLabels(stage) {
   if (!stage) return []

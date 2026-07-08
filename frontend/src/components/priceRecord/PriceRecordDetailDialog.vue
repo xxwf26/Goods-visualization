@@ -17,14 +17,12 @@
         <div v-if="imageUrls.length" class="img-grid" :class="{ 'img-single': imageUrls.length === 1 }">
           <el-image
             v-for="(url, i) in imageUrls"
-            :key="`${previewKey}-${i}`"
+            :key="i"
             :src="url"
             fit="contain"
-            :preview-src-list="imageUrls"
-            :initial-index="i"
-            preview-teleported
-            hide-on-click-modal
             class="img-cell"
+            style="cursor:zoom-in"
+            @click="openViewer(imageUrls, i)"
           />
         </div>
         <div v-else class="image-empty">
@@ -133,12 +131,16 @@
     <template #footer>
       <el-button @click="$emit('update:modelValue', false)">关闭</el-button>
     </template>
+
+    <!-- 大图查看器：自控显隐（不 teleport），关弹窗时随组件一起卸载，不会残留 -->
+    <ImagePreview v-model="viewerVisible" :images="viewerImages" :initial-index="viewerIndex" />
   </el-dialog>
 </template>
 
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { PictureFilled, Picture, Money, Document } from '@element-plus/icons-vue'
+import ImagePreview from '@/components/common/ImagePreview.vue'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -147,9 +149,16 @@ const props = defineProps({
 
 defineEmits(['update:modelValue'])
 
-// 弹窗关闭时改变 key，强制 el-image 重新挂载，销毁残留的（teleport 到 body 的）大图查看器
-const previewKey = ref(0)
-watch(() => props.modelValue, v => { if (!v) previewKey.value++ })
+// 大图查看器状态：点缩略图打开，关详情弹窗时一并关闭
+const viewerVisible = ref(false)
+const viewerImages = ref([])
+const viewerIndex = ref(0)
+function openViewer(list, i) {
+  viewerImages.value = list
+  viewerIndex.value = i
+  viewerVisible.value = true
+}
+watch(() => props.modelValue, v => { if (!v) viewerVisible.value = false })
 
 const imageUrls = computed(() => {
   const img = props.record?.image

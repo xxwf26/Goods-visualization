@@ -9,7 +9,7 @@
     <div v-if="inspiration" class="detail-container">
       <!-- 封面图 -->
       <div v-if="displayCover" class="cover-section">
-        <el-image :key="`cover-${previewKey}`" :src="displayCover" fit="contain" :preview-src-list="[displayCover]" preview-teleported hide-on-click-modal class="cover-img" />
+        <el-image :src="displayCover" fit="contain" class="cover-img" style="cursor:zoom-in" @click="openViewer([displayCover], 0)" />
       </div>
 
       <!-- 标题 + 作者 -->
@@ -107,14 +107,11 @@
           <div class="img-ocr-img">
             <el-image
               v-if="it.file"
-              :key="`ocr-${previewKey}-${i}`"
               :src="`/uploads/${it.file}`"
               fit="contain"
-              :preview-src-list="displayImageTexts.filter(x=>x.file).map(x=>`/uploads/${x.file}`)"
-              :initial-index="displayImageTexts.filter(x=>x.file).indexOf(it)"
-              preview-teleported
-              hide-on-click-modal
               class="ocr-pic"
+              style="cursor:zoom-in"
+              @click="openOcrViewer(it)"
             />
             <div v-else class="img-fail">无图</div>
             <el-button v-if="editing" link type="danger" size="small" class="img-del" @click="removeImage(i)">删除图片</el-button>
@@ -175,6 +172,9 @@
         </template>
       </div>
     </template>
+
+    <!-- 大图查看器：自控显隐（不 teleport），关弹窗时随组件一起卸载，不会残留 -->
+    <ImagePreview v-model="viewerVisible" :images="viewerImages" :initial-index="viewerIndex" />
   </el-dialog>
 </template>
 
@@ -190,6 +190,7 @@ import { safeUrl } from '@/utils/safeUrl'
 import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
 import { usePasteUpload } from '@/composables/usePasteUpload'
+import ImagePreview from '@/components/common/ImagePreview.vue'
 
 const userStore = useUserStore()
 const canEdit = computed(() => userStore.hasPermission('inspiration:edit') || userStore.hasPermission('inspiration:create'))
@@ -464,10 +465,22 @@ function handleClose(v) {
   emit('update:modelValue', v)
 }
 
-// 弹窗关闭时重置编辑态；同时改变 previewKey 强制 el-image 重挂载，
-// 销毁残留的（teleport 到 body 的）大图查看器，避免关弹窗后背景大图还开着
-const previewKey = ref(0)
-watch(() => props.modelValue, (v) => { if (!v) { editing.value = false; previewKey.value++ } })
+// 大图查看器：自控显隐（不 teleport），关弹窗时随组件卸载，不残留
+const viewerVisible = ref(false)
+const viewerImages = ref([])
+const viewerIndex = ref(0)
+function openViewer(list, i) {
+  viewerImages.value = (list || []).filter(Boolean)
+  viewerIndex.value = i
+  viewerVisible.value = true
+}
+// OCR 图：按有图的项构建列表，并定位当前项索引
+function openOcrViewer(it) {
+  const withFile = displayImageTexts.value.filter(x => x.file)
+  openViewer(withFile.map(x => `/uploads/${x.file}`), withFile.indexOf(it))
+}
+// 弹窗关闭时重置编辑态，并关掉大图查看器
+watch(() => props.modelValue, (v) => { if (!v) { editing.value = false; viewerVisible.value = false } })
 </script>
 
 <style scoped>
