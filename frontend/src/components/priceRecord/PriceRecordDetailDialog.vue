@@ -23,6 +23,7 @@
             :preview-src-list="imageUrls"
             :initial-index="i"
             preview-teleported
+            hide-on-click-modal
             class="img-cell"
           />
         </div>

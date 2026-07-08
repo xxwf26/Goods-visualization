@@ -24,6 +24,7 @@
             :preview-src-list="quotationUrls"
             :initial-index="i"
             preview-teleported
+            hide-on-click-modal
             class="img-cell"
           />
         </div>

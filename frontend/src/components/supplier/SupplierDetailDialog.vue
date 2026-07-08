@@ -109,6 +109,7 @@
             :preview-src-list="caseImageList"
             :initial-index="index"
             preview-teleported
+            hide-on-click-modal
             class="case-image"
           />
         </div>

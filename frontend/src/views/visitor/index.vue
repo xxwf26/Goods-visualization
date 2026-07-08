@@ -79,17 +79,12 @@
       </template>
     </div>
 
-    <!-- 详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="详情" width="700px" destroy-on-close class="visitor-detail-dialog">
-      <div v-if="detailLoading" v-loading="true" style="min-height:200px"></div>
-      <template v-else>
-        <InspirationDetailDialog v-if="detailType==='inspiration'" :model-value="true" :inspiration="currentDetail" @update:model-value="detailVisible = $event" />
-        <ProjectDetailDialog v-if="detailType==='project'" :model-value="true" :project="currentDetail" @update:model-value="detailVisible = $event" />
-        <PriceRecordDetailDialog v-if="detailType==='price'" :model-value="true" :record="currentDetail" @update:model-value="detailVisible = $event" />
-        <DesignNoteDetailDialog v-if="detailType==='designNote'" :model-value="true" :record="currentDetail" @update:model-value="detailVisible = $event" />
-        <SupplierDetailDialog v-if="detailType==='supplier'" :model-value="true" :supplier="currentDetail" @update:model-value="detailVisible = $event" />
-      </template>
-    </el-dialog>
+    <!-- 详情弹窗（直接用组件，不嵌套外层dialog） -->
+    <InspirationDetailDialog v-if="detailType==='inspiration'" v-model="detailVisible" :inspiration="currentDetail" />
+    <ProjectDetailDialog v-if="detailType==='project'" v-model="detailVisible" :project="currentDetail" />
+    <PriceRecordDetailDialog v-if="detailType==='price'" v-model="detailVisible" :record="currentDetail" />
+    <DesignNoteDetailDialog v-if="detailType==='designNote'" v-model="detailVisible" :record="currentDetail" />
+    <SupplierDetailDialog v-if="detailType==='supplier'" v-model="detailVisible" :supplier="currentDetail" />
   </div>
 </template>
 

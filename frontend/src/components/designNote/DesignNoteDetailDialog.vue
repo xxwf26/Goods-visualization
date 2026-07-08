@@ -28,7 +28,7 @@
       <div class="image-section" v-if="imageList.length">
         <div class="section-label"><el-icon><PictureFilled /></el-icon><span>配图</span></div>
         <div class="image-grid">
-          <el-image v-for="(img,i) in imageList" :key="i" :src="img" fit="cover" :preview-src-list="imageList" :initial-index="i" preview-teleported class="case-image" />
+          <el-image v-for="(img,i) in imageList" :key="i" :src="img" fit="cover" :preview-src-list="imageList" :initial-index="i" preview-teleported hide-on-click-modal class="case-image" />
         </div>
       </div>
     </div>

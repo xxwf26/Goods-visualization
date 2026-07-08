@@ -9,7 +9,7 @@
     <div v-if="inspiration" class="detail-container">
       <!-- 封面图 -->
       <div v-if="displayCover" class="cover-section">
-        <el-image :src="displayCover" fit="contain" :preview-src-list="[displayCover]" preview-teleported class="cover-img" />
+        <el-image :src="displayCover" fit="contain" :preview-src-list="[displayCover]" preview-teleported hide-on-click-modal class="cover-img" />
       </div>
 
       <!-- 标题 + 作者 -->
@@ -112,6 +112,7 @@
               :preview-src-list="displayImageTexts.filter(x=>x.file).map(x=>`/uploads/${x.file}`)"
               :initial-index="displayImageTexts.filter(x=>x.file).indexOf(it)"
               preview-teleported
+              hide-on-click-modal
               class="ocr-pic"
             />
             <div v-else class="img-fail">无图</div>
@@ -245,12 +246,18 @@ const parsedImageTexts = computed(() => {
 
 // 展示用：编辑时用 form.imageTexts，否则用原始
 const displayImageTexts = computed(() => editing.value ? form.imageTexts : parsedImageTexts.value)
+// 封面地址：裸文件名前拼 /uploads/，http 全链接原样返回（与 Inspiration.vue 的 toImageUrl 一致）
+function toImageUrl(v) {
+  if (!v) return ''
+  const s = String(v).trim()
+  return s.startsWith('http') ? s : `/uploads/${s}`
+}
 const displayCover = computed(() => {
   if (editing.value) {
     const f = form.imageTexts.find(x => x.file)
-    return f ? `/uploads/${f.file}` : (props.inspiration?.cover_image || '')
+    return f ? `/uploads/${f.file}` : toImageUrl(props.inspiration?.cover_image)
   }
-  return props.inspiration?.cover_image || ''
+  return toImageUrl(props.inspiration?.cover_image)
 })
 
 const collectionStatusText = computed(() => {
