@@ -245,7 +245,7 @@ class InspirationController {
         .required(['source_url'])
         .maxLength('title', 200)
         .maxLength('source_url', 1000)
-        .isIn('source_type', ['pinterest', 'instagram', '小红书', '微博', '抖音', '淘宝', '1688', '站酷', '电商平台', 'other'])
+        .isIn('source_type', ['pinterest', 'instagram', '小红书', 'B站', '微博', '抖音', '淘宝', '1688', '站酷', '电商平台', 'other'])
         .isIn('collection_status', ['uncollected', 'collected', 'applied'])
 
       if (!v.validate()) {
