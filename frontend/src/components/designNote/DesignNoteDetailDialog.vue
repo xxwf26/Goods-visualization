@@ -28,7 +28,7 @@
       <div class="image-section" v-if="imageList.length">
         <div class="section-label"><el-icon><PictureFilled /></el-icon><span>配图</span></div>
         <div class="image-grid">
-          <el-image v-for="(img,i) in imageList" :key="i" :src="img" fit="cover" :preview-src-list="imageList" :initial-index="i" preview-teleported hide-on-click-modal class="case-image" />
+          <el-image v-for="(img,i) in imageList" :key="`${previewKey}-${i}`" :src="img" fit="cover" :preview-src-list="imageList" :initial-index="i" preview-teleported hide-on-click-modal class="case-image" />
         </div>
       </div>
     </div>
@@ -37,10 +37,13 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { PictureFilled } from '@element-plus/icons-vue'
 const props = defineProps({ modelValue:Boolean, record:{type:Object,default:null} })
 defineEmits(['update:modelValue'])
+// 弹窗关闭时改变 key，强制 el-image 重新挂载，销毁残留的（teleport 到 body 的）大图查看器
+const previewKey = ref(0)
+watch(() => props.modelValue, v => { if (!v) previewKey.value++ })
 const STAGE_LABELS = { design: '设计', sample: '打样', mass: '大货', package: '包装' }
 function stageLabels(stage) {
   if (!stage) return []

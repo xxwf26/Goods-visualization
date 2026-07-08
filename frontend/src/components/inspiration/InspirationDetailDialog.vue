@@ -9,7 +9,7 @@
     <div v-if="inspiration" class="detail-container">
       <!-- 封面图 -->
       <div v-if="displayCover" class="cover-section">
-        <el-image :src="displayCover" fit="contain" :preview-src-list="[displayCover]" preview-teleported hide-on-click-modal class="cover-img" />
+        <el-image :key="`cover-${previewKey}`" :src="displayCover" fit="contain" :preview-src-list="[displayCover]" preview-teleported hide-on-click-modal class="cover-img" />
       </div>
 
       <!-- 标题 + 作者 -->
@@ -107,6 +107,7 @@
           <div class="img-ocr-img">
             <el-image
               v-if="it.file"
+              :key="`ocr-${previewKey}-${i}`"
               :src="`/uploads/${it.file}`"
               fit="contain"
               :preview-src-list="displayImageTexts.filter(x=>x.file).map(x=>`/uploads/${x.file}`)"
@@ -463,8 +464,10 @@ function handleClose(v) {
   emit('update:modelValue', v)
 }
 
-// 弹窗关闭时重置编辑态
-watch(() => props.modelValue, (v) => { if (!v) editing.value = false })
+// 弹窗关闭时重置编辑态；同时改变 previewKey 强制 el-image 重挂载，
+// 销毁残留的（teleport 到 body 的）大图查看器，避免关弹窗后背景大图还开着
+const previewKey = ref(0)
+watch(() => props.modelValue, (v) => { if (!v) { editing.value = false; previewKey.value++ } })
 </script>
 
 <style scoped>

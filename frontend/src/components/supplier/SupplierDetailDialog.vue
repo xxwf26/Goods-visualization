@@ -103,7 +103,7 @@
         <div class="images-grid">
           <el-image
             v-for="(img, index) in caseImageList"
-            :key="index"
+            :key="`${previewKey}-${index}`"
             :src="img"
             fit="cover"
             :preview-src-list="caseImageList"
@@ -147,7 +147,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Document, Download } from '@element-plus/icons-vue'
 
 const props = defineProps({
@@ -159,6 +159,10 @@ const props = defineProps({
 })
 
 defineEmits(['update:modelValue', 'edit'])
+
+// 弹窗关闭时改变 key，强制 el-image 重新挂载，销毁残留的（teleport 到 body 的）大图查看器
+const previewKey = ref(0)
+watch(() => props.modelValue, v => { if (!v) previewKey.value++ })
 
 // 解析案例图片
 const caseImageList = computed(() => {

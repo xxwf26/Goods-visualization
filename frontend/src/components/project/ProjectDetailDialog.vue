@@ -18,7 +18,7 @@
         <div style="display:flex;flex-wrap:wrap;gap:10px;" class="img-grid" :class="{ 'img-single': quotationUrls.length === 1 }">
           <el-image
             v-for="(url, i) in quotationUrls"
-            :key="i"
+            :key="`${previewKey}-${i}`"
             :src="url"
             fit="contain"
             :preview-src-list="quotationUrls"
@@ -119,7 +119,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { PictureFilled } from '@element-plus/icons-vue'
 
 const props = defineProps({
@@ -128,6 +128,10 @@ const props = defineProps({
 })
 
 defineEmits(['update:modelValue'])
+
+// 弹窗关闭时改变 key，强制 el-image 重新挂载，销毁残留的（teleport 到 body 的）大图查看器
+const previewKey = ref(0)
+watch(() => props.modelValue, v => { if (!v) previewKey.value++ })
 
 const quotationUrls = computed(() => {
   const q = props.project?.quotation_file
