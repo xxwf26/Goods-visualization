@@ -4,6 +4,7 @@
     :url-list="images"
     :initial-index="initialIndex"
     :hide-on-click-modal="true"
+    teleported
     @close="handleClose"
   />
 </template>

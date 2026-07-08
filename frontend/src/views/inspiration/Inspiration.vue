@@ -46,7 +46,7 @@
       <el-empty v-if="!loading && !tableData.length" description="暂无数据" />
       <div v-for="item in tableData" :key="item.id" class="inspiration-card" @click="handleView(item)">
         <div class="card-image">
-          <el-image v-if="item.cover_image" :src="toImageUrl(item.cover_image)" fit="cover" :preview-src-list="getImageUrls(item.images)" preview-teleported />
+          <el-image v-if="item.cover_image" :src="toImageUrl(item.cover_image)" fit="cover" />
           <div v-else class="no-image"><el-icon :size="32"><Picture /></el-icon><span>暂无截图</span></div>
           <div class="type-badge">
             <el-tag size="small" type="primary">{{ tabLabelMap[item.inspiration_type] || '未分类' }}</el-tag>
@@ -220,19 +220,6 @@ function toImageUrl(v) {
   if (!v) return ''
   const s = String(v).trim()
   return s.startsWith('http') ? s : `/uploads/${s}`
-}
-// images 字段（逗号分隔文件名 或 JSON数组）→ 完整URL数组
-function getImageUrls(images) {
-  if (!images) return []
-  let arr
-  try {
-    const p = typeof images === 'string' ? JSON.parse(images) : images
-    arr = Array.isArray(p) ? p : []
-  } catch {
-    // 不是JSON，按逗号分隔的文件名处理
-    arr = String(images).split(',').map(s => s.trim()).filter(Boolean)
-  }
-  return arr.map(toImageUrl)
 }
 function getDisplayTags(item) {
   const t = []
