@@ -156,7 +156,7 @@
 
     <template #footer>
       <el-button @click="handleClose">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
+      <el-button :type="savedFlash ? 'success' : 'primary'" :loading="submitting" @click="handleSubmit">{{ savedFlash ? '✓ 已保存' : '确定' }}</el-button>
     </template>
   </el-dialog>
 </template>
@@ -178,6 +178,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'success'])
 const formRef = ref(null)
 const submitting = ref(false)
+const savedFlash = ref(false)
 const uploading = ref(false)
 const dialogTitle = computed(() => props.mode === 'add' ? '新增项目' : '编辑项目')
 
@@ -267,7 +268,8 @@ async function handleSubmit() {
       await updateProject(props.projectData.id, payload)
     }
     ElMessage.success(props.mode === 'add' ? '新增成功' : '修改成功')
-    emit('success'); handleClose()
+    savedFlash.value = true
+    setTimeout(() => { emit('success'); handleClose() }, 800)
   } catch (e) { console.error(e); ElMessage.error('操作失败') }
   finally { submitting.value = false }
 }

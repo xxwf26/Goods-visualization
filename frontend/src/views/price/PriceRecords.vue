@@ -211,8 +211,9 @@
         <el-table-column v-if="columnVisible.remark2" prop="remark2" label="备注2" min-width="120" show-overflow-tooltip>
           <template #default="{ row }"><span>{{ row.remark2 || '-' }}</span></template>
         </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right" align="center">
+        <el-table-column label="操作" width="190" fixed="right" align="center">
           <template #default="{ row }">
+            <el-button link type="primary" size="small" @click="handleCopy(row)">复制</el-button>
             <el-button link type="primary" size="small" @click="handleView(row)">查看</el-button>
             <el-button v-permission="'price:edit'" link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
             <el-button v-permission="'price:delete'" link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
@@ -391,6 +392,23 @@ function handlePageChange(page) {
 
 // 操作
 const tableRef = ref(null)
+function handleCopy(row) {
+  const text = [
+    `单品: ${row.product_name || '-'}`,
+    `品类: ${row.category || '-'}`,
+    `供应商: ${row.supplier_name || '-'}`,
+    `IP: ${row.ip || '-'}`,
+    `单价: ${row.unit_price ? '¥' + Number(row.unit_price).toFixed(2) : '-'}`,
+    `总数量: ${row.total_quantity || '-'}`,
+    `总价: ${row.total_price ? '¥' + Number(row.total_price).toFixed(2) : '-'}`,
+  ].join('\n')
+  navigator.clipboard.writeText(text).then(() => {
+    ElMessage.success('已复制到剪贴板')
+  }).catch(() => {
+    ElMessage.error('复制失败')
+  })
+}
+
 function handleView(row) {
   currentRecord.value = { ...row }
   detailDialogVisible.value = true

@@ -18,13 +18,19 @@
       </div>
     </div>
 
-    <!-- 关键词搜索（在分栏上一行） -->
+    <!-- 关键词搜索 + 排序（在分栏上一行） -->
     <div class="keyword-row">
-      <el-input v-model="filterForm.keyword" placeholder="搜索标题、描述等关键词" clearable style="max-width:420px" @keyup.enter="handleFilter">
+      <el-input v-model="filterForm.keyword" placeholder="搜索标题、描述等关键词" clearable style="max-width:380px" @keyup.enter="handleFilter">
         <template #prefix><el-icon><Search /></el-icon></template>
       </el-input>
       <el-button type="primary" :icon="Search" @click="handleFilter">搜索</el-button>
       <el-button :icon="Refresh" @click="handleReset">重置</el-button>
+      <el-select v-model="sortBy" placeholder="排序" size="default" style="width:130px;margin-left:auto;" @change="handleFilter">
+        <el-option label="最新" value="create_time" />
+        <el-option label="最热(浏览)" value="view_count" />
+        <el-option label="点赞最多" value="like_count" />
+        <el-option label="收藏最多" value="save_count" />
+      </el-select>
     </div>
 
     <!-- 分类分栏 -->
@@ -112,6 +118,7 @@ const canEdit = computed(() => userStore.hasPermission('inspiration:edit') || us
 const canDelete = computed(() => userStore.role === 'admin' || userStore.role === 'super_admin')
 
 const activeTab = ref('peripheral')
+const sortBy = ref('create_time')
 const filterForm = reactive({ keyword: '' })
 const loading = ref(false), tableData = ref([]), total = ref(0)
 const checking = ref(false)
@@ -128,7 +135,9 @@ async function loadData() {
     const params = {
       page: pagination.page, pageSize: pagination.pageSize,
       inspiration_type: activeTab.value,
-      keyword: filterForm.keyword || undefined
+      keyword: filterForm.keyword || undefined,
+      sort_field: sortBy.value,
+      sort_order: 'DESC'
     }
     const res = await getInspirations(params)
     tableData.value = res.data?.list || []
