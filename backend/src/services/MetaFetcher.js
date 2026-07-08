@@ -72,6 +72,30 @@ class MetaFetcher {
     })
   }
 
+  /**
+   * 把社媒返回的互动数字解析成真实整数。
+   * 小红书/微博等把点赞、收藏数返回成格式化字符串，如 "1.1万"、"10万+"、"1.2k"、"3千"、"1,957"。
+   * parseInt("1.1万") 只会得到 1，导致数据严重失真——本函数按单位还原。
+   * @param {string|number} v 原始值
+   * @returns {number} 还原后的整数（无法解析时返回 0）
+   */
+  static parseCount(v) {
+    if (v == null) return 0
+    if (typeof v === 'number') return Number.isFinite(v) ? Math.round(v) : 0
+    let s = String(v).trim()
+    if (!s) return 0
+    // 去掉千分位逗号和结尾的 "+"（如 "10万+"、"1,957"）
+    s = s.replace(/,/g, '').replace(/\+$/, '')
+    // 提取数值部分和单位（万/亿/千/w/k/m）
+    const m = s.match(/^([\d.]+)\s*(万|亿|千|w|k|m)?/i)
+    if (!m) return 0
+    const num = parseFloat(m[1])
+    if (!Number.isFinite(num)) return 0
+    const unit = (m[2] || '').toLowerCase()
+    const mult = { '万': 1e4, 'w': 1e4, '亿': 1e8, '千': 1e3, 'k': 1e3, 'm': 1e6 }[unit] || 1
+    return Math.round(num * mult)
+  }
+
   static parseHTML(html, baseUrl) {
     const getMeta = (name) => {
       const match = html.match(new RegExp(`<meta[^>]+(?:name|property)=["']${name}["'][^>]+content=["']([^"']+)`,'i'))
@@ -120,9 +144,9 @@ class MetaFetcher {
           ssrTags = (note.tagList || note.descTags || []).map(t => t.name || t).filter(Boolean)
           // 收集所有图片URL（供 AI 视觉分析用）
           ssrAllImages = (note.imageList || []).map(img => img.urlDefault || img.infoList?.[0]?.url || img.url).filter(Boolean)
-          // 互动数据(点赞/收藏)
-          ssrLikeCount = parseInt(note.interactInfo?.likedCount) || 0
-          ssrSaveCount = parseInt(note.interactInfo?.collectedCount) || 0
+          // 互动数据(点赞/收藏)：小红书返回的是格式化字符串("1.1万"/"10万+"/"1.2k")，需还原成真实整数
+          ssrLikeCount = this.parseCount(note.interactInfo?.likedCount)
+          ssrSaveCount = this.parseCount(note.interactInfo?.collectedCount)
         }
       } catch { /* SSR 解析失败，回退 meta */ }
     }
