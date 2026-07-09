@@ -282,7 +282,8 @@ class MetaFetcher {
     // 避免把「你访问的页面不见了」或「Access Verification」这类 WAF 验证页标题当成内容入库
     const NOT_FOUND_MARKERS = [
       '你访问的页面不见了', '页面不存在', '页面走丢了', 'page not found',
-      'access verification', '安全验证', '滑动验证', '请完成安全验证', 'just a moment', 'attention required'
+      'access verification', '安全验证', '滑动验证', '请完成安全验证', 'just a moment', 'attention required',
+      'sina visitor system'
     ]
     if (!ssrTitle && !ssrDesc && !ssrImage && finalTitle && NOT_FOUND_MARKERS.some(m => finalTitle.toLowerCase().includes(m.toLowerCase()))) {
       finalTitle = ''
