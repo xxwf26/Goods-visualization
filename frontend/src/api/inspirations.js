@@ -45,6 +45,29 @@ export function deleteInspiration(id) {
 }
 
 /**
+ * 回收站列表（已软删的灵感）
+ */
+export function getInspirationTrash(params) {
+  return request.get('/inspirations/trash', { params })
+}
+
+/**
+ * 从回收站恢复
+ * @param {number} id - 灵感ID
+ */
+export function restoreInspiration(id) {
+  return request.put(`/inspirations/${id}/restore`)
+}
+
+/**
+ * 彻底删除（物理删除，仅限回收站中的记录）
+ * @param {number} id - 灵感ID
+ */
+export function purgeInspiration(id) {
+  return request.delete(`/inspirations/${id}/purge`)
+}
+
+/**
  * 检测单条灵感链接是否失效
  * @param {number} id - 灵感ID
  */

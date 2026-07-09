@@ -146,6 +146,10 @@
         </el-descriptions-item>
         <el-descriptions-item label="收藏状态">{{ collectionStatusText }}</el-descriptions-item>
         <el-descriptions-item label="收藏时间" :span="2">{{ formatDate(inspiration.collect_time) }}</el-descriptions-item>
+        <el-descriptions-item label="互动数据" :span="2">
+          <span v-if="interactText" class="d-interact">{{ interactText }}</span>
+          <span v-else>-</span>
+        </el-descriptions-item>
         <el-descriptions-item label="原始链接" :span="2">
           <a v-if="canViewLink" :href="safeHref" target="_blank" rel="noopener noreferrer" class="d-link">
             {{ linkUrl.substring(0, 60) }}...
@@ -265,6 +269,22 @@ const displayCover = computed(() => {
 const collectionStatusText = computed(() => {
   const m = { uncollected: '未收藏', collected: '已收藏', applied: '已采用' }
   return m[props.inspiration?.collection_status] || '-'
+})
+
+// 互动数据：大数格式化为 x.x万，各项有值才拼入
+function formatCount(n) {
+  const v = Number(n) || 0
+  if (v >= 10000) return (v / 10000).toFixed(1).replace(/\.0$/, '') + '万'
+  return String(v)
+}
+const interactText = computed(() => {
+  const i = props.inspiration || {}
+  const parts = []
+  if (i.play_count) parts.push(`▶ 播放 ${formatCount(i.play_count)}`)
+  if (i.like_count) parts.push(`👍 点赞 ${formatCount(i.like_count)}`)
+  if (i.save_count) parts.push(`⭐ 收藏 ${formatCount(i.save_count)}`)
+  if (i.comment_count) parts.push(`💬 评论 ${formatCount(i.comment_count)}`)
+  return parts.join('  ·  ')
 })
 
 const categoryLabels = computed(() => {

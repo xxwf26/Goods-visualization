@@ -12,6 +12,9 @@
         <el-button v-if="canEdit" :loading="checking" @click="handleCheckLinks">
           <el-icon><Link /></el-icon> 检测失效链接
         </el-button>
+        <el-button v-if="canDelete" @click="trashVisible = true">
+          <el-icon><Delete /></el-icon> 回收站
+        </el-button>
         <PermissionButton permission="inspiration:create" type="primary" @click="handleAdd">
           <el-icon><Plus /></el-icon> 新增灵感
         </PermissionButton>
@@ -102,13 +105,14 @@
     <InspirationFormDialog v-model="formDialogVisible" :mode="formMode" :inspiration-data="currentInspiration" :inspiration-type="activeTab" @success="handleFormSuccess" />
     <InspirationDetailDialog v-model="detailDialogVisible" :inspiration="currentInspiration" @analyzed="handleAnalyzed" @deleted="handleDeleted" />
     <InspirationTagManager v-model="tagManagerVisible" @refresh="loadData" />
+    <InspirationTrashDialog v-model="trashVisible" @changed="loadData" />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, h } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock, Link, PriceTag, VideoPlay } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock, Link, PriceTag, VideoPlay, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, ElNotification, ElButton } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getInspirations, checkInspirationLinks, getInspirationDetail, deleteInspiration } from '@/api/inspirations'
@@ -119,6 +123,7 @@ import PermissionButton from '@/components/common/PermissionButton.vue'
 import InspirationFormDialog from '@/components/inspiration/InspirationFormDialog.vue'
 import InspirationDetailDialog from '@/components/inspiration/InspirationDetailDialog.vue'
 import InspirationTagManager from '@/components/inspiration/InspirationTagManager.vue'
+import InspirationTrashDialog from '@/components/inspiration/InspirationTrashDialog.vue'
 
 const userStore = useUserStore()
 const canEdit = computed(() => userStore.hasPermission('inspiration:edit') || userStore.hasPermission('inspiration:create'))
@@ -140,6 +145,7 @@ const checking = ref(false)
 const pagination = reactive({ page: 1, pageSize: 24 })
 const formDialogVisible = ref(false), detailDialogVisible = ref(false), formMode = ref('add'), currentInspiration = ref(null)
 const tagManagerVisible = ref(false)
+const trashVisible = ref(false)
 let refreshTimer = null
 
 const tabLabelMap = { packaging: '包装结构', peripheral: '周边品类灵感', effect: '效果与特殊工艺', production: '印刷与生产攻略' }

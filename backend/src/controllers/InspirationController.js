@@ -502,6 +502,72 @@ class InspirationController {
   }
 
   /**
+   * 回收站列表（已软删的灵感）
+   * GET /api/inspirations/trash
+   */
+  async listTrash(req, res, next) {
+    try {
+      const { page = 1, pageSize = 20 } = req.query
+      const offset = (page - 1) * pageSize
+      const [countResult] = await db.query('SELECT COUNT(*) as total FROM inspiration WHERE is_delete = 1')
+      const total = countResult.total
+      const list = await db.query(
+        `SELECT i.id, i.title, i.source_platform, i.source_type, i.cover_image,
+                i.save_count, i.like_count, i.update_time, u.nickname as creator_name
+         FROM inspiration i
+         LEFT JOIN sys_user u ON i.create_user_id = u.id
+         WHERE i.is_delete = 1
+         ORDER BY i.update_time DESC
+         LIMIT ? OFFSET ?`,
+        [parseInt(pageSize), parseInt(offset)]
+      )
+      res.json(Response.success({
+        list,
+        pagination: { page: parseInt(page), pageSize: parseInt(pageSize), total, totalPages: Math.ceil(total / pageSize) }
+      }))
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * 从回收站恢复
+   * PUT /api/inspirations/:id/restore
+   */
+  async restore(req, res, next) {
+    try {
+      const { id } = req.params
+      const result = await db.query(
+        'UPDATE inspiration SET is_delete = 0, update_time = NOW() WHERE id = ? AND is_delete = 1',
+        [id]
+      )
+      if (result.affectedRows === 0) {
+        return res.status(404).json(Response.notFound('回收站中无此记录'))
+      }
+      res.json(Response.success(null, '已恢复'))
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
+   * 彻底删除（物理删除，仅限已在回收站的记录）
+   * DELETE /api/inspirations/:id/purge
+   */
+  async purge(req, res, next) {
+    try {
+      const { id } = req.params
+      const result = await db.query('DELETE FROM inspiration WHERE id = ? AND is_delete = 1', [id])
+      if (result.affectedRows === 0) {
+        return res.status(404).json(Response.notFound('回收站中无此记录，无法彻底删除'))
+      }
+      res.json(Response.success(null, '已彻底删除'))
+    } catch (error) {
+      next(error)
+    }
+  }
+
+  /**
    * 检测单条灵感的链接是否失效
    * POST /api/inspirations/:id/check-link
    */

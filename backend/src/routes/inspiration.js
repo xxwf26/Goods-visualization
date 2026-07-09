@@ -25,6 +25,8 @@ router.post('/fetch-meta', async (req, res) => {
 
 // 查看: viewer+
 router.get('/', inspirationController.list)
+// 回收站列表（须在 /:id 之前，否则 trash 被当成 id 匹配）：admin
+router.get('/trash', requireRole('admin'), inspirationController.listTrash)
 router.get('/:id', inspirationController.detail)
 
 // 新增/编辑: editor+
@@ -38,7 +40,9 @@ router.put('/:id/link-status', requireRole('editor'), inspirationController.setL
 router.put('/:id/link', requireRole('editor'), inspirationController.updateLink)
 router.put('/:id', requireRole('editor'), inspirationController.update)
 
-// 删除: admin+
+// 删除 / 回收站恢复 / 彻底删除: admin+
+router.put('/:id/restore', requireRole('admin'), inspirationController.restore)
+router.delete('/:id/purge', requireRole('admin'), inspirationController.purge)
 router.delete('/:id', requireRole('admin'), inspirationController.delete)
 
 module.exports = router
