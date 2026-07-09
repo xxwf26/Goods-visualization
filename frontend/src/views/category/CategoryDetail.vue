@@ -278,7 +278,7 @@ function getSourceLabel(sourceType) {
 
 function formatDate(date) {
   if (!date) return '-'
-  return date.split('T')[0]
+  return date.split(/[T ]/)[0]
 }
 
 onMounted(() => {

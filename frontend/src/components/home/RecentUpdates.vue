@@ -129,7 +129,7 @@ async function loadRecentData() {
         name: p.project_name,
         ip: p.ip_tag_names?.split(',')[0] || '--',
         color: '#57a1f5',
-        createTime: p.create_time?.split('T')[0] || '--'
+        createTime: p.create_time?.split(/[T ]/)[0] || '--'
       }))
     }
 
@@ -140,7 +140,7 @@ async function loadRecentData() {
         category: i.source_platform || i.source_type || '--',
         color: '#f472b6',
         image: toImageUrl(i.cover_image),
-        createTime: i.create_time?.split('T')[0] || '--'
+        createTime: i.create_time?.split(/[T ]/)[0] || '--'
       }))
     }
 

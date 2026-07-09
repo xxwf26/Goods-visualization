@@ -243,7 +243,7 @@ function getDisplayTags(item) {
   return t.filter(Boolean)
 }
 function getSourceLabel(s) { const m={'小红书':'小红书','淘宝':'淘宝','1688':'1688','站酷':'站酷','微博':'微博','抖音':'抖音','pinterest':'Pinterest','instagram':'Instagram','other':'其他'}; return m[s]||s||'其他' }
-function formatDate(d) { if(!d) return '-'; return d.split('T')[0] }
+function formatDate(d) { if(!d) return '-'; return d.split(/[T ]/)[0] }
 
 onMounted(() => {
   const route = useRoute()

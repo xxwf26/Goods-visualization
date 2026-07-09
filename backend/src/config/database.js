@@ -12,6 +12,8 @@ const createPool = () => {
       password: process.env.DB_PASSWORD || '',
       charset: 'utf8mb4',
       collation: 'utf8mb4_unicode_ci',
+      // DATETIME/DATE 原样以东八区字符串返回，避免驱动按 UTC 转 Date 导致前端少 8 小时
+      dateStrings: true,
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,

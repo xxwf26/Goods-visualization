@@ -151,7 +151,7 @@ const quotationUrls = computed(() => {
 
 function formatDate(date) {
   if (!date) return '-'
-  return String(date).split('T')[0]
+  return String(date).split(/[T ]/)[0]
 }
 </script>
 

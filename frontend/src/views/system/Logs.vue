@@ -206,7 +206,7 @@ function methodType(m) {
 }
 function formatTime(t) {
   if (!t) return '-'
-  // 后端返回 ISO 8601 UTC 时间(带Z)，需转本地时区
+  // 后端返回东八区字符串(YYYY-MM-DD HH:mm:ss)，new Date 按本地时区解析即为正确时间
   const d = new Date(t)
   if (isNaN(d)) return String(t).replace('T', ' ').slice(0, 19)
   const pad = n => String(n).padStart(2, '0')
