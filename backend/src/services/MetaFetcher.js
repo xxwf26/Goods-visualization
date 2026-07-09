@@ -277,10 +277,13 @@ class MetaFetcher {
 
     let finalTitle = ssrTitle || getOg('title') || getMeta('twitter:title') || (html.match(/<title>([^<]+)<\/title>/i) || [])[1] || ''
 
-    // 识别 404/不可见页（小红书等限流/私密笔记会跳到 not-found 页）：
-    // 没拿到 SSR 真实正文，且标题命中站点 not-found 文案时，清空 title/image/description，
-    // 避免把 404 占位图和「你访问的页面不见了」当成内容入库
-    const NOT_FOUND_MARKERS = ['你访问的页面不见了', '页面不存在', '页面走丢了', 'page not found']
+    // 识别 404/不可见页 与 反爬拦截页（小红书私密笔记跳 not-found；站酷等挂 WAF 会返回验证页）：
+    // 没拿到 SSR 真实正文，且标题命中占位/验证文案时，清空 title/image/description，
+    // 避免把「你访问的页面不见了」或「Access Verification」这类 WAF 验证页标题当成内容入库
+    const NOT_FOUND_MARKERS = [
+      '你访问的页面不见了', '页面不存在', '页面走丢了', 'page not found',
+      'access verification', '安全验证', '滑动验证', '请完成安全验证', 'just a moment', 'attention required'
+    ]
     if (!ssrTitle && !ssrDesc && !ssrImage && finalTitle && NOT_FOUND_MARKERS.some(m => finalTitle.toLowerCase().includes(m.toLowerCase()))) {
       finalTitle = ''
       finalDesc = ''
