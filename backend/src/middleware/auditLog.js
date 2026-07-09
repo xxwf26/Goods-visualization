@@ -114,6 +114,10 @@ const auditLog = async (req, res, next) => {
     '/api/upload/base64',
   ]
   const urlPath = req.originalUrl.split('?')[0]
+  // 灵感删除由控制器自己写可回撤日志并回传 logId（供前端10秒撤回），此处跳过避免重复记录
+  if (method === 'DELETE' && /^\/api\/inspirations\/\d+$/.test(urlPath)) {
+    return next()
+  }
   if (SKIP_URLS.some(u => urlPath === u) || /\/api\/inspirations\/\d+\/(check-link|analyze|refresh-snapshot)$/.test(urlPath) || /\/api\/logs\/\d+\/undo$/.test(urlPath)) {
     return next()
   }

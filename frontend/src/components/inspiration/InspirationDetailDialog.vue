@@ -366,15 +366,14 @@ async function handleDelete() {
   if (!props.inspiration?.id) return
   try {
     await ElMessageBox.confirm(
-      `确定删除灵感「${props.inspiration.title || '无标题'}」吗？删除后无法恢复。`,
+      `确定删除灵感「${props.inspiration.title || '无标题'}」吗？删除后可在 10 秒内撤回。`,
       '删除确认',
       { confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'warning' }
     )
     const res = await deleteInspiration(props.inspiration.id)
     if (res.code === 200) {
-      ElMessage.success('删除成功')
       emit('update:modelValue', false)
-      emit('deleted', props.inspiration.id)
+      emit('deleted', props.inspiration.id, res.data?.logId)
     } else {
       ElMessage.error(res.message || '删除失败')
     }

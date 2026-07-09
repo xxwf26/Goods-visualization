@@ -462,6 +462,9 @@ class InspirationController {
         return res.status(403).json(Response.forbidden('仅管理员可删除'))
       }
 
+      // 删除前捕获整行，用于写可回撤日志（before_data）
+      const [before] = await db.query('SELECT * FROM inspiration WHERE id = ? AND is_delete = 0', [id])
+
       const result = await db.query(
         'UPDATE inspiration SET is_delete = 1, update_time = NOW() WHERE id = ? AND is_delete = 0',
         [id]
@@ -471,7 +474,28 @@ class InspirationController {
         return res.status(404).json(Response.notFound('灵感不存在'))
       }
 
-      res.json(Response.success(null, '删除成功'))
+      // 同步写一条可回撤的删除审计日志，回传 logId 供前端 10 秒内撤回（复用 /logs/:id/undo）
+      // auditLog 中间件对灵感 DELETE 已跳过自动记录，避免重复
+      let logId = null
+      try {
+        const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString().slice(0, 50)
+        const ua = (req.headers['user-agent'] || '').slice(0, 500)
+        const r = await db.query(
+          `INSERT INTO log
+            (user_id, username, operation, module, method, url, ip, user_agent, params, before_data, resource_table, resource_id, undone, result, status, create_time)
+           VALUES (?, ?, ?, '灵感库', 'DELETE', ?, ?, ?, ?, ?, 'inspiration', ?, 0, NULL, 1, NOW())`,
+          [
+            req.user?.id || null, req.user?.username || null,
+            `删除 #${id}`, req.originalUrl.split('?')[0].slice(0, 500), ip, ua,
+            JSON.stringify({ id: parseInt(id, 10) }),
+            before ? JSON.stringify(before) : null,
+            parseInt(id, 10)
+          ]
+        )
+        logId = r.insertId
+      } catch (e) { /* 日志写入失败不影响删除本身 */ }
+
+      res.json(Response.success({ logId }, '删除成功'))
     } catch (error) {
       next(error)
     }

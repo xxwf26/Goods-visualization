@@ -106,12 +106,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, h } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock, Link, PriceTag, VideoPlay } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElNotification, ElButton } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getInspirations, checkInspirationLinks, getInspirationDetail, deleteInspiration } from '@/api/inspirations'
+import { undoLog } from '@/api/logs'
 import { isSensitiveSource } from '@/utils/sourcePolicy'
 import { safeUrl } from '@/utils/safeUrl'
 import PermissionButton from '@/components/common/PermissionButton.vue'
@@ -169,16 +170,41 @@ function handlePageChange(p) { pagination.page=p; loadData() }
 function handleAdd() { formMode.value='add'; currentInspiration.value=null; formDialogVisible.value=true }
 function handleEdit(item) { formMode.value='edit'; currentInspiration.value={...item}; formDialogVisible.value=true }
 function handleView(item) { currentInspiration.value={...item}; detailDialogVisible.value=true }
-function handleDeleted() { detailDialogVisible.value=false; loadData() }
+function handleDeleted(id, logId) { const t = currentInspiration.value?.title || '无标题'; detailDialogVisible.value=false; loadData(); showUndoNotify(t, logId) }
+
+// 删除后右上角弹「撤回」通知，10 秒内可复用操作日志回撤接口恢复
+function showUndoNotify(title, logId) {
+  if (!logId) { ElMessage.success('删除成功'); return }
+  const notif = ElNotification({
+    title: '已删除',
+    duration: 10000,
+    type: 'success',
+    message: h('div', { style: 'display:flex;align-items:center;gap:12px;' }, [
+      h('span', `灵感「${title}」已删除`),
+      h(ElButton, {
+        size: 'small', type: 'primary',
+        onClick: async () => {
+          try {
+            const r = await undoLog(logId)
+            if (r.code === 200) { ElMessage.success('已恢复'); loadData() }
+            else ElMessage.error(r.message || '撤回失败')
+          } catch { ElMessage.error('撤回失败') }
+          finally { notif.close() }
+        }
+      }, () => '撤回')
+    ])
+  })
+}
+
 async function handleDelete(item) {
   try {
     await ElMessageBox.confirm(
-      `确定删除灵感「${item.title || '无标题'}」吗？删除后无法恢复。`,
+      `确定删除灵感「${item.title || '无标题'}」吗？删除后可在 10 秒内撤回。`,
       '删除确认',
       { confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'warning' }
     )
     const res = await deleteInspiration(item.id)
-    if (res.code === 200) { ElMessage.success('删除成功'); loadData() }
+    if (res.code === 200) { loadData(); showUndoNotify(item.title || '无标题', res.data?.logId) }
     else ElMessage.error(res.message || '删除失败')
   } catch (e) {
     if (e !== 'cancel') ElMessage.error('删除失败')
