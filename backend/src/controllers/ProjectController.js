@@ -5,6 +5,17 @@ const { Response } = require('../utils/response')
 const db = require('../config/database')
 const { validate } = require('../utils/validator')
 const { recalcSupplierStats, recalcSuppliersStats } = require('../utils/supplierStats')
+const { syncTags } = require('../utils/tagWrite')
+const { getTagsByRecord } = require('../utils/tagQuery')
+
+// project 的 ip_tag_ids 存的是 IP 名称（文本输入），转成 tag_id 数组（category/craft/scene 前端未启用）
+async function ipNamesToIds(names) {
+  const arr = String(names || '').split(',').map(s => s.trim()).filter(Boolean)
+  if (!arr.length) return []
+  const ph = arr.map(() => '?').join(',')
+  const rows = await db.query(`SELECT id FROM tag WHERE tag_type='ip' AND tag_name IN (${ph}) AND is_delete=0`, arr)
+  return rows.map(r => r.id)
+}
 
 class ProjectController {
   /**
@@ -70,10 +81,14 @@ class ProjectController {
                GROUP_CONCAT(DISTINCT t_scene.tag_name) as scene_tag_names
         FROM project p
         LEFT JOIN sys_user su ON p.buyer_id = su.id
-        LEFT JOIN tag t_ip ON FIND_IN_SET(t_ip.id, p.ip_tag_ids) > 0
-        LEFT JOIN tag t_cat ON FIND_IN_SET(t_cat.id, p.category_tag_ids) > 0
-        LEFT JOIN tag t_craft ON FIND_IN_SET(t_craft.id, p.craft_tag_ids) > 0
-        LEFT JOIN tag t_scene ON FIND_IN_SET(t_scene.id, p.scene_tag_ids) > 0
+        LEFT JOIN project_tag r_ip ON r_ip.project_id = p.id AND r_ip.tag_type = 'ip'
+        LEFT JOIN tag t_ip ON t_ip.id = r_ip.tag_id AND t_ip.is_delete = 0
+        LEFT JOIN project_tag r_cat ON r_cat.project_id = p.id AND r_cat.tag_type = 'category'
+        LEFT JOIN tag t_cat ON t_cat.id = r_cat.tag_id AND t_cat.is_delete = 0
+        LEFT JOIN project_tag r_craft ON r_craft.project_id = p.id AND r_craft.tag_type = 'craft'
+        LEFT JOIN tag t_craft ON t_craft.id = r_craft.tag_id AND t_craft.is_delete = 0
+        LEFT JOIN project_tag r_scene ON r_scene.project_id = p.id AND r_scene.tag_type = 'scene'
+        LEFT JOIN tag t_scene ON t_scene.id = r_scene.tag_id AND t_scene.is_delete = 0
         ${whereClause}
         GROUP BY p.id
         ORDER BY p.${sortField} ${sortOrder}
@@ -121,23 +136,17 @@ class ProjectController {
         return res.status(404).json(Response.notFound('项目不存在'))
       }
 
-      // 获取标签详情
-      if (project.ip_tag_ids) {
-        const [ipTags] = await db.query(`SELECT * FROM tag WHERE id IN (${project.ip_tag_ids.split(',').map(() => '?').join(',')})`, project.ip_tag_ids.split(','))
-        project.ipTagDetails = ipTags
+      // 获取标签详情（走关联表，修复旧代码用名称当 id 查不到的 bug）
+      const tagMap = await getTagsByRecord('project', id)
+      const fetchDetails = async (ids) => {
+        if (!ids.length) return []
+        const ph = ids.map(() => '?').join(',')
+        return await db.query(`SELECT * FROM tag WHERE id IN (${ph}) AND is_delete = 0`, ids)
       }
-      if (project.category_tag_ids) {
-        const [categoryTags] = await db.query(`SELECT * FROM tag WHERE id IN (${project.category_tag_ids.split(',').map(() => '?').join(',')})`, project.category_tag_ids.split(','))
-        project.categoryTagDetails = categoryTags
-      }
-      if (project.craft_tag_ids) {
-        const [craftTags] = await db.query(`SELECT * FROM tag WHERE id IN (${project.craft_tag_ids.split(',').map(() => '?').join(',')})`, project.craft_tag_ids.split(','))
-        project.craftTagDetails = craftTags
-      }
-      if (project.scene_tag_ids) {
-        const [sceneTags] = await db.query(`SELECT * FROM tag WHERE id IN (${project.scene_tag_ids.split(',').map(() => '?').join(',')})`, project.scene_tag_ids.split(','))
-        project.sceneTagDetails = sceneTags
-      }
+      project.ipTagDetails = await fetchDetails(tagMap.ip)
+      project.categoryTagDetails = await fetchDetails(tagMap.category)
+      project.craftTagDetails = await fetchDetails(tagMap.craft)
+      project.sceneTagDetails = await fetchDetails(tagMap.scene)
 
       res.json(Response.success(project))
     } catch (error) {
@@ -219,6 +228,11 @@ class ProjectController {
 
       // 触发供应商统计重算（合作项目数/总金额）
       try { await recalcSupplierStats(supplier_id) } catch {}
+      // 写标签关联表（ip 为名称需转 id；旧逗号字段由 INSERT 已写入）
+      try {
+        const ipIds = await ipNamesToIds(ip_tag_ids)
+        if (ipIds.length) await syncTags('project', result.insertId, { ip: ipIds })
+      } catch {}
 
       res.json(Response.success({ id: result.insertId }, '创建成功'))
     } catch (error) {
@@ -293,6 +307,14 @@ class ProjectController {
         const [newRow] = await db.query('SELECT supplier_id FROM project WHERE id = ?', [id])
         await recalcSuppliersStats([oldRow?.supplier_id, newRow?.supplier_id])
       } catch {}
+
+      // 若传了 ip_tag_ids，同步关联表（名称转 id；双写旧字段已由 UPDATE 处理）
+      if (ip_tag_ids !== undefined) {
+        try {
+          const ipIds = await ipNamesToIds(ip_tag_ids)
+          await syncTags('project', id, { ip: ipIds })
+        } catch {}
+      }
 
       res.json(Response.success(null, '更新成功'))
     } catch (error) {
@@ -441,6 +463,16 @@ class ProjectController {
             req.user?.id
           ])
           if (project.supplier_id) touchedSuppliers.add(project.supplier_id)
+          // 写标签关联表（import 的 ip_tag_ids 已是 tag id）
+          try {
+            const ipIds = String(project.ip_tag_ids || '').split(',').map(Number).filter(n => !isNaN(n))
+            const catIds = String(project.category_tag_ids || '').split(',').map(Number).filter(n => !isNaN(n))
+            const craftIds = String(project.craft_tag_ids || '').split(',').map(Number).filter(n => !isNaN(n))
+            const sceneIds = String(project.scene_tag_ids || '').split(',').map(Number).filter(n => !isNaN(n))
+            if (ipIds.length || catIds.length || craftIds.length || sceneIds.length) {
+              await syncTags('project', result.insertId, { ip: ipIds, category: catIds, craft: craftIds, scene: sceneIds })
+            }
+          } catch {}
           results.success++
         } catch (err) {
           results.failed++

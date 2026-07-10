@@ -10,6 +10,11 @@ const { validate } = require('../utils/validator')
 const { isSensitiveSource } = require('../utils/urlSafety')
 const LinkChecker = require('../services/LinkChecker')
 const { loadTagsByType, matchTagIds } = require('../utils/tagMatcher')
+const { syncTags, addTags } = require('../utils/tagWrite')
+const { tagExistsClause } = require('../utils/tagQuery')
+
+// 逗号字符串 → tag_id 数组
+const toIdArr = (v) => String(v || '').split(',').map(s => s.trim()).filter(Boolean).map(Number).filter(n => !isNaN(n))
 
 class InspirationController {
   /**
@@ -53,6 +58,7 @@ class InspirationController {
         if (!data.category_tag_ids && matched.category.length) data.category_tag_ids = matched.category.join(',')
         if (!data.craft_tag_ids && matched.craft.length) data.craft_tag_ids = matched.craft.join(',')
         if (!data.scene_tag_ids && matched.scene.length) data.scene_tag_ids = matched.scene.join(',')
+        data._matchedTags = matched // 供 create 合并写入关联表
       } catch { /* 标签匹配失败不影响主流程 */ }
     }
   }
@@ -123,31 +129,31 @@ class InspirationController {
         params.push(is_pinned)
       }
 
-      // 标签筛选（tag_type 拼入列名，必须用白名单校验，防止 SQL 注入）
+      // 标签筛选（走关联表 EXISTS，避免旧 LIKE '%id%' 误匹配：查1命中10/11）
       if (tag_type && tag_ids) {
         const allowedTagTypes = ['ip', 'category', 'craft', 'scene']
         if (allowedTagTypes.includes(tag_type)) {
-          whereClause += ` AND i.${tag_type}_tag_ids LIKE ?`
-          params.push(`%${tag_ids}%`)
+          whereClause += ` AND ${tagExistsClause('inspiration', 'i', tag_type)}`
+          params.push(tag_ids)
         }
       }
 
-      // 直接按各类标签 ID 筛选（前端品类/工艺等下拉），列名为固定常量，安全
+      // 直接按各类标签 ID 筛选（前端品类/工艺等下拉），走关联表 EXISTS
       if (category_tag_ids) {
-        whereClause += ' AND i.category_tag_ids LIKE ?'
-        params.push(`%${category_tag_ids}%`)
+        whereClause += ` AND ${tagExistsClause('inspiration', 'i', 'category')}`
+        params.push(category_tag_ids)
       }
       if (craft_tag_ids) {
-        whereClause += ' AND i.craft_tag_ids LIKE ?'
-        params.push(`%${craft_tag_ids}%`)
+        whereClause += ` AND ${tagExistsClause('inspiration', 'i', 'craft')}`
+        params.push(craft_tag_ids)
       }
       if (ip_tag_ids) {
-        whereClause += ' AND i.ip_tag_ids LIKE ?'
-        params.push(`%${ip_tag_ids}%`)
+        whereClause += ` AND ${tagExistsClause('inspiration', 'i', 'ip')}`
+        params.push(ip_tag_ids)
       }
       if (scene_tag_ids) {
-        whereClause += ' AND i.scene_tag_ids LIKE ?'
-        params.push(`%${scene_tag_ids}%`)
+        whereClause += ` AND ${tagExistsClause('inspiration', 'i', 'scene')}`
+        params.push(scene_tag_ids)
       }
 
       // 日期范围
@@ -330,6 +336,17 @@ class InspirationController {
 
       // 后台自动触发 AI 图文分析（不阻塞创建请求，约1分钟完成，完成后图文自动入库）
       const newId = result.insertId
+      // 写标签关联表：合并用户手填 + autofill 匹配的标签（双写，旧逗号字段由 INSERT 已写入）
+      try {
+        const m = snap._matchedTags || {}
+        await syncTags('inspiration', newId, {
+          ip: [...new Set([...toIdArr(ip_tag_ids), ...(m.ip || [])])],
+          category: [...new Set([...toIdArr(category_tag_ids), ...(m.category || [])])],
+          craft: [...new Set([...toIdArr(craft_tag_ids), ...(m.craft || [])])],
+          scene: [...new Set([...toIdArr(scene_tag_ids), ...(m.scene || [])])]
+        })
+      } catch {}
+
       InspirationController._analyzeInspiration(newId).catch(e => {
         console.error(`[inspiration ${newId}] 后台自动分析失败:`, e.message)
       })
@@ -446,6 +463,16 @@ class InspirationController {
 
       if (result.affectedRows === 0) {
         return res.status(404).json(Response.notFound('灵感不存在'))
+      }
+
+      // 编辑表单一次性提交四类标签，同步到关联表（双写）
+      if (ip_tag_ids !== undefined || category_tag_ids !== undefined || craft_tag_ids !== undefined || scene_tag_ids !== undefined) {
+        try {
+          await syncTags('inspiration', id, {
+            ip: toIdArr(ip_tag_ids), category: toIdArr(category_tag_ids),
+            craft: toIdArr(craft_tag_ids), scene: toIdArr(scene_tag_ids)
+          })
+        } catch {}
       }
 
       res.json(Response.success(null, '更新成功'))
@@ -765,6 +792,8 @@ class InspirationController {
         id
       ]
     )
+    // AI 分析出的标签增量写入关联表（不清除已有）
+    try { await addTags('inspiration', id, tagUpdates) } catch {}
     return { ocrCount: imageTexts.length, downloaded: imageTexts.filter(r => r.file && r.url).length, summary }
   }
 
