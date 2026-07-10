@@ -4,6 +4,7 @@
 const { Response } = require('../utils/response')
 const db = require('../config/database')
 const { validate } = require('../utils/validator')
+const { recalcSupplierStats, recalcSuppliersStats } = require('../utils/supplierStats')
 
 class ProjectController {
   /**
@@ -216,6 +217,9 @@ class ProjectController {
         req.user?.id
       ])
 
+      // 触发供应商统计重算（合作项目数/总金额）
+      try { await recalcSupplierStats(supplier_id) } catch {}
+
       res.json(Response.success({ id: result.insertId }, '创建成功'))
     } catch (error) {
       next(error)
@@ -267,6 +271,9 @@ class ProjectController {
         WHERE id = ? AND is_delete = 0
       `
 
+      // 取旧 supplier_id，用于换供应商时新旧两边都重算
+      const [oldRow] = await db.query('SELECT supplier_id FROM project WHERE id = ? AND is_delete = 0', [id])
+
       const result = await db.query(sql, [
         project_name, project_type, status,
         region, ip_tag_ids, category_tag_ids, craft_tag_ids, scene_tag_ids,
@@ -280,6 +287,12 @@ class ProjectController {
       if (result.affectedRows === 0) {
         return res.status(404).json(Response.notFound('项目不存在'))
       }
+
+      // 重算：旧 supplier_id + 当前 supplier_id（可能换供应商，两边都要更新）
+      try {
+        const [newRow] = await db.query('SELECT supplier_id FROM project WHERE id = ?', [id])
+        await recalcSuppliersStats([oldRow?.supplier_id, newRow?.supplier_id])
+      } catch {}
 
       res.json(Response.success(null, '更新成功'))
     } catch (error) {
@@ -300,6 +313,8 @@ class ProjectController {
         return res.status(403).json(Response.forbidden('仅管理员可删除'))
       }
 
+      const [oldRow] = await db.query('SELECT supplier_id FROM project WHERE id = ? AND is_delete = 0', [id])
+
       const result = await db.query(
         'UPDATE project SET is_delete = 1, update_time = NOW() WHERE id = ? AND is_delete = 0',
         [id]
@@ -308,6 +323,9 @@ class ProjectController {
       if (result.affectedRows === 0) {
         return res.status(404).json(Response.notFound('项目不存在'))
       }
+
+      // 软删后该项目不再计入供应商统计，重算
+      try { await recalcSupplierStats(oldRow?.supplier_id) } catch {}
 
       res.json(Response.success(null, '删除成功'))
     } catch (error) {
@@ -333,8 +351,11 @@ class ProjectController {
   /** 恢复 PUT /api/projects/:id/restore */
   async restore(req, res, next) {
     try {
+      const [row] = await db.query('SELECT supplier_id FROM project WHERE id = ? AND is_delete = 1', [req.params.id])
       const r = await db.query('UPDATE project SET is_delete = 0, update_time = NOW() WHERE id = ? AND is_delete = 1', [req.params.id])
       if (r.affectedRows === 0) return res.status(404).json(Response.notFound('回收站中无此记录'))
+      // 恢复后该项目重新计入供应商统计
+      try { await recalcSupplierStats(row?.supplier_id) } catch {}
       res.json(Response.success(null, '已恢复'))
     } catch (error) { next(error) }
   }
@@ -342,8 +363,11 @@ class ProjectController {
   /** 彻底删除 DELETE /api/projects/:id/purge */
   async purge(req, res, next) {
     try {
+      const [row] = await db.query('SELECT supplier_id FROM project WHERE id = ? AND is_delete = 1', [req.params.id])
       const r = await db.query('DELETE FROM project WHERE id = ? AND is_delete = 1', [req.params.id])
       if (r.affectedRows === 0) return res.status(404).json(Response.notFound('回收站中无此记录，无法彻底删除'))
+      // 物理删除后重算供应商统计
+      try { await recalcSupplierStats(row?.supplier_id) } catch {}
       res.json(Response.success(null, '已彻底删除'))
     } catch (error) { next(error) }
   }
@@ -365,6 +389,7 @@ class ProjectController {
         failed: 0,
         errors: []
       }
+      const touchedSuppliers = new Set()
 
       for (let i = 0; i < projects.length; i++) {
         const project = projects[i]
@@ -415,12 +440,16 @@ class ProjectController {
             project.remark || null,
             req.user?.id
           ])
+          if (project.supplier_id) touchedSuppliers.add(project.supplier_id)
           results.success++
         } catch (err) {
           results.failed++
           results.errors.push(`第${i + 1}行: ${err.message}`)
         }
       }
+
+      // 导入涉及的供应商统计重算
+      try { await recalcSuppliersStats([...touchedSuppliers]) } catch {}
 
       res.json(Response.success(results, '批量导入完成'))
     } catch (error) {
