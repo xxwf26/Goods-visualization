@@ -4,6 +4,7 @@
 const { Response } = require('../utils/response')
 const db = require('../config/database')
 const { validate } = require('../utils/validator')
+const { humanizeImportError } = require('../utils/importError')
 
 class TagController {
   /**
@@ -305,7 +306,7 @@ class TagController {
           results.success++
         } catch (err) {
           results.failed++
-          results.errors.push(`第${i + 1}行: ${err.message}`)
+          results.errors.push(`第${i + 1}行: ${humanizeImportError(err)}`)
         }
       }
 

@@ -7,6 +7,7 @@ const XLSX = require('xlsx')
 const path = require('path')
 const fs = require('fs')
 const db = require('../config/database')
+const { humanizeImportError } = require('../utils/importError')
 
 class ImportService {
   /**
@@ -244,7 +245,7 @@ class ImportService {
         result.insertedIds.push(insertResult.insertId)
       } catch (err) {
         result.failed++
-        result.errors.push(`第${rowNum}行: ${err.message}`)
+        result.errors.push(`第${rowNum}行: ${humanizeImportError(err)}`)
       }
     }
 
@@ -295,7 +296,7 @@ class ImportService {
         result.insertedIds.push(insertResult.insertId)
       } catch (err) {
         result.failed++
-        result.errors.push(`第${rowNum}行: ${err.message}`)
+        result.errors.push(`第${rowNum}行: ${humanizeImportError(err)}`)
       }
     }
 
@@ -343,7 +344,7 @@ class ImportService {
         result.insertedIds.push(insertResult.insertId)
       } catch (err) {
         result.failed++
-        result.errors.push(`第${rowNum}行: ${err.message}`)
+        result.errors.push(`第${rowNum}行: ${humanizeImportError(err)}`)
       }
     }
 

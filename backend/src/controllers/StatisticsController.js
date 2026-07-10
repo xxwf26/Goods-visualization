@@ -3,6 +3,7 @@
  */
 const { Response } = require('../utils/response')
 const db = require('../config/database')
+const { tagExistsClause } = require('../utils/tagQuery')
 
 class StatisticsController {
   /**
@@ -23,16 +24,16 @@ class StatisticsController {
       let whereClause = 'WHERE p.is_delete = 0 AND p.unit_price > 0'
       const params = []
 
-      // 品类标签筛选
+      // 品类标签筛选（走关联表 EXISTS，避免旧 LIKE 误匹配）
       if (category_tag_ids) {
-        whereClause += ' AND p.category_tag_ids LIKE ?'
-        params.push(`%${category_tag_ids}%`)
+        whereClause += ` AND ${tagExistsClause('project', 'p', 'category')}`
+        params.push(category_tag_ids)
       }
 
       // 工艺标签筛选
       if (craft_tag_ids) {
-        whereClause += ' AND p.craft_tag_ids LIKE ?'
-        params.push(`%${craft_tag_ids}%`)
+        whereClause += ` AND ${tagExistsClause('project', 'p', 'craft')}`
+        params.push(craft_tag_ids)
       }
 
       // 供应商筛选
@@ -138,7 +139,8 @@ class StatisticsController {
             MIN(p.unit_price) as min_price,
             MAX(p.unit_price) as max_price
           FROM project p
-          JOIN tag t ON FIND_IN_SET(t.id, p.category_tag_ids) > 0
+          JOIN project_tag r ON r.project_id = p.id AND r.tag_type = 'category'
+          JOIN tag t ON t.id = r.tag_id AND t.is_delete = 0
           ${whereClause} AND t.id = ?
           GROUP BY t.id, t.tag_name
         `
@@ -156,7 +158,8 @@ class StatisticsController {
             MIN(p.unit_price) as min_price,
             MAX(p.unit_price) as max_price
           FROM project p
-          JOIN tag t ON FIND_IN_SET(t.id, p.craft_tag_ids) > 0
+          JOIN project_tag r ON r.project_id = p.id AND r.tag_type = 'craft'
+          JOIN tag t ON t.id = r.tag_id AND t.is_delete = 0
           ${whereClause} AND t.id = ?
           GROUP BY t.id, t.tag_name
         `
@@ -201,13 +204,13 @@ class StatisticsController {
       const params = []
 
       if (category_tag_ids) {
-        whereClause += ' AND p.category_tag_ids LIKE ?'
-        params.push(`%${category_tag_ids}%`)
+        whereClause += ` AND ${tagExistsClause('project', 'p', 'category')}`
+        params.push(category_tag_ids)
       }
 
       if (craft_tag_ids) {
-        whereClause += ' AND p.craft_tag_ids LIKE ?'
-        params.push(`%${craft_tag_ids}%`)
+        whereClause += ` AND ${tagExistsClause('project', 'p', 'craft')}`
+        params.push(craft_tag_ids)
       }
 
       if (supplier_id) {

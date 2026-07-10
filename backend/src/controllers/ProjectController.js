@@ -7,6 +7,7 @@ const { validate } = require('../utils/validator')
 const { recalcSupplierStats, recalcSuppliersStats } = require('../utils/supplierStats')
 const { syncTags } = require('../utils/tagWrite')
 const { getTagsByRecord } = require('../utils/tagQuery')
+const { humanizeImportError } = require('../utils/importError')
 
 // project 的 ip_tag_ids 存的是 IP 名称（文本输入），转成 tag_id 数组（category/craft/scene 前端未启用）
 async function ipNamesToIds(names) {
@@ -476,7 +477,7 @@ class ProjectController {
           results.success++
         } catch (err) {
           results.failed++
-          results.errors.push(`第${i + 1}行: ${err.message}`)
+          results.errors.push(`第${i + 1}行: ${humanizeImportError(err)}`)
         }
       }
 
