@@ -115,7 +115,9 @@ const routes = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/home'
+    name: 'NotFound',
+    component: () => import('@/views/NotFound.vue'),
+    meta: { requiresAuth: false, title: '页面不存在' }
   }
 ]
 

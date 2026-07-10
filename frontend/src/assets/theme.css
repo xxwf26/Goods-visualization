@@ -49,3 +49,16 @@
   --filter-border: #FDE68A;
   --card-image-bg: #FFFBEB;
 }
+/* 图片加载失败占位（el-image error）：全局友好兜底，替代默认裂图 */
+.el-image__error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F8FAFC;
+  color: #CBD5E1;
+  font-size: 0; /* 隐藏默认"加载失败"文字，用 ::before 替代 */
+}
+.el-image__error::before {
+  content: "🖼️ 图片加载失败";
+  font-size: 12px;
+}

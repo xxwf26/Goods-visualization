@@ -421,17 +421,20 @@ function handlePageChange(page) {
 // 操作
 const tableRef = ref(null)
 function handleCopy(row) {
-  const text = [
-    `单品: ${row.product_name || '-'}`,
-    `品类: ${row.category || '-'}`,
-    `供应商: ${row.supplier_name || '-'}`,
-    `IP: ${row.ip || '-'}`,
-    `单价: ${row.unit_price ? '¥' + Number(row.unit_price).toFixed(2) : '-'}`,
-    `总数量: ${row.total_quantity || '-'}`,
-    `总价: ${row.total_price ? '¥' + Number(row.total_price).toFixed(2) : '-'}`,
-  ].join('\n')
+  // 制表符分隔（表头+数据两行），粘进 Excel/WPS 自动分列；纯文本阅读也清晰
+  const headers = ['单品', '品类', '供应商', 'IP', '单价', '总数量', '总价']
+  const values = [
+    row.product_name || '-',
+    row.category || '-',
+    row.supplier_name || '-',
+    row.ip || '-',
+    row.unit_price ? '¥' + Number(row.unit_price).toFixed(2) : '-',
+    row.total_quantity || '-',
+    row.total_price ? '¥' + Number(row.total_price).toFixed(2) : '-'
+  ]
+  const text = headers.join('\t') + '\n' + values.join('\t')
   navigator.clipboard.writeText(text).then(() => {
-    ElMessage.success('已复制到剪贴板')
+    ElMessage.success('已复制，可粘贴到 Excel 自动分列')
   }).catch(() => {
     ElMessage.error('复制失败')
   })
