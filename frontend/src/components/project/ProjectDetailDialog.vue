@@ -123,6 +123,7 @@
 import { computed, ref, watch } from 'vue'
 import { PictureFilled } from '@element-plus/icons-vue'
 import ImagePreview from '@/components/common/ImagePreview.vue'
+import { formatDate } from '@/utils/format'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -149,10 +150,7 @@ const quotationUrls = computed(() => {
     .map(f => f.startsWith('http') ? f : `/uploads/${f}`)
 })
 
-function formatDate(date) {
-  if (!date) return '-'
-  return String(date).split(/[T ]/)[0]
-}
+// formatDate 见 utils/format.js
 </script>
 
 <style scoped>

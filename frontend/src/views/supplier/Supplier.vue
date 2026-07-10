@@ -8,6 +8,12 @@
       </div>
       <div class="page-actions">
         <PermissionButton
+          permission="supplier:delete"
+          @click="trashVisible = true"
+        >
+          回收站
+        </PermissionButton>
+        <PermissionButton
           permission="supplier:create"
           type="primary"
           :icon="Plus"
@@ -204,6 +210,18 @@
       :supplier="currentSupplier"
       @edit="handleEdit"
     />
+
+    <TrashDialog
+      v-model="trashVisible"
+      title="供应商回收站"
+      :columns="trashColumns"
+      :fetch-trash="getSupplierTrash"
+      :restore="restoreSupplier"
+      :purge="purgeSupplier"
+      label-field="supplier_name"
+      label-fallback="未命名供应商"
+      @changed="loadData"
+    />
   </div>
 </template>
 
@@ -212,11 +230,19 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Plus, Search, Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getSuppliers, createSupplier, updateSupplier, deleteSupplier } from '@/api/suppliers'
+import { getSuppliers, createSupplier, updateSupplier, deleteSupplier, getSupplierTrash, restoreSupplier, purgeSupplier } from '@/api/suppliers'
 import { getTagsByType } from '@/api/tags'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import SupplierFormDialog from '@/components/supplier/SupplierFormDialog.vue'
 import SupplierDetailDialog from '@/components/supplier/SupplierDetailDialog.vue'
+import TrashDialog from '@/components/common/TrashDialog.vue'
+
+const trashVisible = ref(false)
+const trashColumns = [
+  { prop: 'supplier_name', label: '供应商', minWidth: 200 },
+  { prop: 'cooperation_status', label: '合作状态', width: 100, tag: true },
+  { prop: 'contact_person', label: '联系人', width: 100 }
+]
 
 // 筛选表单
 const filterForm = reactive({

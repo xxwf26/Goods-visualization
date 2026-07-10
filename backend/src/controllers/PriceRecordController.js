@@ -547,6 +547,39 @@ class PriceRecordController {
     }
   }
 
+  /** 回收站列表 GET /api/price-records/trash */
+  async listTrash(req, res, next) {
+    try {
+      const { page = 1, pageSize = 20 } = req.query
+      const offset = (page - 1) * pageSize
+      const [c] = await db.query('SELECT COUNT(*) as total FROM price_record WHERE is_delete = 1')
+      const list = await db.query(
+        `SELECT id, product_name, category, supplier_name, ip, unit_price, update_time
+         FROM price_record WHERE is_delete = 1 ORDER BY update_time DESC LIMIT ? OFFSET ?`,
+        [parseInt(pageSize), parseInt(offset)]
+      )
+      res.json(Response.success({ list, pagination: { page: parseInt(page), pageSize: parseInt(pageSize), total: c.total, totalPages: Math.ceil(c.total / pageSize) } }))
+    } catch (error) { next(error) }
+  }
+
+  /** 恢复 PUT /api/price-records/:id/restore */
+  async restore(req, res, next) {
+    try {
+      const r = await db.query('UPDATE price_record SET is_delete = 0, update_time = NOW() WHERE id = ? AND is_delete = 1', [req.params.id])
+      if (r.affectedRows === 0) return res.status(404).json(Response.notFound('回收站中无此记录'))
+      res.json(Response.success(null, '已恢复'))
+    } catch (error) { next(error) }
+  }
+
+  /** 彻底删除 DELETE /api/price-records/:id/purge */
+  async purge(req, res, next) {
+    try {
+      const r = await db.query('DELETE FROM price_record WHERE id = ? AND is_delete = 1', [req.params.id])
+      if (r.affectedRows === 0) return res.status(404).json(Response.notFound('回收站中无此记录，无法彻底删除'))
+      res.json(Response.success(null, '已彻底删除'))
+    } catch (error) { next(error) }
+  }
+
   /**
    * 批量删除价格记录（软删除）
    * DELETE /api/price-records/batch

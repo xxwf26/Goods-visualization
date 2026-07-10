@@ -67,6 +67,11 @@ export function batchDeletePriceRecords(ids) {
   return request.delete('/price-records/batch', { data: { ids } })
 }
 
+// 回收站
+export function getPriceRecordTrash(params) { return request.get('/price-records/trash', { params }) }
+export function restorePriceRecord(id) { return request.put(`/price-records/${id}/restore`) }
+export function purgePriceRecord(id) { return request.delete(`/price-records/${id}/purge`) }
+
 export default {
   getPriceRecords,
   queryPriceRecords,
@@ -74,5 +79,8 @@ export default {
   createPriceRecord,
   updatePriceRecord,
   deletePriceRecord,
-  batchDeletePriceRecords
+  batchDeletePriceRecords,
+  getPriceRecordTrash,
+  restorePriceRecord,
+  purgePriceRecord
 }

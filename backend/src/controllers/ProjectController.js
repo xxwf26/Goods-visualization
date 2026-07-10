@@ -315,6 +315,39 @@ class ProjectController {
     }
   }
 
+  /** 回收站列表 GET /api/projects/trash */
+  async listTrash(req, res, next) {
+    try {
+      const { page = 1, pageSize = 20 } = req.query
+      const offset = (page - 1) * pageSize
+      const [c] = await db.query('SELECT COUNT(*) as total FROM project WHERE is_delete = 1')
+      const list = await db.query(
+        `SELECT id, project_name, project_code, status, region, update_time
+         FROM project WHERE is_delete = 1 ORDER BY update_time DESC LIMIT ? OFFSET ?`,
+        [parseInt(pageSize), parseInt(offset)]
+      )
+      res.json(Response.success({ list, pagination: { page: parseInt(page), pageSize: parseInt(pageSize), total: c.total, totalPages: Math.ceil(c.total / pageSize) } }))
+    } catch (error) { next(error) }
+  }
+
+  /** 恢复 PUT /api/projects/:id/restore */
+  async restore(req, res, next) {
+    try {
+      const r = await db.query('UPDATE project SET is_delete = 0, update_time = NOW() WHERE id = ? AND is_delete = 1', [req.params.id])
+      if (r.affectedRows === 0) return res.status(404).json(Response.notFound('回收站中无此记录'))
+      res.json(Response.success(null, '已恢复'))
+    } catch (error) { next(error) }
+  }
+
+  /** 彻底删除 DELETE /api/projects/:id/purge */
+  async purge(req, res, next) {
+    try {
+      const r = await db.query('DELETE FROM project WHERE id = ? AND is_delete = 1', [req.params.id])
+      if (r.affectedRows === 0) return res.status(404).json(Response.notFound('回收站中无此记录，无法彻底删除'))
+      res.json(Response.success(null, '已彻底删除'))
+    } catch (error) { next(error) }
+  }
+
   /**
    * 批量导入项目
    * POST /api/projects/import

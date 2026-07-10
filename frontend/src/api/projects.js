@@ -59,6 +59,11 @@ export function getProjectOptions() {
   return request.get('/projects/options')
 }
 
+// 回收站
+export function getProjectTrash(params) { return request.get('/projects/trash', { params }) }
+export function restoreProject(id) { return request.put(`/projects/${id}/restore`) }
+export function purgeProject(id) { return request.delete(`/projects/${id}/purge`) }
+
 export default {
   getProjects,
   getProjectDetail,
@@ -66,5 +71,8 @@ export default {
   updateProject,
   deleteProject,
   exportProjects,
-  getProjectOptions
+  getProjectOptions,
+  getProjectTrash,
+  restoreProject,
+  purgeProject
 }

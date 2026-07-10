@@ -115,6 +115,7 @@ import { useRoute } from 'vue-router'
 import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock, Link, PriceTag, VideoPlay, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, ElNotification, ElButton } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { formatDate, formatCount } from '@/utils/format'
 import { getInspirations, checkInspirationLinks, getInspirationDetail, deleteInspiration } from '@/api/inspirations'
 import { undoLog } from '@/api/logs'
 import { isSensitiveSource } from '@/utils/sourcePolicy'
@@ -135,11 +136,7 @@ const filterForm = reactive({ keyword: '', platform: '' })
 // 平台筛选选项（与 MetaFetcher 识别出的平台一致）
 const platformOptions = ['小红书', 'B站', '淘宝', '1688', '站酷', '微博', '抖音', '其他']
 // 大数格式化：10000 → 1.0万，便于卡片展示播放/点赞
-function formatCount(n) {
-  const v = Number(n) || 0
-  if (v >= 10000) return (v / 10000).toFixed(1).replace(/\.0$/, '') + '万'
-  return String(v)
-}
+// formatCount / formatDate 抽到 utils/format.js，下方 import 使用
 const loading = ref(false), tableData = ref([]), total = ref(0)
 const checking = ref(false)
 const pagination = reactive({ page: 1, pageSize: 24 })
@@ -275,7 +272,7 @@ function getDisplayTags(item) {
   return t.filter(Boolean)
 }
 function getSourceLabel(s) { const m={'小红书':'小红书','淘宝':'淘宝','1688':'1688','站酷':'站酷','微博':'微博','抖音':'抖音','pinterest':'Pinterest','instagram':'Instagram','other':'其他'}; return m[s]||s||'其他' }
-function formatDate(d) { if(!d) return '-'; return d.split(/[T ]/)[0] }
+// formatDate 见 utils/format.js（统一管理）
 
 onMounted(() => {
   const route = useRoute()

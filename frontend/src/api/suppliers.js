@@ -51,11 +51,19 @@ export function getSupplierDashboard() {
   return request.get('/suppliers/dashboard')
 }
 
+// 回收站
+export function getSupplierTrash(params) { return request.get('/suppliers/trash', { params }) }
+export function restoreSupplier(id) { return request.put(`/suppliers/${id}/restore`) }
+export function purgeSupplier(id) { return request.delete(`/suppliers/${id}/purge`) }
+
 export default {
   getSuppliers,
   getSupplierDetail,
   createSupplier,
   updateSupplier,
   deleteSupplier,
-  getSupplierDashboard
+  getSupplierDashboard,
+  getSupplierTrash,
+  restoreSupplier,
+  purgeSupplier
 }

@@ -8,6 +8,12 @@
       </div>
       <div class="page-actions">
         <PermissionButton
+          permission="price:delete"
+          @click="trashVisible = true"
+        >
+          回收站
+        </PermissionButton>
+        <PermissionButton
           permission="price:create"
           type="primary"
           @click="handleAdd"
@@ -264,6 +270,18 @@
       v-model="detailDialogVisible"
       :record="currentRecord"
     />
+
+    <TrashDialog
+      v-model="trashVisible"
+      title="价格记录回收站"
+      :columns="trashColumns"
+      :fetch-trash="getPriceRecordTrash"
+      :restore="restorePriceRecord"
+      :purge="purgePriceRecord"
+      label-field="product_name"
+      label-fallback="未命名单品"
+      @changed="loadData"
+    />
   </div>
 </template>
 
@@ -272,11 +290,21 @@ import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Refresh, PictureFilled, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getPriceRecords, getPriceRecordOptions, deletePriceRecord, batchDeletePriceRecords } from '@/api/priceRecords'
+import { getPriceRecords, getPriceRecordOptions, deletePriceRecord, batchDeletePriceRecords, getPriceRecordTrash, restorePriceRecord, purgePriceRecord } from '@/api/priceRecords'
 import { exportToCsv } from '@/utils/exportCsv'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import PriceRecordFormDialog from '@/components/priceRecord/PriceRecordFormDialog.vue'
 import PriceRecordDetailDialog from '@/components/priceRecord/PriceRecordDetailDialog.vue'
+import TrashDialog from '@/components/common/TrashDialog.vue'
+
+const trashVisible = ref(false)
+const trashColumns = [
+  { prop: 'product_name', label: '单品', minWidth: 180 },
+  { prop: 'category', label: '品类', width: 100 },
+  { prop: 'supplier_name', label: '供应商', width: 140 },
+  { prop: 'ip', label: 'IP', width: 100 },
+  { prop: 'unit_price', label: '单价', width: 90, align: 'right' }
+]
 
 // 筛选表单
 const filterForm = reactive({

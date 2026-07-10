@@ -173,9 +173,14 @@ class InspirationController {
       const [countResult] = await db.query(countSql, params)
       const total = countResult.total
 
-      // 查询列表
+      // 查询列表（只取卡片展示所需字段，去掉 image_texts/content_summary/description 大字段等，减少传输）
       const listSql = `
-        SELECT i.*, 
+        SELECT i.id, i.title, i.inspiration_type, i.categories, i.source_platform, i.source_type,
+               i.link, i.source_url, i.link_status, i.author, i.cover_image, i.description,
+               i.category_tag_ids, i.craft_tag_ids, i.ip_tag_ids, i.scene_tag_ids,
+               i.collect_time, i.collection_status, i.folder_id, i.is_featured, i.is_pinned,
+               i.like_count, i.save_count, i.comment_count, i.view_count, i.play_count,
+               i.is_adopted, i.is_sensitive, i.create_user_id, i.create_time, i.update_time,
                f.folder_name,
                u.nickname as creator_name
         FROM inspiration i

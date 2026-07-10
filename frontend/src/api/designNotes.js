@@ -9,4 +9,9 @@ export function createDesignNote(data) { return request.post('/design-notes', da
 export function updateDesignNote(id, data) { return request.put(`/design-notes/${id}`, data) }
 export function deleteDesignNote(id) { return request.delete(`/design-notes/${id}`) }
 
-export default { getDesignNotes, getDesignNoteDetail, createDesignNote, updateDesignNote, deleteDesignNote }
+// 回收站
+export function getDesignNoteTrash(params) { return request.get('/design-notes/trash', { params }) }
+export function restoreDesignNote(id) { return request.put(`/design-notes/${id}/restore`) }
+export function purgeDesignNote(id) { return request.delete(`/design-notes/${id}/purge`) }
+
+export default { getDesignNotes, getDesignNoteDetail, createDesignNote, updateDesignNote, deleteDesignNote, getDesignNoteTrash, restoreDesignNote, purgeDesignNote }

@@ -8,6 +8,12 @@
       </div>
       <div class="page-actions">
         <PermissionButton
+          permission="project:delete"
+          @click="trashVisible = true"
+        >
+          回收站
+        </PermissionButton>
+        <PermissionButton
           permission="project:export"
           type="success"
           @click="handleExport"
@@ -273,6 +279,18 @@
       :images="previewImages"
       :initial-index="previewIndex"
     />
+
+    <TrashDialog
+      v-model="trashVisible"
+      title="项目回收站"
+      :columns="trashColumns"
+      :fetch-trash="getProjectTrash"
+      :restore="restoreProject"
+      :purge="purgeProject"
+      label-field="project_name"
+      label-fallback="未命名项目"
+      @changed="loadData"
+    />
   </div>
 </template>
 
@@ -282,13 +300,22 @@ import { useRoute } from 'vue-router'
 import { Plus, Download, Search, Refresh } from '@element-plus/icons-vue'
 import { Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getProjects, getProjectOptions, deleteProject } from '@/api/projects'
+import { getProjects, getProjectOptions, deleteProject, getProjectTrash, restoreProject, purgeProject } from '@/api/projects'
+import { formatDate } from '@/utils/format'
 import { exportToCsv } from '@/utils/exportCsv'
 import { getTagsByType, getSuppliers } from '@/api'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import ProjectFormDialog from '@/components/project/ProjectFormDialog.vue'
 import ProjectDetailDialog from '@/components/project/ProjectDetailDialog.vue'
 import ImagePreview from '@/components/common/ImagePreview.vue'
+import TrashDialog from '@/components/common/TrashDialog.vue'
+
+const trashVisible = ref(false)
+const trashColumns = [
+  { prop: 'project_name', label: '项目名称', minWidth: 200 },
+  { prop: 'status', label: '状态', width: 90, tag: true },
+  { prop: 'region', label: '区服', width: 100 }
+]
 
 // 筛选表单
 const filterForm = reactive({
@@ -430,10 +457,7 @@ function getStatusText(status) {
   return texts[status] || status
 }
 
-function formatDate(date) {
-  if (!date) return '-'
-  return date.split(/[T ]/)[0]
-}
+// formatDate 见 utils/format.js
 
 function getImageUrls(effectImages) {
   if (!effectImages) return []

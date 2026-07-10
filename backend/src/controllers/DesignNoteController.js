@@ -33,7 +33,9 @@ class DesignNoteController {
 
       const [cnt] = await db.query(`SELECT COUNT(*) as total FROM design_note d ${where}`, params)
       const list = await db.query(
-        `SELECT d.*, p.project_name FROM design_note d LEFT JOIN project p ON d.project_id = p.id ${where} ORDER BY d.${sf} ${so} LIMIT ? OFFSET ?`,
+        `SELECT d.id, d.title, d.note_type, d.severity, d.stage, d.project_id, d.category, d.craft, d.ip,
+                d.create_user_id, d.create_time, d.update_time, p.project_name
+         FROM design_note d LEFT JOIN project p ON d.project_id = p.id ${where} ORDER BY d.${sf} ${so} LIMIT ? OFFSET ?`,
         [...params, parseInt(pageSize), parseInt(offset)]
       )
 
@@ -104,6 +106,39 @@ class DesignNoteController {
       const r = await db.query('UPDATE design_note SET is_delete=1,update_time=NOW() WHERE id=? AND is_delete=0', [req.params.id])
       if (r.affectedRows === 0) return res.status(404).json(Response.notFound('记录不存在'))
       res.json(Response.success(null, '删除成功'))
+    } catch (e) { next(e) }
+  }
+
+  /** 回收站列表 GET /api/design-notes/trash */
+  async listTrash(req, res, next) {
+    try {
+      const { page = 1, pageSize = 20 } = req.query
+      const offset = (page - 1) * pageSize
+      const [c] = await db.query('SELECT COUNT(*) as total FROM design_note WHERE is_delete = 1')
+      const list = await db.query(
+        `SELECT id, title, note_type, severity, stage, update_time
+         FROM design_note WHERE is_delete = 1 ORDER BY update_time DESC LIMIT ? OFFSET ?`,
+        [parseInt(pageSize), parseInt(offset)]
+      )
+      res.json(Response.success({ list, pagination: { page: parseInt(page), pageSize: parseInt(pageSize), total: c.total, totalPages: Math.ceil(c.total / pageSize) } }))
+    } catch (e) { next(e) }
+  }
+
+  /** 恢复 PUT /api/design-notes/:id/restore */
+  async restore(req, res, next) {
+    try {
+      const r = await db.query('UPDATE design_note SET is_delete=0, update_time=NOW() WHERE id=? AND is_delete=1', [req.params.id])
+      if (r.affectedRows === 0) return res.status(404).json(Response.notFound('回收站中无此记录'))
+      res.json(Response.success(null, '已恢复'))
+    } catch (e) { next(e) }
+  }
+
+  /** 彻底删除 DELETE /api/design-notes/:id/purge */
+  async purge(req, res, next) {
+    try {
+      const r = await db.query('DELETE FROM design_note WHERE id=? AND is_delete=1', [req.params.id])
+      if (r.affectedRows === 0) return res.status(404).json(Response.notFound('回收站中无此记录，无法彻底删除'))
+      res.json(Response.success(null, '已彻底删除'))
     } catch (e) { next(e) }
   }
 }

@@ -6,6 +6,7 @@
         <span class="data-count">共 {{ total }} 条记录</span>
       </div>
       <div class="page-actions">
+        <PermissionButton permission="project:delete" @click="trashVisible = true">回收站</PermissionButton>
         <PermissionButton permission="project:create" type="primary" @click="handleAdd">新增注意事项</PermissionButton>
       </div>
     </div>
@@ -116,6 +117,18 @@
     <!-- 弹窗 -->
     <DesignNoteFormDialog v-model="formDialogVisible" :mode="formMode" :record-data="currentRecord" :note-type="activeTab" @success="handleFormSuccess" />
     <DesignNoteDetailDialog v-model="detailDialogVisible" :record="currentRecord" />
+
+    <TrashDialog
+      v-model="trashVisible"
+      title="注意事项回收站"
+      :columns="trashColumns"
+      :fetch-trash="getDesignNoteTrash"
+      :restore="restoreDesignNote"
+      :purge="purgeDesignNote"
+      label-field="title"
+      label-fallback="无标题"
+      @changed="loadData"
+    />
   </div>
 </template>
 
@@ -124,10 +137,19 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Refresh } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getDesignNotes, deleteDesignNote } from '@/api/designNotes'
+import { getDesignNotes, deleteDesignNote, getDesignNoteTrash, restoreDesignNote, purgeDesignNote } from '@/api/designNotes'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import DesignNoteFormDialog from '@/components/designNote/DesignNoteFormDialog.vue'
 import DesignNoteDetailDialog from '@/components/designNote/DesignNoteDetailDialog.vue'
+import TrashDialog from '@/components/common/TrashDialog.vue'
+
+const trashVisible = ref(false)
+const trashColumns = [
+  { prop: 'title', label: '标题', minWidth: 220 },
+  { prop: 'note_type', label: '类型', width: 90, tag: true },
+  { prop: 'severity', label: '严重程度', width: 100, tag: true },
+  { prop: 'stage', label: '适用阶段', width: 110 }
+]
 
 const activeTab = ref('production')
 const filterForm = reactive({ keyword: '', category: '', craft: '', severity: '', stage: '' })

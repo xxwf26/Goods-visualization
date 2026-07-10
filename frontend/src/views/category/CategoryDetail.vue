@@ -191,6 +191,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft, ArrowRight, Folder, Link, Shop, Picture, Star, FolderOpened } from '@element-plus/icons-vue'
 import { getCategoryDetail } from '@/api/price'
+import { formatDate } from '@/utils/format'
 
 const router = useRouter()
 const route = useRoute()
@@ -276,10 +277,7 @@ function getSourceLabel(sourceType) {
   return labels[sourceType] || sourceType || '其他'
 }
 
-function formatDate(date) {
-  if (!date) return '-'
-  return date.split(/[T ]/)[0]
-}
+// formatDate 见 utils/format.js
 
 onMounted(() => {
   loadCategoryDetail()

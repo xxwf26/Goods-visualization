@@ -145,7 +145,7 @@
           <el-tag :type="inspiration.is_adopted ? 'success' : 'info'" size="small">{{ inspiration.is_adopted ? '已采用' : '未采用' }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="收藏状态">{{ collectionStatusText }}</el-descriptions-item>
-        <el-descriptions-item label="收藏时间" :span="2">{{ formatDate(inspiration.collect_time) }}</el-descriptions-item>
+        <el-descriptions-item label="收藏时间" :span="2">{{ formatDateTime(inspiration.collect_time) }}</el-descriptions-item>
         <el-descriptions-item label="互动数据" :span="2">
           <span v-if="interactText" class="d-interact">{{ interactText }}</span>
           <span v-else>-</span>
@@ -195,6 +195,7 @@ import { useUserStore } from '@/stores/user'
 import request from '@/api/request'
 import { usePasteUpload } from '@/composables/usePasteUpload'
 import ImagePreview from '@/components/common/ImagePreview.vue'
+import { formatDateTime, formatCount } from '@/utils/format'
 
 const userStore = useUserStore()
 const canEdit = computed(() => userStore.hasPermission('inspiration:edit') || userStore.hasPermission('inspiration:create'))
@@ -272,11 +273,7 @@ const collectionStatusText = computed(() => {
 })
 
 // 互动数据：大数格式化为 x.x万，各项有值才拼入
-function formatCount(n) {
-  const v = Number(n) || 0
-  if (v >= 10000) return (v / 10000).toFixed(1).replace(/\.0$/, '') + '万'
-  return String(v)
-}
+// formatCount/formatDateTime 抽到 utils/format.js（下方 import）
 const interactText = computed(() => {
   const i = props.inspiration || {}
   const parts = []
@@ -294,10 +291,7 @@ const categoryLabels = computed(() => {
   return String(cats).split(',').map(s => s.trim()).filter(Boolean).map(v => map[v] || v)
 })
 
-function formatDate(d) {
-  if (!d) return '-'
-  return String(d).replace('T', ' ').substring(0, 16)
-}
+// formatDate（日期时间型）见 utils/format.js 的 formatDateTime
 
 // 进入编辑：把当前数据复制到 form
 function startEdit() {

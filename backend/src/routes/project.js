@@ -13,14 +13,17 @@ router.use(authMiddleware)
 router.get('/', projectController.list)
 router.get('/options', projectController.options)
  router.get('/export', projectController.export)
+router.get('/trash', requireRole('admin'), projectController.listTrash)
 router.get('/:id', projectController.detail)
 
 // 新增/编辑: editor+
 router.post('/', requireRole('editor'), projectController.create)
 router.post('/import', requireRole('editor'), projectController.import)
 router.put('/:id', requireRole('editor'), projectController.update)
+router.put('/:id/restore', requireRole('admin'), projectController.restore)
 
 // 删除: admin+
+router.delete('/:id/purge', requireRole('admin'), projectController.purge)
 router.delete('/:id', requireRole('admin'), projectController.delete)
 
 module.exports = router
