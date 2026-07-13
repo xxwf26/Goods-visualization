@@ -15,6 +15,9 @@
         <el-button v-if="canDelete" @click="trashVisible = true">
           <el-icon><Delete /></el-icon> 回收站
         </el-button>
+        <el-button @click="handleExport">
+          <el-icon><Download /></el-icon> 导出当前页
+        </el-button>
         <PermissionButton permission="inspiration:create" type="primary" @click="handleAdd">
           <el-icon><Plus /></el-icon> 新增灵感
         </PermissionButton>
@@ -112,10 +115,11 @@
 <script setup>
 import { ref, reactive, computed, onMounted, h } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock, Link, PriceTag, VideoPlay, Delete } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Picture, Star, FolderOpened, Clock, Link, PriceTag, VideoPlay, Delete, Download } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, ElNotification, ElButton } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { formatDate, formatCount } from '@/utils/format'
+import { exportToCsv } from '@/utils/exportCsv'
 import { getInspirations, checkInspirationLinks, getInspirationDetail, deleteInspiration } from '@/api/inspirations'
 import { undoLog } from '@/api/logs'
 import { isSensitiveSource } from '@/utils/sourcePolicy'
@@ -163,6 +167,26 @@ async function loadData() {
     total.value = res.data?.pagination?.total || 0
   } catch(e) { console.error(e) }
   finally { loading.value = false }
+}
+
+// 导出当前页灵感为 CSV
+const exportColumns = [
+  { key: 'title', label: '标题' },
+  { key: 'source_platform', label: '平台' },
+  { key: 'inspiration_type', label: '分类' },
+  { key: 'author', label: '作者' },
+  { key: 'like_count', label: '点赞' },
+  { key: 'save_count', label: '收藏' },
+  { key: 'play_count', label: '播放' },
+  { key: 'link', label: '链接' },
+  { key: 'create_time', label: '创建时间' }
+]
+function handleExport() {
+  if (!tableData.value.length) { ElMessage.warning('当前无数据可导出'); return }
+  const ts = new Date().toISOString().slice(0, 10)
+  const ok = exportToCsv(`灵感库_${ts}.csv`, tableData.value, exportColumns)
+  if (ok) ElMessage.success(`已导出当前页 ${tableData.value.length} 条`)
+  else ElMessage.warning('导出失败：无可用数据')
 }
 
 function handleTabChange() { pagination.page = 1; loadData() }

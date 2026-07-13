@@ -14,6 +14,14 @@
           回收站
         </PermissionButton>
         <PermissionButton
+          permission="supplier:view"
+          type="success"
+          :icon="Download"
+          @click="handleExport"
+        >
+          导出
+        </PermissionButton>
+        <PermissionButton
           permission="supplier:create"
           type="primary"
           :icon="Plus"
@@ -90,8 +98,10 @@
         stripe
         border
         @row-click="handleRowClick"
+        @selection-change="handleSelectionChange"
         style="width: 100%"
       >
+        <el-table-column type="selection" width="45" />
         <el-table-column label="#" width="50" align="center">
           <template #default="{ $index }">
             {{ (pagination.page - 1) * pagination.pageSize + $index + 1 }}
@@ -228,10 +238,11 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { Plus, Search, Refresh } from '@element-plus/icons-vue'
+import { Plus, Search, Refresh, Download } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getSuppliers, createSupplier, updateSupplier, deleteSupplier, getSupplierTrash, restoreSupplier, purgeSupplier } from '@/api/suppliers'
 import { getTagsByType } from '@/api/tags'
+import { exportToCsv } from '@/utils/exportCsv'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import SupplierFormDialog from '@/components/supplier/SupplierFormDialog.vue'
 import SupplierDetailDialog from '@/components/supplier/SupplierDetailDialog.vue'
@@ -344,6 +355,31 @@ function handlePageChange(page) {
 }
 
 // 操作
+const selectedRows = ref([])
+function handleSelectionChange(sel) { selectedRows.value = sel }
+
+// 导出列定义
+const exportColumns = [
+  { key: 'supplier_name', label: '供应商全称' },
+  { key: 'supplier_short_name', label: '简称' },
+  { key: 'contact_person', label: '联系人' },
+  { key: 'contact_phone', label: '电话' },
+  { key: 'contact_email', label: '邮箱' },
+  { key: 'cooperation_status', label: '合作状态' },
+  { key: 'rating', label: '评分' },
+  { key: 'cooperation_project_count', label: '合作项目数' },
+  { key: 'cooperation_total_amount', label: '合作总金额' },
+  { key: 'advantage_categories', label: '优势品类' },
+  { key: 'risk_notes', label: '风险备注' }
+]
+function handleExport() {
+  if (!selectedRows.value.length) { ElMessage.warning('请选择要导出的数据'); return }
+  const ts = new Date().toISOString().slice(0, 10)
+  const ok = exportToCsv(`供应商_${ts}.csv`, selectedRows.value, exportColumns)
+  if (ok) ElMessage.success(`已导出 ${selectedRows.value.length} 条`)
+  else ElMessage.warning('导出失败：无可用数据')
+}
+
 function handleAdd() {
   formMode.value = 'add'
   currentSupplier.value = null

@@ -7,6 +7,7 @@
       </div>
       <div class="page-actions">
         <PermissionButton permission="project:delete" @click="trashVisible = true">回收站</PermissionButton>
+        <PermissionButton permission="project:view" type="success" :icon="Download" @click="handleExport">导出</PermissionButton>
         <PermissionButton permission="project:create" type="primary" @click="handleAdd">新增注意事项</PermissionButton>
       </div>
     </div>
@@ -65,7 +66,8 @@
 
     <!-- 表格 -->
     <el-card class="table-card">
-      <el-table v-loading="loading" :data="tableData" stripe border style="width:100%">
+      <el-table v-loading="loading" :data="tableData" stripe border style="width:100%" @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="45" />
         <el-table-column label="#" width="55" align="center">
           <template #default="{ $index }">{{ (pagination.page-1)*pagination.pageSize+$index+1 }}</template>
         </el-table-column>
@@ -135,9 +137,10 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Refresh } from '@element-plus/icons-vue'
+import { Search, Refresh, Download } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getDesignNotes, deleteDesignNote, getDesignNoteTrash, restoreDesignNote, purgeDesignNote } from '@/api/designNotes'
+import { exportToCsv } from '@/utils/exportCsv'
 import PermissionButton from '@/components/common/PermissionButton.vue'
 import DesignNoteFormDialog from '@/components/designNote/DesignNoteFormDialog.vue'
 import DesignNoteDetailDialog from '@/components/designNote/DesignNoteDetailDialog.vue'
@@ -161,6 +164,28 @@ const STAGE_LABELS = { design: '设计', sample: '打样', mass: '大货', packa
 function stageLabels(stage) {
   if (!stage) return []
   return String(stage).split(',').map(s => s.trim()).filter(Boolean).map(s => STAGE_LABELS[s] || s)
+}
+
+// 导出
+const selectedRows = ref([])
+function handleSelectionChange(sel) { selectedRows.value = sel }
+const exportColumns = [
+  { key: 'title', label: '标题' },
+  { key: 'severity', label: '严重程度' },
+  { key: 'note_type', label: '类型' },
+  { key: 'stage', label: '适用阶段' },
+  { key: 'category', label: '品类' },
+  { key: 'craft', label: '工艺' },
+  { key: 'ip', label: 'IP' },
+  { key: 'content', label: '问题描述' },
+  { key: 'correct_practice', label: '正确做法' }
+]
+function handleExport() {
+  if (!selectedRows.value.length) { ElMessage.warning('请选择要导出的数据'); return }
+  const ts = new Date().toISOString().slice(0, 10)
+  const ok = exportToCsv(`注意事项_${ts}.csv`, selectedRows.value, exportColumns)
+  if (ok) ElMessage.success(`已导出 ${selectedRows.value.length} 条`)
+  else ElMessage.warning('导出失败：无可用数据')
 }
 
 async function loadData() {
