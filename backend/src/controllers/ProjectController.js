@@ -6,17 +6,8 @@ const db = require('../config/database')
 const { validate } = require('../utils/validator')
 const { recalcSupplierStats, recalcSuppliersStats } = require('../utils/supplierStats')
 const { syncTags } = require('../utils/tagWrite')
-const { getTagsByRecord } = require('../utils/tagQuery')
+const { getTagsByRecord, tagExistsClause } = require('../utils/tagQuery')
 const { humanizeImportError } = require('../utils/importError')
-
-// project 的 ip_tag_ids 存的是 IP 名称（文本输入），转成 tag_id 数组（category/craft/scene 前端未启用）
-async function ipNamesToIds(names) {
-  const arr = String(names || '').split(',').map(s => s.trim()).filter(Boolean)
-  if (!arr.length) return []
-  const ph = arr.map(() => '?').join(',')
-  const rows = await db.query(`SELECT id FROM tag WHERE tag_type='ip' AND tag_name IN (${ph}) AND is_delete=0`, arr)
-  return rows.map(r => r.id)
-}
 
 class ProjectController {
   /**
@@ -40,10 +31,10 @@ class ProjectController {
         params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`, `%${keyword}%`, `%${keyword}%`)
       }
 
-      // IP标签筛选
+      // IP标签筛选（走关联表 EXISTS，前端下拉传 tag id）
       if (ip) {
-        whereClause += ' AND p.ip_tag_ids LIKE ?'
-        params.push(`%${ip}%`)
+        whereClause += ` AND ${tagExistsClause('project', 'p', 'ip')}`
+        params.push(ip)
       }
 
       if (project_year) {
@@ -148,6 +139,8 @@ class ProjectController {
       project.categoryTagDetails = await fetchDetails(tagMap.category)
       project.craftTagDetails = await fetchDetails(tagMap.craft)
       project.sceneTagDetails = await fetchDetails(tagMap.scene)
+      // 表单 IP 下拉用 id 回填（关联表查出），替代旧的 ip_tag_ids 名称
+      project.ip_tag_id = tagMap.ip[0] || null
 
       res.json(Response.success(project))
     } catch (error) {
@@ -229,9 +222,9 @@ class ProjectController {
 
       // 触发供应商统计重算（合作项目数/总金额）
       try { await recalcSupplierStats(supplier_id) } catch {}
-      // 写标签关联表（ip 为名称需转 id；旧逗号字段由 INSERT 已写入）
+      // 写标签关联表（前端 IP 下拉传 tag id；旧逗号字段由 INSERT 已写入 id）
       try {
-        const ipIds = await ipNamesToIds(ip_tag_ids)
+        const ipIds = String(ip_tag_ids || '').split(',').map(Number).filter(n => !isNaN(n))
         if (ipIds.length) await syncTags('project', result.insertId, { ip: ipIds })
       } catch {}
 
@@ -309,10 +302,10 @@ class ProjectController {
         await recalcSuppliersStats([oldRow?.supplier_id, newRow?.supplier_id])
       } catch {}
 
-      // 若传了 ip_tag_ids，同步关联表（名称转 id；双写旧字段已由 UPDATE 处理）
+      // 若传了 ip_tag_ids，同步关联表（前端传 tag id；双写旧字段已由 UPDATE 处理）
       if (ip_tag_ids !== undefined) {
         try {
-          const ipIds = await ipNamesToIds(ip_tag_ids)
+          const ipIds = String(ip_tag_ids || '').split(',').map(Number).filter(n => !isNaN(n))
           await syncTags('project', id, { ip: ipIds })
         } catch {}
       }
@@ -564,11 +557,13 @@ class ProjectController {
          WHERE p.is_delete = 0 AND s.supplier_name IS NOT NULL
          ORDER BY v`
       )
-      const [ipTagIds, years, reqTypes] = await Promise.all([
-        pick('ip_tag_ids'), pick('project_year'), pick('requirement_type')
+      // IP 下拉用 tag 表的 ip 类标签（id+name），替代旧的 DISTINCT ip_tag_ids 名称
+      const ipTagRows = await db.query("SELECT id, tag_name FROM tag WHERE tag_type='ip' AND is_delete=0 AND status=1 ORDER BY sort, tag_name")
+      const [years, reqTypes] = await Promise.all([
+        pick('project_year'), pick('requirement_type')
       ])
       res.json(Response.success({
-        ipTagIds,
+        ipTagIds: ipTagRows,
         years,
         suppliers: supplierRows.map(r => r.v),
         reqTypes

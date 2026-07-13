@@ -38,7 +38,7 @@
           <el-col :xs="24" :sm="12" :md="8" :lg="6">
             <el-form-item label="IP" class="filter-item">
               <el-select v-model="filterForm.ip" placeholder="选择IP" clearable filterable style="width:100%">
-                <el-option v-for="ip in ipOptions" :key="ip" :label="ip" :value="ip" />
+                <el-option v-for="ip in ipOptions" :key="ip.id" :label="ip.tag_name" :value="ip.id" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -119,8 +119,8 @@
         <!-- 1. 文本 -->
         <el-table-column prop="product_name" label="文本" min-width="160" show-overflow-tooltip fixed />
         <!-- 2. IP -->
-        <el-table-column v-if="columnVisible.ip" prop="ip_tag_ids" label="IP" width="90">
-          <template #default="{ row }"><span>{{ row.ip_tag_ids || '-' }}</span></template>
+        <el-table-column v-if="columnVisible.ip" prop="ip_tag_names" label="IP" width="90">
+          <template #default="{ row }"><span>{{ row.ip_tag_names || '-' }}</span></template>
         </el-table-column>
         <!-- 3. 年份 -->
         <el-table-column v-if="columnVisible.year" prop="project_year" label="年份" width="65" align="center">
@@ -566,7 +566,7 @@ const exportColumns = [
   { key: 'product_name', label: '单品' },
   { key: 'project_name', label: '项目' },
   { key: 'project_year', label: '年份' },
-  { key: 'ip_tag_ids', label: 'IP' },
+  { key: 'ip_tag_names', label: 'IP' },
   { key: 'supplier_name', label: '供应商' },
   { key: 'project_leader', label: '主要负责人' },
   { key: 'requester', label: '需求人' },

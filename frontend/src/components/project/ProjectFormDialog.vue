@@ -18,7 +18,9 @@
         <!-- 2. IP -->
         <el-col :span="12">
           <el-form-item label="IP">
-            <el-input v-model="formData.ip_tag_ids" placeholder="如 无限暖暖" />
+            <el-select v-model="formData.ip_tag_ids" placeholder="选择IP" filterable clearable style="width:100%">
+              <el-option v-for="ip in ipOptions" :key="ip.id" :label="ip.tag_name" :value="String(ip.id)" />
+            </el-select>
           </el-form-item>
         </el-col>
         <!-- 3. 年份 -->
@@ -162,11 +164,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, computed } from 'vue'
+import { ref, reactive, watch, computed, onMounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { createProject, updateProject } from '@/api/projects'
 import request from '@/api/request'
+import { getTagsByType } from '@/api/tags'
 import { usePasteUpload } from '@/composables/usePasteUpload'
 
 const props = defineProps({
@@ -204,6 +207,8 @@ watch(() => props.projectData, (newData) => {
     Object.keys(formData).forEach(k => {
       if (newData[k] !== undefined) formData[k] = newData[k]
     })
+    // IP 下拉用 id 回填（后端 detail 返回 ip_tag_id），覆盖旧的 ip_tag_ids 名称
+    if (newData.ip_tag_id !== undefined) formData.ip_tag_ids = newData.ip_tag_id ? String(newData.ip_tag_id) : ''
     // 解析已有报价单
     quotationFiles.value = newData.quotation_file
       ? String(newData.quotation_file).split(',').map(f => f.trim()).filter(Boolean)
@@ -212,6 +217,15 @@ watch(() => props.projectData, (newData) => {
 }, { immediate: true })
 
 watch(() => props.modelValue, (v) => { if (!v) resetForm() })
+
+// IP 标签下拉选项（从 tag 表加载，value 为 id）
+const ipOptions = ref([])
+onMounted(async () => {
+  try {
+    const res = await getTagsByType('ip')
+    ipOptions.value = res.data?.list || res.data || []
+  } catch {}
+})
 
 function resetForm() {
   formData.product_name = ''; formData.ip_tag_ids = null; formData.project_year = ''

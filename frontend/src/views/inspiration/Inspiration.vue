@@ -57,7 +57,7 @@
       <el-empty v-if="!loading && !tableData.length" description="暂无数据" />
       <div v-for="item in tableData" :key="item.id" class="inspiration-card" @click="handleView(item)">
         <div class="card-image">
-          <el-image v-if="item.cover_image" :src="toImageUrl(item.cover_image)" fit="cover" />
+          <el-image v-if="item.cover_image" :src="toImageUrl(item.cover_image)" fit="cover" lazy />
           <div v-else class="no-image"><el-icon :size="32"><Picture /></el-icon><span>暂无截图</span></div>
           <div class="type-badge">
             <el-tag size="small" type="primary">{{ tabLabelMap[item.inspiration_type] || '未分类' }}</el-tag>
