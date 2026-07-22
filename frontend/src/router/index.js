@@ -52,6 +52,12 @@ const routes = [
         meta: { requiresAuth: true, title: '灵感库' }
       },
       {
+        path: 'candidates',
+        name: 'CandidateReview',
+        component: () => import('@/views/candidate/CandidateReview.vue'),
+        meta: { requiresAuth: true, title: '灵感采集' }
+      },
+      {
         path: 'design-notes',
         name: 'DesignNotes',
         component: () => import('@/views/designNote/DesignNotes.vue'),

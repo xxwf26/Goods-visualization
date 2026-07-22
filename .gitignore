@@ -32,3 +32,6 @@ backend/uploads/*
 # 流量统计运行数据
 traffic_stats.json
 backups/
+
+# DB 备份文件（各机器本地，勿入库）
+database/backup_*.sql
