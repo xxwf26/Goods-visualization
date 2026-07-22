@@ -35,3 +35,7 @@ backups/
 
 # DB 备份文件（各机器本地，勿入库）
 database/backup_*.sql
+
+# 小红书登录态（含cookie，各机器本地，勿入库）
+.xhs-auth.json
+backend/.xhs-auth.json

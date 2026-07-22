@@ -38,6 +38,31 @@ export function restoreCandidate(id) {
   return request.post(`/candidates/${id}/restore`)
 }
 
+/** 发起关键词采集 { keywords:[], limit }，返回 { run_id } */
+export function startCrawl(data) {
+  return request.post('/candidates/crawl', data)
+}
+
+/** 采集批次状态 */
+export function getCrawlStatus(runId) {
+  return request.get(`/candidates/crawl/${runId}`)
+}
+
+/** 采集批次列表 */
+export function getCrawlRuns() {
+  return request.get('/candidates/crawl-runs')
+}
+
+/** 小红书 cookie 是否已配置 { configured } */
+export function getXhsCookieStatus() {
+  return request.get('/candidates/xhs-cookie-status')
+}
+
+/** 小红书扫码登录（阻塞，服务端弹出浏览器，最长约130秒） */
+export function xhsLogin() {
+  return request.post('/candidates/xhs-login', {}, { timeout: 180000 })
+}
+
 export default {
   getCandidates,
   getCandidateCounts,
@@ -45,5 +70,10 @@ export default {
   createCandidate,
   adoptCandidate,
   rejectCandidate,
-  restoreCandidate
+  restoreCandidate,
+  startCrawl,
+  getCrawlStatus,
+  getCrawlRuns,
+  getXhsCookieStatus,
+  xhsLogin
 }

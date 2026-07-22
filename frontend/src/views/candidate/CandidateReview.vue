@@ -10,7 +10,9 @@
         <el-button v-if="userStore.isEditor" type="primary" @click="addDialogVisible = true">
           <el-icon><Plus /></el-icon> 贴链接入队
         </el-button>
-        <el-button v-if="userStore.isEditor" :icon="Search" disabled title="P2 阶段接入">关键词采集（开发中）</el-button>
+        <el-button v-if="userStore.isEditor" type="success" @click="openCrawl">
+          <el-icon><Search /></el-icon> 关键词采集
+        </el-button>
       </div>
     </div>
 
@@ -122,17 +124,44 @@
         <el-button type="success" :loading="adopting" @click="doAdopt">确认转正</el-button>
       </template>
     </el-dialog>
+
+    <!-- 关键词采集弹窗 -->
+    <el-dialog v-model="crawlDialogVisible" title="关键词采集小红书最新灵感" width="520px">
+      <el-alert v-if="!cookieConfigured" type="warning" :closable="false" style="margin-bottom: 12px">
+        尚未登录小红书，采集会拿不到数据。请先点下方「扫码登录」（会在服务器弹出浏览器窗口）。
+      </el-alert>
+      <el-alert v-else type="success" :closable="false" style="margin-bottom: 12px">
+        已登录小红书。采集后帖子进入「待复核」，需人工确认后才进灵感库。
+      </el-alert>
+      <el-form label-width="80px">
+        <el-form-item label="关键词">
+          <el-select v-model="crawlForm.keywords" multiple filterable allow-create default-first-option
+            placeholder="输入采购主题，回车添加，如 亚克力吧唧 / 醒型POP" style="width: 100%">
+            <el-option v-for="kw in commonKeywords" :key="kw" :label="kw" :value="kw" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="每次数量">
+          <el-input-number v-model="crawlForm.limit" :min="10" :max="200" :step="10" />
+          <span class="form-hint">总召回上限（多关键词均分）</span>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button :loading="logging" @click="doLogin">扫码登录小红书</el-button>
+        <el-button @click="crawlDialogVisible = false">取消</el-button>
+        <el-button type="success" :loading="crawling" :disabled="!crawlForm.keywords.length" @click="doCrawl">开始采集</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 import { Plus, Search, Picture, Star, FolderOpened } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { formatCount } from '@/utils/format'
 import { safeUrl } from '@/utils/safeUrl'
-import { getCandidates, getCandidateCounts, createCandidate, adoptCandidate, rejectCandidate, restoreCandidate } from '@/api/candidates'
+import { getCandidates, getCandidateCounts, createCandidate, adoptCandidate, rejectCandidate, restoreCandidate, startCrawl, getCrawlStatus, getXhsCookieStatus, xhsLogin } from '@/api/candidates'
 
 const userStore = useUserStore()
 
@@ -152,6 +181,15 @@ const addForm = reactive({ source_url: '', keyword: '' })
 const adoptDialogVisible = ref(false)
 const adopting = ref(false)
 const adoptForm = reactive({ id: null, title: '', inspiration_type: 'peripheral' })
+
+// 关键词采集
+const crawlDialogVisible = ref(false)
+const crawling = ref(false)
+const logging = ref(false)
+const cookieConfigured = ref(false)
+const crawlForm = reactive({ keywords: [], limit: 60 })
+const commonKeywords = ['亚克力吧唧', '醒型POP', '谷子周边', '徽章', '亚克力立牌', '拍立得卡', '色纸', '毛绒挂件']
+let crawlPollTimer = null
 
 function toImageUrl(v) {
   if (!v) return ''
@@ -245,9 +283,69 @@ async function doRestore(item) {
   } catch (e) { ElMessage.error(e.response?.data?.message || '操作失败') }
 }
 
+async function openCrawl() {
+  crawlDialogVisible.value = true
+  try {
+    const res = await getXhsCookieStatus()
+    cookieConfigured.value = !!res.data?.configured
+  } catch { cookieConfigured.value = false }
+}
+
+async function doLogin() {
+  logging.value = true
+  ElMessage.info('正在服务器打开小红书登录页，请在弹出的浏览器窗口用手机扫码（120秒内）')
+  try {
+    await xhsLogin()
+    ElMessage.success('登录成功，cookie 已保存')
+    cookieConfigured.value = true
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '登录失败或超时')
+  } finally { logging.value = false }
+}
+
+async function doCrawl() {
+  if (!crawlForm.keywords.length) return ElMessage.warning('请至少输入一个关键词')
+  crawling.value = true
+  try {
+    const res = await startCrawl({ keywords: crawlForm.keywords, limit: crawlForm.limit })
+    const runId = res.data?.run_id
+    ElMessage.success('采集已启动，正在后台运行，完成后自动刷新')
+    crawlDialogVisible.value = false
+    pollCrawl(runId)
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '采集启动失败')
+  } finally { crawling.value = false }
+}
+
+// 轮询批次状态，完成后刷新列表
+function pollCrawl(runId) {
+  if (!runId) return
+  if (crawlPollTimer) clearInterval(crawlPollTimer)
+  let ticks = 0
+  crawlPollTimer = setInterval(async () => {
+    ticks++
+    try {
+      const res = await getCrawlStatus(runId)
+      const run = res.data
+      if (run && run.status !== 'running') {
+        clearInterval(crawlPollTimer); crawlPollTimer = null
+        if (run.status === 'ok') ElMessage.success(`采集完成：召回 ${run.recalled} 篇，新增候选 ${run.new_count} 条`)
+        else ElMessage.warning(`采集失败：${(run.error || '').slice(0, 80)}`)
+        activeStatus.value = 'pending'
+        reload()
+      }
+    } catch { /* 忽略单次轮询失败 */ }
+    if (ticks > 120) { clearInterval(crawlPollTimer); crawlPollTimer = null } // 最长轮询 ~10 分钟
+  }, 5000)
+}
+
 onMounted(() => {
   loadList()
   loadCounts()
+})
+
+onBeforeUnmount(() => {
+  if (crawlPollTimer) clearInterval(crawlPollTimer)
 })
 </script>
 
@@ -277,5 +375,6 @@ onMounted(() => {
 .card-stats span { display: flex; align-items: center; gap: 2px; }
 .card-actions { padding: 8px 10px; border-top: 1px solid var(--el-border-color-lighter); display: flex; align-items: center; gap: 8px; }
 .jump-link { font-size: 13px; color: var(--el-color-primary); text-decoration: none; margin-right: auto; }
+.form-hint { color: #999; font-size: 12px; margin-left: 8px; }
 .pagination-wrapper { margin-top: 20px; display: flex; justify-content: center; }
 </style>

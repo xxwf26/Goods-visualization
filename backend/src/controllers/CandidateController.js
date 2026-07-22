@@ -10,6 +10,7 @@ const { validate } = require('../utils/validator')
 const MetaFetcher = require('../services/MetaFetcher')
 const { downloadImage } = require('../utils/imageDownload')
 const { isSensitiveSource } = require('../utils/urlSafety')
+const XhsCrawlerService = require('../services/XhsCrawlerService')
 
 const STATUSES = ['pending', 'adopted', 'rejected']
 
@@ -233,6 +234,70 @@ class CandidateController {
       if (rows[0].status === 'pending') return res.json(Response.success(null, '候选已是待复核状态'))
       await db.query(`UPDATE inspiration_candidate SET status = 'pending', reviewed_by = NULL WHERE id = ?`, [req.params.id])
       res.json(Response.success(null, '已恢复到待复核'))
+    } catch (error) { next(error) }
+  }
+
+  // ============ 关键词采集（P2） ============
+
+  /**
+   * 发起采集 POST /api/candidates/crawl { keywords, limit }
+   * 立即返回 runId，后台异步跑。
+   */
+  async startCrawl(req, res, next) {
+    try {
+      const { keywords, limit } = req.body
+      if (!keywords || (Array.isArray(keywords) && !keywords.length)) {
+        return res.status(400).json(Response.badRequest('请提供关键词'))
+      }
+      const { runId } = await XhsCrawlerService.startCrawl({
+        keywords,
+        limit: Math.min(parseInt(limit) || 60, 200),
+        userId: req.user?.id
+      })
+      res.json(Response.success({ run_id: runId }, '采集已启动，正在后台运行'))
+    } catch (error) {
+      res.status(400).json(Response.badRequest(error.message || '采集启动失败'))
+    }
+  }
+
+  /**
+   * 采集批次状态 GET /api/candidates/crawl/:runId
+   */
+  async crawlStatus(req, res, next) {
+    try {
+      const run = await XhsCrawlerService.getRun(req.params.runId)
+      if (!run) return res.status(404).json(Response.notFound('批次不存在'))
+      res.json(Response.success(run))
+    } catch (error) { next(error) }
+  }
+
+  /**
+   * 采集批次列表 GET /api/candidates/crawl-runs
+   */
+  async crawlRuns(req, res, next) {
+    try {
+      res.json(Response.success(await XhsCrawlerService.listRuns(20)))
+    } catch (error) { next(error) }
+  }
+
+  /**
+   * 小红书扫码登录 POST /api/candidates/xhs-login（阻塞，弹出浏览器窗口扫码）
+   */
+  async xhsLogin(req, res, next) {
+    try {
+      const out = await XhsCrawlerService.runLoginProcess()
+      if (out.success) res.json(Response.success(null, '登录成功，cookie 已保存'))
+      else res.status(400).json(Response.badRequest(out.error || '登录失败'))
+    } catch (error) { next(error) }
+  }
+
+  /**
+   * cookie 状态 GET /api/candidates/xhs-cookie-status（只返回是否已配置，不回传明文）
+   */
+  async xhsCookieStatus(req, res, next) {
+    try {
+      const cookie = await XhsCrawlerService.getCookie()
+      res.json(Response.success({ configured: !!cookie }))
     } catch (error) { next(error) }
   }
 }
