@@ -8,7 +8,7 @@ SET @db := DATABASE();
 CREATE TABLE IF NOT EXISTS crawl_run (
   id          BIGINT AUTO_INCREMENT PRIMARY KEY,
   keywords    VARCHAR(500)  COMMENT '本次搜索的关键词（逗号分隔）',
-  status      VARCHAR(20)   DEFAULT 'running' COMMENT 'running=进行中, ok=完成, failed=失败',
+  status      VARCHAR(20)   DEFAULT 'running' COMMENT 'running=进行中、ok=完成、failed=失败',
   recalled    INT           DEFAULT 0 COMMENT '召回帖子总数（去重前）',
   new_count   INT           DEFAULT 0 COMMENT '去重后新增候选数',
   error       VARCHAR(500)  COMMENT '失败原因',
