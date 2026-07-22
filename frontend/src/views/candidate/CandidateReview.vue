@@ -16,6 +16,19 @@
       </div>
     </div>
 
+    <!-- 采集进度条（采集运行中常驻显示，刷新页面也能恢复） -->
+    <div v-if="crawlProgress" class="crawl-progress">
+      <el-icon class="spin"><Loading /></el-icon>
+      <div class="cp-body">
+        <div class="cp-text">
+          <b>正在采集：</b>{{ crawlProgress.keywords }}
+          <span class="cp-phase">· {{ crawlPhaseText }}</span>
+          <span class="cp-time">· 已用 {{ crawlElapsed }}s</span>
+        </div>
+        <el-progress :percentage="crawlPercent" :status="crawlProgress.status === 'failed' ? 'exception' : undefined" :stroke-width="8" />
+      </div>
+    </div>
+
     <!-- 状态 Tab（带计数角标） -->
     <el-tabs v-model="activeStatus" @tab-change="onStatusChange">
       <el-tab-pane name="pending">
@@ -169,13 +182,13 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
-import { Plus, Search, Picture, Star, FolderOpened } from '@element-plus/icons-vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import { Plus, Search, Picture, Star, FolderOpened, Loading } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { formatCount } from '@/utils/format'
 import { safeUrl } from '@/utils/safeUrl'
-import { getCandidates, getCandidateCounts, createCandidate, adoptCandidate, rejectCandidate, restoreCandidate, startCrawl, getCrawlStatus, getXhsCookieStatus, xhsLogin, scorePending, batchAdopt, batchReject } from '@/api/candidates'
+import { getCandidates, getCandidateCounts, createCandidate, adoptCandidate, rejectCandidate, restoreCandidate, startCrawl, getCrawlStatus, getCrawlRuns, getXhsCookieStatus, xhsLogin, scorePending, batchAdopt, batchReject } from '@/api/candidates'
 
 const userStore = useUserStore()
 
@@ -204,6 +217,29 @@ const cookieConfigured = ref(false)
 const crawlForm = reactive({ keywords: [], limit: 60 })
 const commonKeywords = ['亚克力吧唧', '醒型POP', '谷子周边', '徽章', '亚克力立牌', '拍立得卡', '色纸', '毛绒挂件']
 let crawlPollTimer = null
+
+// 采集进度：正在运行的批次（null=无）。crawlProgress = { runId, keywords, status, recalled, new_count, limit, startAt }
+const crawlProgress = ref(null)
+const crawlElapsed = ref(0)
+let elapsedTimer = null
+
+// 阶段文字：搜索中（recalled 未知）→ 入库中 x/N → 完成
+const crawlPhaseText = computed(() => {
+  const p = crawlProgress.value
+  if (!p) return ''
+  if (p.status === 'failed') return '采集失败'
+  if (!p.recalled) return '搜索小红书中…'
+  return `入库处理中 ${p.new_count || 0}/${p.recalled}`
+})
+
+// 进度百分比：搜索阶段给个缓动假进度(封顶40%)，入库阶段按 new/recalled 映射到 40~100%
+const crawlPercent = computed(() => {
+  const p = crawlProgress.value
+  if (!p) return 0
+  if (!p.recalled) return Math.min(40, Math.round(crawlElapsed.value / 60 * 40)) // 搜索阶段随时间缓增到40%
+  const ratio = p.recalled ? (p.new_count || 0) / p.recalled : 0
+  return Math.min(99, 40 + Math.round(ratio * 59))
+})
 
 // AI 预筛 + 批量
 const scoring = ref(false)
@@ -328,15 +364,28 @@ async function doCrawl() {
   try {
     const res = await startCrawl({ keywords: crawlForm.keywords, limit: crawlForm.limit })
     const runId = res.data?.run_id
-    ElMessage.success('采集已启动，正在后台运行，完成后自动刷新')
+    ElMessage.success('采集已启动，进度见页面顶部')
     crawlDialogVisible.value = false
+    startProgress({ runId, keywords: crawlForm.keywords.join('、'), status: 'running', recalled: 0, new_count: 0 })
     pollCrawl(runId)
   } catch (e) {
     ElMessage.error(e.response?.data?.message || '采集启动失败')
   } finally { crawling.value = false }
 }
 
-// 轮询批次状态，完成后刷新列表
+// 显示进度条并启动"已用时"计时器
+function startProgress(p) {
+  crawlProgress.value = p
+  crawlElapsed.value = 0
+  if (elapsedTimer) clearInterval(elapsedTimer)
+  elapsedTimer = setInterval(() => { crawlElapsed.value++ }, 1000)
+}
+function stopProgress() {
+  if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null }
+  crawlProgress.value = null
+}
+
+// 轮询批次状态：实时喂进度条，完成后刷新列表并 2 秒后收起进度条
 function pollCrawl(runId) {
   if (!runId) return
   if (crawlPollTimer) clearInterval(crawlPollTimer)
@@ -346,16 +395,35 @@ function pollCrawl(runId) {
     try {
       const res = await getCrawlStatus(runId)
       const run = res.data
-      if (run && run.status !== 'running') {
+      if (!run) return
+      // 更新进度条数据（保留 keywords 显示）
+      if (crawlProgress.value) {
+        crawlProgress.value = { ...crawlProgress.value, status: run.status, recalled: run.recalled, new_count: run.new_count }
+      }
+      if (run.status !== 'running') {
         clearInterval(crawlPollTimer); crawlPollTimer = null
         if (run.status === 'ok') ElMessage.success(`采集完成：召回 ${run.recalled} 篇，新增候选 ${run.new_count} 条`)
         else ElMessage.warning(`采集失败：${(run.error || '').slice(0, 80)}`)
         activeStatus.value = 'pending'
         reload()
+        // 完成态进度条停留 2.5 秒再收起，让用户看到结果
+        setTimeout(stopProgress, 2500)
       }
     } catch { /* 忽略单次轮询失败 */ }
-    if (ticks > 120) { clearInterval(crawlPollTimer); crawlPollTimer = null } // 最长轮询 ~10 分钟
-  }, 5000)
+    if (ticks > 120) { clearInterval(crawlPollTimer); crawlPollTimer = null; stopProgress() } // 最长轮询 ~10 分钟
+  }, 3000)
+}
+
+// 页面进入时若有正在跑的采集批次，恢复进度显示（刷新/重进不丢进度）
+async function resumeRunningCrawl() {
+  try {
+    const res = await getCrawlRuns()
+    const running = (res.data || []).find(r => r.status === 'running')
+    if (running) {
+      startProgress({ runId: running.id, keywords: running.keywords, status: 'running', recalled: running.recalled, new_count: running.new_count })
+      pollCrawl(running.id)
+    }
+  } catch { /* 忽略 */ }
 }
 
 async function doScorePending() {
@@ -388,10 +456,12 @@ async function doBatchReject() {
 onMounted(() => {
   loadList()
   loadCounts()
+  resumeRunningCrawl()
 })
 
 onBeforeUnmount(() => {
   if (crawlPollTimer) clearInterval(crawlPollTimer)
+  if (elapsedTimer) clearInterval(elapsedTimer)
 })
 </script>
 
@@ -401,6 +471,13 @@ onBeforeUnmount(() => {
 .page-title { margin: 0; font-size: 20px; }
 .page-desc { color: #999; font-size: 12px; }
 .tab-badge { margin-left: 2px; }
+.crawl-progress { display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 12px; border: 1px solid var(--el-color-primary-light-5); background: var(--el-color-primary-light-9); border-radius: 8px; }
+.crawl-progress .spin { font-size: 18px; color: var(--el-color-primary); animation: cp-spin 1s linear infinite; }
+.crawl-progress .cp-body { flex: 1; }
+.crawl-progress .cp-text { font-size: 13px; color: var(--el-text-color-primary); margin-bottom: 6px; }
+.crawl-progress .cp-phase { color: var(--el-color-primary); }
+.crawl-progress .cp-time { color: #999; }
+@keyframes cp-spin { to { transform: rotate(360deg); } }
 .filter-row { display: flex; gap: 8px; margin-bottom: 16px; }
 .candidate-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; min-height: 200px; }
 .candidate-card { border: 1px solid var(--el-border-color-light); border-radius: 10px; overflow: hidden; background: var(--el-bg-color); display: flex; flex-direction: column; transition: box-shadow .2s; }

@@ -88,8 +88,12 @@ class XhsCrawlerService {
     const { items = [], skippedVideo = 0, skippedAd = 0 } = await XhsCrawlerService.runSearchProcess(keywords, limit, cookie)
     console.log(`[xhs-crawl] 批次 ${runId} 召回 ${items.length} 帖（跳过视频${skippedVideo}/广告${skippedAd}）`)
 
-    let newCount = 0
+    // 搜索阶段结束，先写召回数（status 仍 running）→ 前端进度从"搜索中"切到"入库中 x/N"
+    await db.query(`UPDATE crawl_run SET recalled = ? WHERE id = ?`, [items.length, runId])
+
+    let newCount = 0, processed = 0
     for (const it of items) {
+      processed++
       try {
         if (!it.sourceUrl) continue
         // 去重：vs 历史候选（硬跳过）
@@ -126,6 +130,8 @@ class XhsCrawlerService {
           ]
         )
         newCount++
+        // 实时更新进度（前端轮询可见"入库中 x 条"）
+        await db.query(`UPDATE crawl_run SET new_count = ? WHERE id = ?`, [newCount, runId])
 
         // AI 预筛打分（降级：失败/无key不阻断，候选仍待人工复核）
         try {
