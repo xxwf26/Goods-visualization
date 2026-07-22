@@ -162,9 +162,24 @@ class XhsCrawlerService {
     return rows[0] || null
   }
 
-  /** 最近批次列表 */
-  static async listRuns(limit = 20) {
-    return db.query('SELECT * FROM crawl_run ORDER BY id DESC LIMIT ?', [limit])
+  /** 最近批次列表（附每批次的候选状态分布，供历史列表展示进度） */
+  static async listRuns(limit = 30) {
+    const runs = await db.query('SELECT * FROM crawl_run ORDER BY id DESC LIMIT ?', [limit])
+    if (!runs.length) return runs
+    const ids = runs.map(r => r.id)
+    const placeholders = ids.map(() => '?').join(',')
+    const breakdown = await db.query(
+      `SELECT crawl_run_id, status, COUNT(*) AS c
+       FROM inspiration_candidate WHERE crawl_run_id IN (${placeholders})
+       GROUP BY crawl_run_id, status`,
+      ids
+    )
+    const byRun = {}
+    for (const b of breakdown) {
+      if (!byRun[b.crawl_run_id]) byRun[b.crawl_run_id] = { pending: 0, adopted: 0, rejected: 0 }
+      if (byRun[b.crawl_run_id][b.status] !== undefined) byRun[b.crawl_run_id][b.status] = b.c
+    }
+    return runs.map(r => ({ ...r, breakdown: byRun[r.id] || { pending: 0, adopted: 0, rejected: 0 } }))
   }
 
   /**

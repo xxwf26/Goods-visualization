@@ -7,6 +7,9 @@
         <span class="page-desc">爬取/贴链接的灵感先入候选队列，复核后转正进灵感库</span>
       </div>
       <div class="toolbar-right">
+        <el-button @click="openHistory">
+          <el-icon><Clock /></el-icon> 采集历史
+        </el-button>
         <el-button v-if="userStore.isEditor" type="primary" @click="addDialogVisible = true">
           <el-icon><Plus /></el-icon> 贴链接入队
         </el-button>
@@ -29,8 +32,15 @@
       </div>
     </div>
 
-    <!-- 状态 Tab（带计数角标） -->
-    <el-tabs v-model="activeStatus" @tab-change="onStatusChange">
+    <!-- 批次筛选提示条：选中某次采集时显示 -->
+    <div v-if="selectedRun" class="run-filter-bar">
+      <el-icon><Clock /></el-icon>
+      <span>正在查看采集批次 <b>#{{ selectedRun.id }}</b>「{{ selectedRun.keywords }}」的全部候选</span>
+      <el-button link type="primary" size="small" @click="clearRunFilter">← 返回全部</el-button>
+    </div>
+
+    <!-- 状态 Tab（带计数角标）；按批次筛选时隐藏，改看该批次全部状态 -->
+    <el-tabs v-else v-model="activeStatus" @tab-change="onStatusChange">
       <el-tab-pane name="pending">
         <template #label>待复核 <el-badge v-if="counts.pending" :value="counts.pending" class="tab-badge" /></template>
       </el-tab-pane>
@@ -48,7 +58,7 @@
         <template #prefix><el-icon><Search /></el-icon></template>
       </el-input>
       <el-button @click="reload">查询</el-button>
-      <template v-if="activeStatus === 'pending' && userStore.isEditor">
+      <template v-if="activeStatus === 'pending' && !selectedRun && userStore.isEditor">
         <el-divider direction="vertical" />
         <el-button :loading="scoring" @click="doScorePending">AI 打分（未打分）</el-button>
         <el-popconfirm :title="`转正所有 ≥${batchAdoptScore} 分的候选（跳过疑似重复）？`" @confirm="doBatchAdopt" width="240">
@@ -178,15 +188,41 @@
         <el-button type="success" :loading="crawling" :disabled="!crawlForm.keywords.length" @click="doCrawl">开始采集</el-button>
       </template>
     </el-dialog>
+
+    <!-- 采集历史抽屉 -->
+    <el-drawer v-model="historyDrawerVisible" title="采集历史" size="440px">
+      <div v-loading="runsLoading">
+        <el-empty v-if="!runs.length" description="还没有采集记录" />
+        <div v-for="run in runs" :key="run.id" class="run-item" @click="selectRun(run)">
+          <div class="run-head">
+            <span class="run-kw">{{ run.keywords }}</span>
+            <el-tag size="small" :type="run.status === 'ok' ? 'success' : run.status === 'failed' ? 'danger' : 'warning'">
+              {{ runStatusText(run.status) }}
+            </el-tag>
+          </div>
+          <div class="run-meta">
+            <span>#{{ run.id }}</span>
+            <span>{{ formatDateTime(run.created_at) }}</span>
+            <span v-if="run.status !== 'failed'">召回 {{ run.recalled }} · 新增 {{ run.new_count }}</span>
+          </div>
+          <div v-if="run.breakdown" class="run-breakdown">
+            <span class="bd pending">待复核 {{ run.breakdown.pending }}</span>
+            <span class="bd adopted">已转正 {{ run.breakdown.adopted }}</span>
+            <span class="bd rejected">已丢弃 {{ run.breakdown.rejected }}</span>
+          </div>
+          <div v-if="run.error" class="run-error">{{ run.error }}</div>
+        </div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
-import { Plus, Search, Picture, Star, FolderOpened, Loading } from '@element-plus/icons-vue'
+import { Plus, Search, Picture, Star, FolderOpened, Loading, Clock } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
-import { formatCount } from '@/utils/format'
+import { formatCount, formatDateTime } from '@/utils/format'
 import { safeUrl } from '@/utils/safeUrl'
 import { getCandidates, getCandidateCounts, createCandidate, adoptCandidate, rejectCandidate, restoreCandidate, startCrawl, getCrawlStatus, getCrawlRuns, getXhsCookieStatus, xhsLogin, scorePending, batchAdopt, batchReject } from '@/api/candidates'
 
@@ -246,6 +282,12 @@ const scoring = ref(false)
 const batchAdoptScore = ref(85)
 const batchRejectScore = ref(50)
 
+// 采集历史
+const historyDrawerVisible = ref(false)
+const runs = ref([])
+const runsLoading = ref(false)
+const selectedRun = ref(null) // 当前按哪次采集筛选（null=看全部）
+
 function toImageUrl(v) {
   if (!v) return ''
   const s = String(v).trim()
@@ -262,12 +304,19 @@ async function loadCounts() {
 async function loadList() {
   loading.value = true
   try {
-    const res = await getCandidates({
-      status: activeStatus.value,
+    const params = {
       keyword: keyword.value || undefined,
       page: page.value,
       pageSize: pageSize.value
-    })
+    }
+    if (selectedRun.value) {
+      // 查某次采集历史：该批次全部状态
+      params.crawl_run_id = selectedRun.value.id
+      params.status = ''
+    } else {
+      params.status = activeStatus.value
+    }
+    const res = await getCandidates(params)
     list.value = res.data?.list || []
     total.value = res.data?.pagination?.total || 0
   } catch (e) { console.error(e) }
@@ -426,6 +475,37 @@ async function resumeRunningCrawl() {
   } catch { /* 忽略 */ }
 }
 
+// ===== 采集历史 =====
+async function openHistory() {
+  historyDrawerVisible.value = true
+  runsLoading.value = true
+  try {
+    const res = await getCrawlRuns()
+    runs.value = res.data || []
+  } catch (e) { ElMessage.error('加载采集历史失败') }
+  finally { runsLoading.value = false }
+}
+
+// 选中某次采集，筛出该批次候选（含各状态）
+function selectRun(run) {
+  selectedRun.value = run
+  historyDrawerVisible.value = false
+  page.value = 1
+  loadList()
+}
+
+// 清除批次筛选，回到按状态浏览
+function clearRunFilter() {
+  selectedRun.value = null
+  page.value = 1
+  loadList()
+}
+
+function runStatusText(s) {
+  return { running: '进行中', ok: '完成', failed: '失败' }[s] || s
+}
+
+
 async function doScorePending() {
   scoring.value = true
   try {
@@ -478,6 +558,18 @@ onBeforeUnmount(() => {
 .crawl-progress .cp-phase { color: var(--el-color-primary); }
 .crawl-progress .cp-time { color: #999; }
 @keyframes cp-spin { to { transform: rotate(360deg); } }
+.run-filter-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; margin-bottom: 12px; background: var(--el-color-info-light-9); border: 1px solid var(--el-border-color-light); border-radius: 8px; font-size: 13px; }
+.run-filter-bar b { color: var(--el-color-primary); }
+.run-item { padding: 12px 14px; border: 1px solid var(--el-border-color-light); border-radius: 8px; margin-bottom: 10px; cursor: pointer; transition: all .2s; }
+.run-item:hover { border-color: var(--el-color-primary); box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.run-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+.run-kw { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.run-meta { display: flex; flex-wrap: wrap; gap: 10px; color: #999; font-size: 12px; margin-bottom: 6px; }
+.run-breakdown { display: flex; gap: 10px; font-size: 12px; }
+.run-breakdown .bd.pending { color: var(--el-color-warning); }
+.run-breakdown .bd.adopted { color: var(--el-color-success); }
+.run-breakdown .bd.rejected { color: #999; }
+.run-error { margin-top: 6px; font-size: 12px; color: var(--el-color-danger); }
 .filter-row { display: flex; gap: 8px; margin-bottom: 16px; }
 .candidate-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; min-height: 200px; }
 .candidate-card { border: 1px solid var(--el-border-color-light); border-radius: 10px; overflow: hidden; background: var(--el-bg-color); display: flex; flex-direction: column; transition: box-shadow .2s; }

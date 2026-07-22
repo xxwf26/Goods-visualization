@@ -21,7 +21,9 @@ class CandidateController {
    */
   async list(req, res, next) {
     try {
-      const { status = 'pending', keyword, crawl_run_id } = req.query
+      const { keyword, crawl_run_id } = req.query
+      // 按批次查历史时允许看该批次全部状态（status 传空）；否则默认只看待复核
+      const status = req.query.status === undefined ? 'pending' : req.query.status
       const page = parseInt(req.query.page) || 1
       const pageSize = Math.min(parseInt(req.query.pageSize) || 20, 100)
       const offset = (page - 1) * pageSize
