@@ -236,6 +236,57 @@ ${(content || '').substring(0, 1200)}
   }
 
   /**
+   * 候选灵感 AI 预筛打分（P3）：判断与周边采购的相关度 + 质量，给 0-100 分 + 分类 + 一句话理由。
+   * 打分口径可由 system_setting.candidate_score_prompt 覆盖（营销岗维护"什么样的周边算好灵感"）。
+   * 无 API key / 调用失败时返回 null（降级：不阻断，候选仍待人工复核）。
+   * @param {{title?:string, description?:string, post_tags?:string}} c
+   * @returns {Promise<{score:number, category:string|null, reason:string}|null>}
+   */
+  static async scoreCandidate(c) {
+    if (!CFG.apiKey || !CFG.baseUrl) return null
+    let rubric = ''
+    try {
+      const db = require('../config/database')
+      const [row] = await db.query('SELECT setting_value FROM system_setting WHERE setting_key = ?', ['candidate_score_prompt'])
+      rubric = row?.setting_value || ''
+    } catch { /* 无自定义口径用默认 */ }
+
+    const content = [
+      c.title ? `标题：${c.title}` : '',
+      c.post_tags ? `话题标签：${c.post_tags}` : '',
+      c.description ? `正文：${String(c.description).substring(0, 800)}` : ''
+    ].filter(Boolean).join('\n')
+
+    const prompt = `你是周边（谷子/文创）采购选品专家。给下面这条小红书帖子的"作为周边采购灵感的价值"打分。
+${rubric ? '打分口径（优先遵循）：\n' + rubric + '\n' : ''}
+评分维度：与周边物料/包装/工艺/生产的相关度、灵感参考价值、内容质量。广告/带货/无关生活内容应低分。
+分类取以下之一：packaging(包装结构)/peripheral(周边品类)/effect(效果与工艺)/production(印刷与生产)。
+
+帖子内容：
+${content || '(无文本内容，仅有图片)'}
+
+只输出 JSON，不要解释，格式：{"score": 0-100整数, "category": "peripheral", "reason": "一句话理由(20字内)"}`
+
+    let resp = ''
+    try {
+      resp = await chatCompletion(CFG.textModel, [{ role: 'user', content: prompt }], 500)
+    } catch { return null }
+
+    // 鲁棒解析：容忍代码围栏/多余文本，抠出第一个 JSON 对象
+    try {
+      const m = resp.match(/\{[\s\S]*\}/)
+      if (!m) return null
+      const o = JSON.parse(m[0])
+      let score = parseInt(o.score)
+      if (isNaN(score)) return null
+      score = Math.max(0, Math.min(100, score))
+      const valid = ['packaging', 'peripheral', 'effect', 'production']
+      const category = valid.includes(o.category) ? o.category : null
+      return { score, category, reason: String(o.reason || '').slice(0, 200) }
+    } catch { return null }
+  }
+
+  /**
    * 根据搜索结果生成工作流推荐
    * @param {string} keyword 搜索关键词
    * @param {Array} groups 搜索结果分组 [{type,label,total,items:[{title,subtitle}]}]

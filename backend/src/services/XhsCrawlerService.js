@@ -8,6 +8,7 @@ const { execFile } = require('node:child_process')
 const path = require('node:path')
 const db = require('../config/database')
 const { downloadImage } = require('../utils/imageDownload')
+const AiAnalyzer = require('./AiAnalyzer')
 
 const SEARCH_SCRIPT = path.join(__dirname, '../scripts/xhs-search.mjs')
 const LOGIN_SCRIPT = path.join(__dirname, '../scripts/xhs-login.mjs')
@@ -107,7 +108,7 @@ class XhsCrawlerService {
         }
         const images = it.images?.length ? it.images.join(',') : null
 
-        await db.query(
+        const insRes = await db.query(
           `INSERT INTO inspiration_candidate
             (crawl_run_id, keyword, source_platform, source_url, title, author,
              cover_image, images, post_tags, dedup_inspiration_id, status, created_at)
@@ -125,6 +126,17 @@ class XhsCrawlerService {
           ]
         )
         newCount++
+
+        // AI 预筛打分（降级：失败/无key不阻断，候选仍待人工复核）
+        try {
+          const s = await AiAnalyzer.scoreCandidate({ title: it.title, description: '', post_tags: it.xhsTags?.join(',') })
+          if (s) {
+            await db.query(
+              `UPDATE inspiration_candidate SET ai_score = ?, ai_reason = ?, ai_category = ? WHERE id = ?`,
+              [s.score, s.reason, s.category, insRes.insertId]
+            )
+          }
+        } catch { /* 打分失败不影响入库 */ }
       } catch (e) {
         // 单帖失败（如唯一键并发冲突）不影响整批
         if (!/Duplicate entry/i.test(e.message)) console.error(`[xhs-crawl] 批次 ${runId} 单帖入库失败:`, e.message)

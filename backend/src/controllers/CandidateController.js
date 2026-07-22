@@ -300,6 +300,89 @@ class CandidateController {
       res.json(Response.success({ configured: !!cookie }))
     } catch (error) { next(error) }
   }
+
+  // ============ AI 预筛 + 批量（P3） ============
+
+  /**
+   * 给未打分的待复核候选补打分 POST /api/candidates/score-pending
+   * 用于爬取时打分失败、或改了打分口径后重打。逐条打分（AI 无 key 则跳过）。
+   */
+  async scorePending(req, res, next) {
+    try {
+      const AiAnalyzer = require('../services/AiAnalyzer')
+      const onlyUnscored = req.body?.mode !== 'all' // 默认只打未打分的
+      const rows = await db.query(
+        `SELECT id, title, description, post_tags FROM inspiration_candidate
+         WHERE status = 'pending' ${onlyUnscored ? 'AND ai_score IS NULL' : ''}
+         ORDER BY id DESC LIMIT 100`
+      )
+      let scored = 0
+      for (const c of rows) {
+        const s = await AiAnalyzer.scoreCandidate(c)
+        if (s) {
+          await db.query('UPDATE inspiration_candidate SET ai_score=?, ai_reason=?, ai_category=? WHERE id=?', [s.score, s.reason, s.category, c.id])
+          scored++
+        }
+      }
+      res.json(Response.success({ total: rows.length, scored }, `已打分 ${scored}/${rows.length} 条`))
+    } catch (error) { next(error) }
+  }
+
+  /**
+   * 批量转正 POST /api/candidates/batch-adopt { minScore }
+   * 转正所有 pending 且 ai_score >= minScore 的候选。跳过 dedup 命中的（强制人工决策）。
+   */
+  async batchAdopt(req, res, next) {
+    try {
+      const minScore = parseInt(req.body?.minScore)
+      if (isNaN(minScore)) return res.status(400).json(Response.badRequest('请提供分数阈值 minScore'))
+      const rows = await db.query(
+        `SELECT * FROM inspiration_candidate
+         WHERE status = 'pending' AND dedup_inspiration_id IS NULL AND ai_score >= ?`,
+        [minScore]
+      )
+      let done = 0
+      for (const c of rows) {
+        try {
+          await db.transaction(async (conn) => {
+            const [ins] = await conn.query(
+              `INSERT INTO inspiration (
+                 title, inspiration_type, categories, source_type, source_platform, source_name, source_url, link,
+                 author, author_url, description, post_tags, cover_image, images,
+                 like_count, save_count, comment_count, collection_status, create_user_id, create_time, update_time, is_delete
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'uncollected', ?, NOW(), NOW(), 0)`,
+              [
+                c.title || '未命名灵感', c.ai_category || 'peripheral', c.ai_category || null,
+                c.source_platform, c.source_platform, c.keyword, c.source_url, c.source_url,
+                c.author, c.author_url, c.description, c.post_tags, c.cover_image, c.images,
+                c.like_count, c.save_count, c.comment_count, req.user?.id
+              ]
+            )
+            await conn.query(`UPDATE inspiration_candidate SET status='adopted', reviewed_by=?, promoted_id=? WHERE id=?`, [req.user?.id, ins.insertId, c.id])
+          })
+          done++
+        } catch (e) { console.error(`[batch-adopt] 候选 ${c.id} 转正失败:`, e.message) }
+      }
+      res.json(Response.success({ matched: rows.length, adopted: done }, `已转正 ${done} 条（≥${minScore}分，已跳过疑似重复）`))
+    } catch (error) { next(error) }
+  }
+
+  /**
+   * 批量丢弃 POST /api/candidates/batch-reject { maxScore }
+   * 丢弃所有 pending 且 ai_score < maxScore 的候选。
+   */
+  async batchReject(req, res, next) {
+    try {
+      const maxScore = parseInt(req.body?.maxScore)
+      if (isNaN(maxScore)) return res.status(400).json(Response.badRequest('请提供分数阈值 maxScore'))
+      const result = await db.query(
+        `UPDATE inspiration_candidate SET status='rejected', reviewed_by=?
+         WHERE status='pending' AND ai_score IS NOT NULL AND ai_score < ?`,
+        [req.user?.id, maxScore]
+      )
+      res.json(Response.success({ rejected: result.affectedRows }, `已丢弃 ${result.affectedRows} 条（<${maxScore}分）`))
+    } catch (error) { next(error) }
+  }
 }
 
 module.exports = new CandidateController()

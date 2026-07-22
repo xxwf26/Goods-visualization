@@ -29,12 +29,26 @@
       </el-tab-pane>
     </el-tabs>
 
-    <!-- 搜索 -->
+    <!-- 搜索 + 批量操作 -->
     <div class="filter-row">
       <el-input v-model="keyword" placeholder="搜索标题/关键词/作者" clearable style="width: 260px" @keyup.enter="reload" @clear="reload">
         <template #prefix><el-icon><Search /></el-icon></template>
       </el-input>
       <el-button @click="reload">查询</el-button>
+      <template v-if="activeStatus === 'pending' && userStore.isEditor">
+        <el-divider direction="vertical" />
+        <el-button :loading="scoring" @click="doScorePending">AI 打分（未打分）</el-button>
+        <el-popconfirm :title="`转正所有 ≥${batchAdoptScore} 分的候选（跳过疑似重复）？`" @confirm="doBatchAdopt" width="240">
+          <template #reference>
+            <el-button type="success" plain>批量转正 ≥ <el-input-number v-model="batchAdoptScore" :min="0" :max="100" size="small" controls-position="right" style="width:70px" @click.stop /></el-button>
+          </template>
+        </el-popconfirm>
+        <el-popconfirm :title="`丢弃所有 <${batchRejectScore} 分的候选？`" @confirm="doBatchReject" width="220">
+          <template #reference>
+            <el-button type="danger" plain>批量丢弃 &lt; <el-input-number v-model="batchRejectScore" :min="0" :max="100" size="small" controls-position="right" style="width:70px" @click.stop /></el-button>
+          </template>
+        </el-popconfirm>
+      </template>
     </div>
 
     <!-- 候选卡片网格 -->
@@ -161,7 +175,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { formatCount } from '@/utils/format'
 import { safeUrl } from '@/utils/safeUrl'
-import { getCandidates, getCandidateCounts, createCandidate, adoptCandidate, rejectCandidate, restoreCandidate, startCrawl, getCrawlStatus, getXhsCookieStatus, xhsLogin } from '@/api/candidates'
+import { getCandidates, getCandidateCounts, createCandidate, adoptCandidate, rejectCandidate, restoreCandidate, startCrawl, getCrawlStatus, getXhsCookieStatus, xhsLogin, scorePending, batchAdopt, batchReject } from '@/api/candidates'
 
 const userStore = useUserStore()
 
@@ -190,6 +204,11 @@ const cookieConfigured = ref(false)
 const crawlForm = reactive({ keywords: [], limit: 60 })
 const commonKeywords = ['亚克力吧唧', '醒型POP', '谷子周边', '徽章', '亚克力立牌', '拍立得卡', '色纸', '毛绒挂件']
 let crawlPollTimer = null
+
+// AI 预筛 + 批量
+const scoring = ref(false)
+const batchAdoptScore = ref(85)
+const batchRejectScore = ref(50)
 
 function toImageUrl(v) {
   if (!v) return ''
@@ -337,6 +356,33 @@ function pollCrawl(runId) {
     } catch { /* 忽略单次轮询失败 */ }
     if (ticks > 120) { clearInterval(crawlPollTimer); crawlPollTimer = null } // 最长轮询 ~10 分钟
   }, 5000)
+}
+
+async function doScorePending() {
+  scoring.value = true
+  try {
+    const res = await scorePending()
+    ElMessage.success(res.message || '打分完成')
+    reload()
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || 'AI 打分失败（可能未配置 AI 服务）')
+  } finally { scoring.value = false }
+}
+
+async function doBatchAdopt() {
+  try {
+    const res = await batchAdopt(batchAdoptScore.value)
+    ElMessage.success(res.message || '批量转正完成')
+    reload()
+  } catch (e) { ElMessage.error(e.response?.data?.message || '批量转正失败') }
+}
+
+async function doBatchReject() {
+  try {
+    const res = await batchReject(batchRejectScore.value)
+    ElMessage.success(res.message || '批量丢弃完成')
+    reload()
+  } catch (e) { ElMessage.error(e.response?.data?.message || '批量丢弃失败') }
 }
 
 onMounted(() => {

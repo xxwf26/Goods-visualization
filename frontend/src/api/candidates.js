@@ -63,6 +63,21 @@ export function xhsLogin() {
   return request.post('/candidates/xhs-login', {}, { timeout: 180000 })
 }
 
+/** 给未打分的待复核候选补打分。{ mode: 'all' } 重打全部 */
+export function scorePending(data = {}) {
+  return request.post('/candidates/score-pending', data, { timeout: 300000 })
+}
+
+/** 批量转正 ≥ minScore（跳过疑似重复） */
+export function batchAdopt(minScore) {
+  return request.post('/candidates/batch-adopt', { minScore })
+}
+
+/** 批量丢弃 < maxScore */
+export function batchReject(maxScore) {
+  return request.post('/candidates/batch-reject', { maxScore })
+}
+
 export default {
   getCandidates,
   getCandidateCounts,
@@ -75,5 +90,8 @@ export default {
   getCrawlStatus,
   getCrawlRuns,
   getXhsCookieStatus,
-  xhsLogin
+  xhsLogin,
+  scorePending,
+  batchAdopt,
+  batchReject
 }
