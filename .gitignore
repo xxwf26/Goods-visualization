@@ -40,3 +40,8 @@ database/backup_*.sql
 .xhs-auth.json
 backend/.xhs-auth.json
 !backend/uploads/.gitkeep
+
+# 本地代码导读文档，不提交
+代码导读.md
+backend/uploads_backup.zip
+uploads_backup.zip

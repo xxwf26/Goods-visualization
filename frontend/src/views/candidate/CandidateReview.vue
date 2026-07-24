@@ -301,8 +301,8 @@ async function loadCounts() {
   } catch (e) { /* 静默 */ }
 }
 
-async function loadList() {
-  loading.value = true
+async function loadList(silent = false) {
+  if (!silent) loading.value = true
   try {
     const params = {
       keyword: keyword.value || undefined,
@@ -320,7 +320,7 @@ async function loadList() {
     list.value = res.data?.list || []
     total.value = res.data?.pagination?.total || 0
   } catch (e) { console.error(e) }
-  finally { loading.value = false }
+  finally { if (!silent) loading.value = false }
 }
 
 function reload() {
@@ -434,11 +434,12 @@ function stopProgress() {
   crawlProgress.value = null
 }
 
-// 轮询批次状态：实时喂进度条，完成后刷新列表并 2 秒后收起进度条
+// 轮询批次状态：实时喂进度条；采集中 new_count 增长即刷新列表(近实时显示新候选)，完成后刷新并收起
 function pollCrawl(runId) {
   if (!runId) return
   if (crawlPollTimer) clearInterval(crawlPollTimer)
   let ticks = 0
+  let lastNewCount = 0
   crawlPollTimer = setInterval(async () => {
     ticks++
     try {
@@ -448,6 +449,12 @@ function pollCrawl(runId) {
       // 更新进度条数据（保留 keywords 显示）
       if (crawlProgress.value) {
         crawlProgress.value = { ...crawlProgress.value, status: run.status, recalled: run.recalled, new_count: run.new_count }
+      }
+      // 采集中：有新候选入库就静默刷新列表(近实时，不闪 loading)，让用户立刻看到新增
+      if (run.status === 'running' && run.new_count > lastNewCount) {
+        lastNewCount = run.new_count
+        loadList(true)
+        loadCounts()
       }
       if (run.status !== 'running') {
         clearInterval(crawlPollTimer); crawlPollTimer = null
