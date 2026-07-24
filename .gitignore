@@ -45,3 +45,8 @@ backend/.xhs-auth.json
 代码导读.md
 backend/uploads_backup.zip
 uploads_backup.zip
+
+# 数据库导出文件(给同事的，不进git)
+database/goods_visualization_full_dump.sql
+database/goods_visualization_full_dump.zip
+database/导入说明.txt
